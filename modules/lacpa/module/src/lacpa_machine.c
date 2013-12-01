@@ -34,14 +34,14 @@
 uint8_t
 slow_protocols_address[OF_MAC_ADDR_BYTES] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x02};
 uint8_t
-test_src_mac_address[OF_MAC_ADDR_BYTES] = {0x55, 0x16, 0xc7, 0xff, 0xff, 0x07};
+port_src_mac_address[OF_MAC_ADDR_BYTES] = {0x55, 0x16, 0xc7, 0xff, 0xff, 0x07};
 
 /*
  * lacpa_dump_state
  *
  * Dumps the actor/partner state flags
  */
-extern void
+void
 lacpa_dump_state (lacpa_port_t *port)
 {
     if (!port) return;
@@ -81,7 +81,7 @@ lacpa_dump_state (lacpa_port_t *port)
  *
  * Dumps the current port information
  */
-extern void
+void
 lacpa_dump_port (lacpa_port_t *port)
 {
     if (!port) return;
@@ -132,7 +132,7 @@ lacpa_update_partner (lacpa_port_t *port, lacpa_pdu_t *pdu)
         if (port->is_converged) {
             AIM_LOG_TRACE("Mis-match in Partner info for port: %d, Inform "
                           "Controller", port->actor.port_no);
-            port->is_converged = FALSE;
+            port->is_converged = false;
             lacpa_update_controller(port);
         }
 
@@ -149,7 +149,7 @@ lacpa_update_partner (lacpa_port_t *port, lacpa_pdu_t *pdu)
      */
     if (LACPA_IS_STATE_LACP_TIMEOUT(prev_state) !=
         LACPA_IS_STATE_LACP_TIMEOUT(port->partner.state)) {
-        lacpa_periodic_machine(port, TRUE);
+        lacpa_periodic_machine(port, true);
     }
 }
 
@@ -157,6 +157,11 @@ lacpa_update_partner (lacpa_port_t *port, lacpa_pdu_t *pdu)
  * lacpa_update_ntt
  *
  * Run the logic to decide if we need to Tx a new LACPDU
+ * Following the ntt parameters:
+ * 1. Mismatch in Actor-Partner port parameters
+ * 2. Mismatch in Actor-Partner lacp state flags
+ *    lacp_activity, aggregation, lacp_activity, synchronization, 
+ *    collection, distributing 
  */
 static void
 lacpa_update_ntt (lacpa_port_t *port, lacpa_pdu_t *pdu, bool *ntt)
@@ -170,51 +175,51 @@ lacpa_update_ntt (lacpa_port_t *port, lacpa_pdu_t *pdu, bool *ntt)
 
     if (LACPA_IS_STATE_LACP_ACTIVITY(pdu->partner.state) !=
         LACPA_IS_STATE_LACP_ACTIVITY(port->actor.state)) {
-        port->ntt_reason = LACPA_TRANSMIT_LCAP_ACTIVITY_MISTMATCH;
+        port->ntt_reason = LACPA_TRANSMIT_LCAP_ACTIVITY_MISMATCH;
         goto transmit;
     }
 
     if (LACPA_IS_STATE_AGGREGATION(pdu->partner.state) !=
         LACPA_IS_STATE_AGGREGATION(port->actor.state)) {
-        port->ntt_reason = LACPA_TRANSMIT_AGGREGATION_MISTMATCH;
+        port->ntt_reason = LACPA_TRANSMIT_AGGREGATION_MISMATCH;
         goto transmit;
     }
 
     if (LACPA_IS_STATE_SYNCHRONIZATION(pdu->partner.state) !=
         LACPA_IS_STATE_SYNCHRONIZATION(port->actor.state)) {
-        port->ntt_reason = LACPA_TRANSMIT_SYNCHRONIZATION_MISTMATCH;
+        port->ntt_reason = LACPA_TRANSMIT_SYNCHRONIZATION_MISMATCH;
         goto transmit;
     }
 
     if (LACPA_IS_STATE_COLLECTING(pdu->partner.state) !=
         LACPA_IS_STATE_COLLECTING(port->actor.state)) {
-        port->ntt_reason = LACPA_TRANSMIT_COLLECTING_MISTMATCH;
+        port->ntt_reason = LACPA_TRANSMIT_COLLECTING_MISMATCH;
         goto transmit;
     }
 
     if (LACPA_IS_STATE_DISTRIBUTING(pdu->partner.state) !=
         LACPA_IS_STATE_DISTRIBUTING(port->actor.state)) {
-        port->ntt_reason = LACPA_TRANSMIT_DISTRIBUTING_MISTMATCH;
+        port->ntt_reason = LACPA_TRANSMIT_DISTRIBUTING_MISMATCH;
         goto transmit;
     }
 
-    *ntt = FALSE;
+    *ntt = false;
     return;
 
 transmit:
     AIM_LOG_TRACE("Setting ntt for Port: %d, reason: %{lacpa_transmit}",
                   port->actor.port_no, port->ntt_reason);
-    *ntt = TRUE;
+    *ntt = true;
 }
 
 /*
  * lacpa_update_convergence
  *
  * Decide Protocol Converged/Unconverged based on following:
- * 1. If Partner aggregation state = FALSE; Unconverged
- * 2. If Partner sync state = FALSE; Unconverged
- * 3. If Partner collecting state = FALSE; Unconverged
- * 4. If Partner distributing state = FALSE; Unconverged
+ * 1. If Partner aggregation state = false; Unconverged
+ * 2. If Partner sync state = false; Unconverged
+ * 3. If Partner collecting state = false; Unconverged
+ * 4. If Partner distributing state = false; Unconverged
  * Else, Converged
  */
 static void
@@ -241,7 +246,7 @@ lacpa_update_convergence (lacpa_port_t *port, bool *ntt)
                       port->actor.port_no);
         LACPA_SET_STATE_SYNCHRONIZATION(port->actor.state);
         port->ntt_reason = LACPA_TRANSMIT_SYNCHRONIZATION_SET;
-        *ntt = TRUE;
+        *ntt = true;
     }
 
     if (!LACPA_IS_STATE_SYNCHRONIZATION(port->partner.state)) {
@@ -254,7 +259,7 @@ lacpa_update_convergence (lacpa_port_t *port, bool *ntt)
                       port->actor.port_no);
         LACPA_SET_STATE_COLLECTING(port->actor.state);
         port->ntt_reason = LACPA_TRANSMIT_COLLECTING_SET;
-        *ntt = TRUE;
+        *ntt = true;
     }
 
     if (!LACPA_IS_STATE_COLLECTING(port->partner.state)) {
@@ -267,7 +272,7 @@ lacpa_update_convergence (lacpa_port_t *port, bool *ntt)
                       port->actor.port_no);
         LACPA_SET_STATE_DISTRIBUTING(port->actor.state);
         port->ntt_reason = LACPA_TRANSMIT_DISTRIBUTING_SET;
-        *ntt = TRUE;
+        *ntt = true;
     }
 
     if (!LACPA_IS_STATE_DISTRIBUTING(port->partner.state)) {
@@ -280,7 +285,7 @@ lacpa_update_convergence (lacpa_port_t *port, bool *ntt)
         AIM_LOG_TRACE("Setting Port: %d to Converged, ntt_reason: "
                       "%{lacpa_transmit}", port->actor.port_no, 
                       port->ntt_reason);
-        port->is_converged = TRUE;
+        port->is_converged = true;
         lacpa_update_controller(port);    
     }
     return;
@@ -289,7 +294,7 @@ unconverged:
     AIM_LOG_TRACE("Setting Port: %d to Unconverged, reason: %{lacpa_error}, "
                   "ntt_reason: %{lacpa_transmit}", port->actor.port_no,
                   port->error, port->ntt_reason);
-    port->is_converged = FALSE;
+    port->is_converged = false;
 }
 
 /*
@@ -304,7 +309,7 @@ unconverged:
 static void
 lacpa_process_pdu (lacpa_port_t *port, lacpa_pdu_t *pdu)
 {
-    bool ntt = FALSE;
+    bool ntt = false;
 
     if (!port || !pdu) return;
 
@@ -327,9 +332,9 @@ lacpa_process_pdu (lacpa_port_t *port, lacpa_pdu_t *pdu)
  *
  * Start/Stop the necessay timers and enable/disable agent states.
  */
-extern void
+void
 lacpa_init_port (lacpa_system_t *system, lacpa_info_t *info,
-                 uint8_t lacp_enabled)
+                 bool lacp_enabled)
 {
     lacpa_port_t *port = NULL;
 
@@ -371,7 +376,7 @@ lacpa_init_port (lacpa_system_t *system, lacpa_info_t *info,
 
     port->system = system;
     //Todo: replace with actual mac_address of the port
-    LACPA_MEMCPY(port->src_mac.addr, test_src_mac_address, OF_MAC_ADDR_BYTES); 
+    LACPA_MEMCPY(port->src_mac.addr, port_src_mac_address, OF_MAC_ADDR_BYTES); 
 
     lacpa_machine(port, NULL);
 }
@@ -381,22 +386,22 @@ lacpa_init_port (lacpa_system_t *system, lacpa_info_t *info,
  *
  * Construct an LACPDU for the given port and transmit it out
  */
-extern bool
+void
 lacpa_transmit (lacpa_port_t *port)
 {
     ppe_packet_t ppep;
     uint8_t      data[LACP_PKT_BUF_SIZE];
     of_octets_t  octets;
 
-    if (!port) return FALSE;
+    if (!port) return;
 
     if (!port->lacp_enabled) {
         AIM_LOG_ERROR("LACPDU-Tx-FAILED - Agent is Disabled on port: %d",
                       port->actor.port_no);
-        return FALSE;
+        return;
     }
 
-    LACPA_MEMSET(data, DEFAULT_ZERO, LACP_PKT_BUF_SIZE);
+    LACPA_MEMSET(data, 0, LACP_PKT_BUF_SIZE);
     AIM_LOG_TRACE("Transmit Packet for port: %d, reason: %{lacpa_transmit}",
                   port->actor.port_no, port->ntt_reason);
 
@@ -413,9 +418,9 @@ lacpa_transmit (lacpa_port_t *port)
     data[14] = PPE_SLOW_PROTOCOL_LACP;
 
     if (ppe_parse(&ppep) < 0) {
-        AIM_LOG_ERROR("Packet parsing failed after ethertype. packet=%{data}",
+        AIM_LOG_ERROR("Packet_out parsing failed. packet=%{data}",
                       data, LACP_PKT_BUF_SIZE);
-        return FALSE;
+        return;
     }
 
     /*
@@ -432,7 +437,7 @@ lacpa_transmit (lacpa_port_t *port)
     if (!lacpa_build_pdu(&ppep, port)) {
         AIM_LOG_ERROR("Packet sending failed for port: %d", 
                       port->actor.port_no);
-        return FALSE;
+        return;
     }
 
     /*
@@ -448,7 +453,7 @@ lacpa_transmit (lacpa_port_t *port)
     lacpa_send_packet_out(port, &octets);
     //lacpa_send_utest(port, data, LACP_PKT_BUF_SIZE);
 
-    return TRUE;
+    return;
 
 }
 
@@ -457,21 +462,21 @@ lacpa_transmit (lacpa_port_t *port)
  *
  * Process incoming LACPDU and take appropriate action
  */
-extern bool
+bool
 lacpa_receive_utest (lacpa_port_t *port, uint8_t *data, uint32_t bytes)
 {
     lacpa_pdu_t  pdu;
     ppe_packet_t ppep;
 
-    if (!port || !data) return FALSE;
+    if (!port || !data) return false;
 
     if (!port->lacp_enabled) {
         AIM_LOG_ERROR("LACPDU-Rx-FAILED - Agent is Disabled on port: %d",
                       port->actor.port_no);
-        return FALSE;
+        return false;
     }
 
-    LACPA_MEMSET(&pdu, DEFAULT_ZERO, sizeof(lacpa_pdu_t));
+    LACPA_MEMSET(&pdu, 0, sizeof(lacpa_pdu_t));
     AIM_LOG_TRACE("LACPDU Received on port: %d", port->actor.port_no);
 
     /*
@@ -480,12 +485,12 @@ lacpa_receive_utest (lacpa_port_t *port, uint8_t *data, uint32_t bytes)
     ppe_packet_init(&ppep, data, bytes);
     if (ppe_parse(&ppep) < 0) {
         AIM_LOG_ERROR("Packet parsing failed. packet=%{data}", data, bytes);
-        return FALSE;
+        return false;
     }
 
     if (!ppe_header_get(&ppep, PPE_HEADER_LACP)) {
         AIM_LOG_ERROR("Not a Valid LCAP Packet");
-        return FALSE;
+        return false;
     }
 
     /*
@@ -493,13 +498,13 @@ lacpa_receive_utest (lacpa_port_t *port, uint8_t *data, uint32_t bytes)
      */
     if (!lacpa_parse_pdu(&ppep, &pdu)) {
         AIM_LOG_ERROR("Packet parsing failed.");
-        return FALSE;
+        return false;
     }
 
     port->lacp_event = LACPA_EVENT_PDU_RECEIVED;
     lacpa_machine(port, &pdu);
 
-    return TRUE;
+    return true;
 }
 
 /*
@@ -512,8 +517,8 @@ lacpa_defaulted (lacpa_port_t *port)
 {
     if (!port) return;
 
-    lacpa_churn_detection_machine(port, FALSE);
-    lacpa_current_while_timer(port, FALSE);
+    lacpa_churn_detection_machine(port, false);
+    lacpa_current_while_timer(port, false);
 
     /*
      * Set the Actor LACP_TIMEOUT to Long Timeout
@@ -522,7 +527,7 @@ lacpa_defaulted (lacpa_port_t *port)
 
     AIM_LOG_TRACE("Actor State Defaulted for Port: %d,  Inform Controller",
                   port->actor.port_no);
-    port->is_converged = FALSE;
+    port->is_converged = false;
     lacpa_update_controller(port);
 }
 
@@ -533,7 +538,7 @@ lacpa_defaulted (lacpa_port_t *port)
  *
  * Rx/Tx and Processing of LACPDU's.
  */
-extern void
+void
 lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu)
 {
     lacpa_error_t prev_error;
@@ -545,17 +550,17 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu)
     switch (port->lacp_event) {
     case LACPA_EVENT_DISABLED:
         port->lacp_state = LACPA_MACHINE_AGENT_STOPPED;
-        port->lacp_enabled = FALSE;
-        lacpa_periodic_machine(port, FALSE);
-        lacpa_churn_detection_machine(port, FALSE);
-        lacpa_current_while_timer(port, FALSE);
+        port->lacp_enabled = false;
+        lacpa_periodic_machine(port, false);
+        lacpa_churn_detection_machine(port, false);
+        lacpa_current_while_timer(port, false);
         port->system->lacp_active_port_count--;
-        LACPA_MEMSET(port, DEFAULT_ZERO, sizeof(lacpa_port_t)); 
+        LACPA_MEMSET(port, 0, sizeof(lacpa_port_t)); 
         break;
 
     case LACPA_EVENT_ENABLED:
         port->lacp_state = LACPA_MACHINE_AGENT_CURRENT;
-        port->lacp_enabled = TRUE;
+        port->lacp_enabled = true;
 
         /*
          * Set Actor's LACP_ACTIVITY, LACP_TIMEOUT and AGGREGATION
@@ -567,9 +572,9 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu)
 
         port->ntt_reason = LACPA_TRANSMIT_AGENT_ENABLED;
         lacpa_transmit(port);
-        lacpa_periodic_machine(port, TRUE);
-        lacpa_churn_detection_machine(port, TRUE);
-        lacpa_current_while_timer(port, TRUE);
+        lacpa_periodic_machine(port, true);
+        lacpa_churn_detection_machine(port, true);
+        lacpa_current_while_timer(port, true);
         port->system->lacp_active_port_count++;
         break;
 
@@ -595,7 +600,7 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu)
                           "is_converged: %d, prev_error: %{lacpa_error}, "
                           "new_error: %{lacpa_error}", port->actor.port_no,
                           port->is_converged, prev_error, port->error);
-            lacpa_churn_detection_machine(port, TRUE);
+            lacpa_churn_detection_machine(port, true);
         } else if (prev_state == LACPA_MACHINE_AGENT_DEFAULTED) {
             AIM_LOG_TRACE("Prev State was AGENT_DEFAULTED due to same error: "
                           "%{lacpa_error}, Staying in Defaulted State for port:"
@@ -604,7 +609,7 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu)
             LACPA_SET_STATE_DEFAULTED(port->actor.state);
         }
 
-        lacpa_current_while_timer(port, TRUE);
+        lacpa_current_while_timer(port, true);
         break;
 
     case LACPA_EVENT_CURRENT_TIMER_EXPIRED:
@@ -618,12 +623,12 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu)
         LACPA_SET_STATE_LACP_TIMEOUT(port->actor.state);
         if (!LACPA_IS_STATE_LACP_TIMEOUT(port->partner.state)) {
             LACPA_SET_STATE_LACP_TIMEOUT(port->partner.state);
-            lacpa_periodic_machine(port, TRUE);
+            lacpa_periodic_machine(port, true);
         }
 
         port->ntt_reason = LACPA_TRANSMIT_CURRENT_TIMER_EXPIRED;
         lacpa_transmit(port);
-        lacpa_current_while_timer(port, TRUE);
+        lacpa_current_while_timer(port, true);
         break;
 
     case LACPA_EVENT_EXPIRY_TIMER_EXPIRED:

@@ -45,7 +45,7 @@ lacpa_copy_info (lacpa_info_t *from, lacpa_info_t *to)
 static inline bool
 same_partner(lacpa_info_t *a, lacpa_info_t *b)
 {
-    if (!a || !b) return FALSE;
+    if (!a || !b) return false;
 
     return ((a->sys_priority           == b->sys_priority)
             && (!memcmp(a->sys_mac.addr, b->sys_mac.addr, OF_MAC_ADDR_BYTES))
@@ -62,7 +62,7 @@ lacpa_parse_pdu (ppe_packet_t *ppep, lacpa_pdu_t *pdu)
 {
     uint32_t actor_tmp = 0, partner_tmp = 0;
 
-    if (!ppep || !pdu) return FALSE;
+    if (!ppep || !pdu) return false;
 
     /*
      * Get Actor and Partner Info and Info length
@@ -74,7 +74,7 @@ lacpa_parse_pdu (ppe_packet_t *ppep, lacpa_pdu_t *pdu)
         partner_tmp != DEFAULT_PARTNER_INFO) {
         AIM_LOG_TRACE("Bad Parameters - actor_info: 0x%02x, partner_info: "
                       "0x%02x", actor_tmp, partner_tmp);
-        return FALSE;
+        return false;
     }
 
     actor_tmp = 0, partner_tmp = 0;
@@ -85,7 +85,7 @@ lacpa_parse_pdu (ppe_packet_t *ppep, lacpa_pdu_t *pdu)
         partner_tmp != DEFAULT_ACTOR_PARTNER_INFO_LEN) {
         AIM_LOG_TRACE("Bad Parameters - actor_info_len: 0x%02x, "
                       "partner_info_len: 0x%02x", actor_tmp, partner_tmp);
-        return FALSE;
+        return false;
     }
 
     /*
@@ -153,13 +153,13 @@ lacpa_parse_pdu (ppe_packet_t *ppep, lacpa_pdu_t *pdu)
     AIM_LOG_TRACE("Received actor_state: 0x%02x, partner_state: 0x%02x",
                   pdu->actor.state, pdu->partner.state);
 
-    return TRUE;
+    return true;
 }
 
 static inline bool
 lacpa_build_pdu (ppe_packet_t *ppep, lacpa_port_t *port)
 {
-    if (!ppep || !port) return FALSE;
+    if (!ppep || !port) return false;
 
     ppe_field_set(ppep, PPE_FIELD_LACP_VERSION, DEFAULT_LACP_VERSION);
 
@@ -178,7 +178,7 @@ lacpa_build_pdu (ppe_packet_t *ppep, lacpa_port_t *port)
                   port->actor.port_priority);
     ppe_field_set(ppep, PPE_FIELD_LACP_ACTOR_PORT, port->actor.port_num);
     ppe_field_set(ppep, PPE_FIELD_LACP_ACTOR_STATE, port->actor.state);
-    ppe_field_set(ppep, PPE_FIELD_LACP_RSV0, DEFAULT_ZERO);
+    ppe_field_set(ppep, PPE_FIELD_LACP_RSV0, 0);
 
     /*
      * Set Partner Parameters
@@ -195,7 +195,7 @@ lacpa_build_pdu (ppe_packet_t *ppep, lacpa_port_t *port)
                   port->partner.port_priority);
     ppe_field_set(ppep, PPE_FIELD_LACP_PARTNER_PORT, port->partner.port_num);
     ppe_field_set(ppep, PPE_FIELD_LACP_PARTNER_STATE, port->partner.state);
-    ppe_field_set(ppep, PPE_FIELD_LACP_RSV1, DEFAULT_ZERO);
+    ppe_field_set(ppep, PPE_FIELD_LACP_RSV1, 0);
 
     /*
      * Set other non-essential fields
@@ -205,10 +205,10 @@ lacpa_build_pdu (ppe_packet_t *ppep, lacpa_port_t *port)
                   DEFAULT_COLLECTOR_INFO_LEN);
     ppe_field_set(ppep, PPE_FIELD_LACP_COLLECTOR_MAX_DELAY,
                   DEFAULT_COLLECTOR_MAX_DELAY);
-    ppe_field_set(ppep, PPE_FIELD_LACP_TERMINATOR_INFO, DEFAULT_ZERO);
-    ppe_field_set(ppep, PPE_FIELD_LACP_TERMINATOR_LENGTH, DEFAULT_ZERO);
+    ppe_field_set(ppep, PPE_FIELD_LACP_TERMINATOR_INFO, 0);
+    ppe_field_set(ppep, PPE_FIELD_LACP_TERMINATOR_LENGTH, 0);
 
-    return TRUE;
+    return true;
 }
 
 #endif /* __LACPA_UTILS_H__ */

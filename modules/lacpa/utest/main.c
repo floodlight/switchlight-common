@@ -19,6 +19,8 @@
 
 #include <lacpa/lacpa_config.h>
 #include <lacpa/lacpa.h>
+#include <lacpa/lacpa.h>
+#include <lacpa_int.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -103,7 +105,7 @@ aim_main(int argc, char* argv[])
     info1.port_num = 25;
     info1.key = 13;
     info1.port_no = 10;
-    lacpa_init_port(&lacp_system, &info1, TRUE);
+    lacpa_init_port(&lacp_system, &info1, true);
 
     info2.sys_priority = 32768;
     memcpy(&info2.sys_mac.addr, mac2, 6);
@@ -111,13 +113,13 @@ aim_main(int argc, char* argv[])
     info2.port_num = 0x16;
     info2.key = 0xe;
     info2.port_no = 20;
-    lacpa_init_port(&lacp_system, &info2, TRUE);
+    lacpa_init_port(&lacp_system, &info2, true);
 
     //Code to test recv of init() msg from controller with different params
     info2.sys_priority = 25000;
     info2.key = 0xf;
     printf("Resending Port init() msg\n"); 
-    lacpa_init_port(&lacp_system, &info2, TRUE);
+    lacpa_init_port(&lacp_system, &info2, true);
 
     //lacpa_config_show(&aim_pvs_stdout);
     return 0;

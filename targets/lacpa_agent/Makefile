@@ -20,10 +20,10 @@ include ../../init.mk
 
 ALLOW_DECLARATION_AFTER_STATEMENT = 1
 
-MODULE := lacpa_benchmark
+MODULE := lacp_agent
 include $(BUILDER)/standardinit.mk
 
-LIBRARY := lacpa_benchmark_main
+LIBRARY := lacp_agent_main
 $(LIBRARY)_SUBDIR := $(dir $(lastword $(MAKEFILE_LIST)))
 include $(BUILDER)/lib.mk
 
@@ -31,7 +31,7 @@ DEPENDMODULES := lacpa AIM PPE IOF VPI BigList OS loci indigo SocketManager \
 				 cjson Configuration OFStateManager murmur OFConnectionManager
 include $(BUILDER)/dependmodules.mk
 
-BINARY := lacpa-benchmark
+BINARY := lacp-agent
 
 $(BINARY)_LIBRARIES := $(LIBRARY_TARGETS)
 include $(BUILDER)/bin.mk

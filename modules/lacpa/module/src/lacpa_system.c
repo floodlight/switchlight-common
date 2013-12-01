@@ -28,15 +28,15 @@
 #include "lacpa_utils.h"
 
 lacpa_system_t lacp_system;
-bool lacp_system_initialized = FALSE;
+bool lacp_system_initialized = false;
 
 /*
  * lacp_system_initialized
  *
- * TRUE = System Initialized
- * FASLE = System Uninitialized
+ * true = System Initialized
+ * false = System Uninitialized
  */
-extern bool
+bool
 lacpa_is_system_initialized (void)
 {
     return lacp_system_initialized;
@@ -48,7 +48,7 @@ lacpa_is_system_initialized (void)
  * API to init the LACP System
  * This should only be done once at the beginning.
  */
-extern indigo_error_t
+indigo_error_t
 lacpa_init_system (lacpa_system_t *system)
 {
     uint32_t ports_size = 0;
@@ -70,8 +70,8 @@ lacpa_init_system (lacpa_system_t *system)
 
     AIM_LOG_TRACE("Succesfully inited LACP System for %d ports...",
                   PHY_PORT_COUNT);
-    LACPA_MEMSET(system->ports, DEFAULT_ZERO, ports_size);
-    lacp_system_initialized = TRUE;
+    LACPA_MEMSET(system->ports, 0, ports_size);
+    lacp_system_initialized = true;
 
     /*
      * Register listerners for port packet_in and Controller msg's
@@ -97,7 +97,7 @@ lacpa_init_system (lacpa_system_t *system)
  * Returns port pointer in the system for valid port_no else
  * returns NULL
  */
-extern lacpa_port_t *
+lacpa_port_t *
 lacpa_find_port (lacpa_system_t *system, uint32_t port_no)
 {
     if (!system) return NULL;

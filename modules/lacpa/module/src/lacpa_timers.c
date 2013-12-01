@@ -53,7 +53,7 @@ lacpa_current_while_expiration_timer_cb (void *cookie)
         /*
          * Sanity check, disable the timer
          */
-        lacpa_current_while_timer(port, FALSE);
+        lacpa_current_while_timer(port, false);
         return;
     }
 
@@ -63,7 +63,7 @@ lacpa_current_while_expiration_timer_cb (void *cookie)
 /*
  * lacpa_current_while_timer
  */
-extern void
+void
 lacpa_current_while_timer (lacpa_port_t *port, bool timer_enabled)
 {
     if (!port) return;
@@ -115,7 +115,7 @@ lacpa_churn_expiration_timer_cb (void *cookie)
  *
  * Churn Detection Timer
  */
-extern void
+void
 lacpa_churn_detection_machine (lacpa_port_t *port, bool timer_enabled)
 {
     if (!port) return;
@@ -159,7 +159,7 @@ lacpa_periodic_expiration_timer_cb (void *cookie)
         port->ntt_reason = LACPA_TRANSMIT_PERIODIC_TIMER_EXPIRED;
         lacpa_transmit(port);
     } else {
-        lacpa_periodic_machine(port, FALSE);
+        lacpa_periodic_machine(port, false);
     }
 }
 
@@ -168,7 +168,7 @@ lacpa_periodic_expiration_timer_cb (void *cookie)
  *
  * Periodic Timer
  */
-extern void
+void
 lacpa_periodic_machine (lacpa_port_t * port, bool timer_enabled)
 {
     if (!port) return;

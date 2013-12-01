@@ -17,6 +17,30 @@
  *
  ****************************************************************/
 
+/*
+ * This file contains routines for setting up a bond with the linux kernel.
+ * The step-by-step procedure for setting up the bond is documented below.
+ *
+ * Bonding with linux kernel helps to test the lacp agent against the 
+ * standard linux lacp agent.
+ */
+
+/*
+ * Procedure for setting up linux kernel bonding:
+ * Pre-requisites: libpcap-dev
+ * Debugging tolls: dmesg, tcpdump
+ * 1. Enable bonding: sudo modprobe bonding
+ * 2. Setup tap interfaces for the bond. Running lacp_agent module binary 
+ *    will do that. ./build/gcc-local/bin/lacp-agent
+ * 3. Add the below config's
+ *    echo 802.3ad | sudo tee /sys/class/net/bond0/bonding/mode
+ *    echo +tap0 | sudo tee /sys/class/net/bond0/bonding/slaves 
+ *    echo +tap1 | sudo tee /sys/class/net/bond0/bonding/slaves
+ * 4. Verify bond0, tap0, tap1 interfaces are UP (ifconfig -a <intf>)
+ *    If Down bring the interfaces up: sudo ifconfig <intf> up
+ * 5. Run the ./build/gcc-local/bin/lacp-agent again 
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,7 +62,7 @@ lacpa_info_t info1, info2;
 lacpa_port_t *port1, *port2;
 
 /*
- * Stub function's to avoid compilation failure in lacpa/utest module
+ * Stub function's to avoid compilation failure lacp_agent module
  */
 extern void
 indigo_cxn_send_controller_message (indigo_cxn_id_t cxn_id, of_object_t *obj)
@@ -110,8 +134,8 @@ void lacp_init(void)
     info2.key = 0xe;
     info2.port_no = 20;
     
-    lacpa_init_port(&lacp_system, &info1, TRUE);
-    lacpa_init_port(&lacp_system, &info2, TRUE);
+    lacpa_init_port(&lacp_system, &info1, true);
+    lacpa_init_port(&lacp_system, &info2, true);
 
 }
 

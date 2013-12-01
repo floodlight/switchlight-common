@@ -21,7 +21,7 @@
  * Implementation of Lacp Agent Handlers.
  *
  * This file contains the handlers for listening to port packets and
- * controllers msg's. 
+ * controllers messages. 
  *
  * Api support for sending Async msg's to the controller is also included. 
  */
@@ -34,7 +34,7 @@
  *
  * This API communicates Protocol Converged/Unconverged to the Controller
  */
-extern void
+void
 lacpa_update_controller (lacpa_port_t *port)
 {
     of_version_t                    version;
@@ -50,7 +50,8 @@ lacpa_update_controller (lacpa_port_t *port)
         /* 
          * No controllers connected 
          */
-        AIM_LOG_ERROR("Sending convergence status. No controller connected");
+        AIM_LOG_TRACE("Error sending convergence status. No controller "
+                      "connected");
         return;
     }
         
@@ -96,7 +97,7 @@ lacpa_update_controller (lacpa_port_t *port)
  *
  * Send the LACPDU out the port
  */
-extern void
+void
 lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets)
 {
     of_packet_out_t    *obj;
@@ -122,7 +123,7 @@ lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets)
     of_object_delete(list);
 
     if (of_packet_out_data_set(obj, octets) < 0) {
-        AIM_LOG_ERROR("Setting data on packet out");
+        AIM_LOG_ERROR("Failed to set data on packet out");
         of_packet_out_delete(obj);
         return;
     }
@@ -144,7 +145,7 @@ lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets)
  *
  * API for handling incoming port packets
  */
-extern ind_core_listener_result_t
+ind_core_listener_result_t
 lacpa_packet_in_listner (of_packet_in_t *packet_in)
 {
     of_octets_t                octets;
@@ -153,11 +154,12 @@ lacpa_packet_in_listner (of_packet_in_t *packet_in)
     lacpa_port_t               *port;
     lacpa_pdu_t                pdu;
     ppe_packet_t               ppep;
-    ind_core_listener_result_t result = IND_CORE_LISTENER_RESULT_PASS;
+    aim_ratelimiter_t          pktin_log_limiter;
 
-    if (!packet_in) return result;
+    if (!packet_in) return IND_CORE_LISTENER_RESULT_PASS;
 
-    LACPA_MEMSET(&pdu, DEFAULT_ZERO, sizeof(lacpa_pdu_t));
+    LACPA_MEMSET(&pdu, 0, sizeof(lacpa_pdu_t));
+    aim_ratelimiter_init(&pktin_log_limiter, 1000*1000, 5, NULL);
 
     of_packet_in_data_get(packet_in, &octets);  
 
@@ -166,14 +168,15 @@ lacpa_packet_in_listner (of_packet_in_t *packet_in)
      */
     ppe_packet_init(&ppep, octets.data, octets.bytes);
     if (ppe_parse(&ppep) < 0) {
-        AIM_LOG_ERROR("Packet parsing failed. packet=%{data}", octets.data, 
-                      octets.bytes);
-        return result;
+        AIM_LOG_RL_ERROR(&pktin_log_limiter, os_time_monotonic(), "Packet_in "
+                         "parsing failed. packet=%{data}", octets.data, 
+                         octets.bytes);
+        return IND_CORE_LISTENER_RESULT_PASS;
     }
 
     if (!ppe_header_get(&ppep, PPE_HEADER_LACP)) {
         AIM_LOG_TRACE("Not a LCAP Packet");
-        return result;
+        return IND_CORE_LISTENER_RESULT_PASS;
     }
 
     /*
@@ -184,36 +187,35 @@ lacpa_packet_in_listner (of_packet_in_t *packet_in)
     } else {
         if (of_packet_in_match_get(packet_in, &match) < 0) {
             AIM_LOG_ERROR("match get failed");          
-            return result;
+            return IND_CORE_LISTENER_RESULT_PASS;
         }
         port_no = match.fields.in_port; 
     }
 
     port = lacpa_find_port(&lacp_system, port_no);
-    if (!port) return result;
+    if (!port) return IND_CORE_LISTENER_RESULT_PASS;
  
     if (!port->lacp_enabled) {
         AIM_LOG_ERROR("LACPDU-Rx-FAILED - Agent is Disabled on port: %d",
                       port->actor.port_no);
-        return result;
+        return IND_CORE_LISTENER_RESULT_PASS;
     } 
 
     AIM_LOG_TRACE("LACPDU Received on port: %d", port->actor.port_no);
     ppe_packet_dump(&ppep, &aim_pvs_stdout);
 
     /*
-     * Retrieve the information from the LCAP packet
+     * Retrieve the information from the LACP packet
      */
     if (!lacpa_parse_pdu(&ppep, &pdu)) {
         AIM_LOG_ERROR("Packet parsing failed on port: %d", port->actor.port_no);
-        return result;
+        return IND_CORE_LISTENER_RESULT_PASS;
     }
 
     port->lacp_event = LACPA_EVENT_PDU_RECEIVED;
     lacpa_machine(port, &pdu);
 
-    result = IND_CORE_LISTENER_RESULT_DROP;
-    return result;
+    return IND_CORE_LISTENER_RESULT_DROP;
 }
 
 /*
@@ -233,7 +235,7 @@ lacpa_set_port_param_handle (indigo_cxn_id_t cxn,
 
     if (!obj) return;
 
-    LACPA_MEMSET(&info, DEFAULT_ZERO, sizeof(lacpa_info_t));
+    LACPA_MEMSET(&info, 0, sizeof(lacpa_info_t));
 
     of_bsn_set_lacp_request_xid_get(obj, &xid);
     of_bsn_set_lacp_request_enabled_get(obj, &enabled);
@@ -374,7 +376,7 @@ lacpa_get_port_stats_handle (indigo_cxn_id_t cxn,
  *
  * API for handling incoming Controller msg's
  */
-extern ind_core_listener_result_t
+ind_core_listener_result_t
 lacpa_controller_msg_listner (indigo_cxn_id_t cxn, of_object_t *obj)
 {
     ind_core_listener_result_t result = IND_CORE_LISTENER_RESULT_PASS;

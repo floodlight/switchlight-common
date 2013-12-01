@@ -25,6 +25,7 @@
 #include <stdbool.h>
 #include <indigo/error.h>
 #include <loci/loci.h>
+#include <OS/os_time.h>
 #include <OFStateManager/ofstatemanager.h>
 #include <indigo/of_connection_manager.h>
 
@@ -113,7 +114,6 @@ typedef enum lacpa_event_e {
     LACPA_EVENT_CURRENT_TIMER_EXPIRED,
     LACPA_EVENT_EXPIRY_TIMER_EXPIRED,
     LACPA_EVENT_CHURN_DETECTION_EXPIRED,
-    LACPA_EVENT_PROTOCOL_CONVERGED,
     LACPA_EVENT_PROTOCOL_UNCONVERGED,
     LACPA_EVENT_LAST = LACPA_EVENT_PROTOCOL_UNCONVERGED,
     LACPA_EVENT_COUNT,
@@ -129,7 +129,6 @@ typedef enum lacpa_event_e {
     "CURRENT_TIMER_EXPIRED", \
     "EXPIRY_TIMER_EXPIRED", \
     "CHURN_DETECTION_EXPIRED", \
-    "PROTOCOL_CONVERGED", \
     "PROTOCOL_UNCONVERGED", \
 }
 /** Enum names. */
@@ -155,11 +154,11 @@ typedef enum lacpa_transmit_e {
     LACPA_TRANSMIT_NONE,
     LACPA_TRANSMIT_AGENT_ENABLED,
     LACPA_TRANSMIT_INFO_MISMATCH,
-    LACPA_TRANSMIT_LCAP_ACTIVITY_MISTMATCH,
-    LACPA_TRANSMIT_AGGREGATION_MISTMATCH,
-    LACPA_TRANSMIT_SYNCHRONIZATION_MISTMATCH,
-    LACPA_TRANSMIT_COLLECTING_MISTMATCH,
-    LACPA_TRANSMIT_DISTRIBUTING_MISTMATCH,
+    LACPA_TRANSMIT_LCAP_ACTIVITY_MISMATCH,
+    LACPA_TRANSMIT_AGGREGATION_MISMATCH,
+    LACPA_TRANSMIT_SYNCHRONIZATION_MISMATCH,
+    LACPA_TRANSMIT_COLLECTING_MISMATCH,
+    LACPA_TRANSMIT_DISTRIBUTING_MISMATCH,
     LACPA_TRANSMIT_SYNCHRONIZATION_SET,
     LACPA_TRANSMIT_COLLECTING_SET,
     LACPA_TRANSMIT_DISTRIBUTING_SET,
@@ -176,11 +175,11 @@ typedef enum lacpa_transmit_e {
     "NONE", \
     "AGENT_ENABLED", \
     "INFO_MISMATCH", \
-    "LCAP_ACTIVITY_MISTMATCH", \
-    "AGGREGATION_MISTMATCH", \
-    "SYNCHRONIZATION_MISTMATCH", \
-    "COLLECTING_MISTMATCH", \
-    "DISTRIBUTING_MISTMATCH", \
+    "LCAP_ACTIVITY_MISMATCH", \
+    "AGGREGATION_MISMATCH", \
+    "SYNCHRONIZATION_MISMATCH", \
+    "COLLECTING_MISMATCH", \
+    "DISTRIBUTING_MISMATCH", \
     "SYNCHRONIZATION_SET", \
     "COLLECTING_SET", \
     "DISTRIBUTING_SET", \
@@ -211,12 +210,9 @@ extern aim_map_si_t lacpa_transmit_desc_map[];
  * LACP : LINK AGGREGATION CONTROL PROTOCOL : PROTOCOL DATA
  *
  *****************************************************************************/
-#define FALSE                  0
-#define TRUE                   1
-
 typedef uint8_t lacpa_state_t;
 
-typedef struct lacpa_info_e { /* lacpa_info */
+typedef struct lacpa_info_s { /* lacpa_info */
     uint16_t         sys_priority;
     of_mac_addr_t    sys_mac;
     uint16_t         port_priority;
@@ -226,18 +222,15 @@ typedef struct lacpa_info_e { /* lacpa_info */
     of_port_no_t     port_no;
 } lacpa_info_t;
 
-typedef struct lacp_pdu_e { /* lacpa_pdu */
+typedef struct lacp_pdu_s { /* lacpa_pdu */
     lacpa_info_t     actor;
     lacpa_info_t     partner;
 } lacpa_pdu_t;
 
-typedef struct lacpa_port_e   lacpa_port_t;
-typedef struct lacpa_system_e lacpa_system_t;
+typedef struct lacpa_port_s   lacpa_port_t;
+typedef struct lacpa_system_s lacpa_system_t;
 
-/******************************************************************************
- * LACP : LINK AGGREGATION CONTROL PROTOCOL : PHYSICAL PORT INSTANCE
- *****************************************************************************/
-struct lacpa_port_e { /* lacpa_port */
+struct lacpa_port_s { /* lacpa_port */
     of_mac_addr_t    src_mac;
     lacpa_info_t     actor;
     lacpa_info_t     partner;
@@ -253,43 +246,23 @@ struct lacpa_port_e { /* lacpa_port */
 /******************************************************************************
  * LACP : LINK AGGREGATION CONTROL PROTOCOL : SYSTEM DATA & API DECLARATIONS
  *****************************************************************************/
-struct lacpa_system_e { /* lacpa_system */
+struct lacpa_system_s { /* lacpa_system */
     uint32_t         lacp_active_port_count;
     lacpa_port_t     *ports;
 };
 
 extern lacpa_system_t lacp_system;
  
-extern indigo_error_t lacpa_init_system (lacpa_system_t *system);
-extern void lacpa_deinit_system (lacpa_system_t *system);
-extern bool lacpa_is_system_initialized (void);
-extern lacpa_port_t *lacpa_find_port (lacpa_system_t *system, uint32_t port_no);
+indigo_error_t lacpa_init_system (lacpa_system_t *system);
+void lacpa_init_port (lacpa_system_t *system, lacpa_info_t *port,
+                      bool lacp_enabled);
+bool lacpa_is_system_initialized (void);
+lacpa_port_t *lacpa_find_port (lacpa_system_t *system, uint32_t port_no);
 
-extern ind_core_listener_result_t 
+ind_core_listener_result_t 
 lacpa_packet_in_listner (of_packet_in_t *packet_in);
-extern ind_core_listener_result_t 
+ind_core_listener_result_t 
 lacpa_controller_msg_listner (indigo_cxn_id_t cxn, of_object_t *obj);
- 
-/******************************************************************************
- *
- * LACP : LINK AGGREGATION CONTROL PROTOCOL : LACPA EXTERNAL API DECLARATIONS
- *
- *****************************************************************************/
-extern void lacpa_init_port (lacpa_system_t *system, lacpa_info_t *port,
-                             uint8_t lacp_enabled);
-extern bool lacpa_receive_utest (lacpa_port_t *port, uint8_t *data, 
-                                 uint32_t bytes);
-extern void lacpa_send_utest (lacpa_port_t *port, uint8_t *data,
-                              uint32_t bytes);
-extern void lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets); 
-extern void lacpa_update_controller (lacpa_port_t *port);
 
-/******************************************************************************
- *
- * LACP : LINK AGGREGATION CONTROL PROTOCOL : DEBUG API DECLARATIONS
- *
- *****************************************************************************/
-extern void lacpa_dump_port (lacpa_port_t *port);
-extern void lacpa_dump_state (lacpa_port_t *port);
-
+bool lacpa_receive_utest (lacpa_port_t *port, uint8_t *data, uint32_t bytes); 
 #endif /* __LACP__H__ */
