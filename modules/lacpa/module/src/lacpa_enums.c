@@ -203,6 +203,58 @@ lacpa_event_desc(lacpa_event_t e)
 }
 
 
+aim_map_si_t lacpa_log_flag_map[] =
+{
+    { "portstats", LACPA_LOG_FLAG_PORTSTATS },
+    { NULL, 0 }
+};
+
+aim_map_si_t lacpa_log_flag_desc_map[] =
+{
+    { "None", LACPA_LOG_FLAG_PORTSTATS },
+    { NULL, 0 }
+};
+
+const char*
+lacpa_log_flag_name(lacpa_log_flag_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, lacpa_log_flag_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'lacpa_log_flag'";
+    }
+}
+
+int
+lacpa_log_flag_value(const char* str, lacpa_log_flag_t* e, int substr)
+{
+    int i;
+    AIM_REFERENCE(substr);
+    if(aim_map_si_s(&i, str, lacpa_log_flag_map, 0)) {
+        /* Enum Found */
+        *e = i;
+        return 0;
+    }
+    else {
+        return -1;
+    }
+}
+
+const char*
+lacpa_log_flag_desc(lacpa_log_flag_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, lacpa_log_flag_desc_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'lacpa_log_flag'";
+    }
+}
+
+
 aim_map_si_t lacpa_transmit_map[] =
 {
     { "NONE", LACPA_TRANSMIT_NONE },

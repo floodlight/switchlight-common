@@ -61,45 +61,95 @@ vpi_t vpi1, vpi2;
 lacpa_info_t info1, info2;
 lacpa_port_t *port1, *port2;
 
+indigo_error_t
+lacp_create_send_packet_in (of_port_no_t in_port, of_octets_t *of_octets)
+{
+    of_match_t     match;
+    of_packet_in_t *of_packet_in;
+
+    if (!of_octets) return INDIGO_ERROR_UNKNOWN;
+
+    if ((of_packet_in = of_packet_in_new(OF_VERSION_1_3)) == NULL) {
+        return INDIGO_ERROR_RESOURCE;
+    }
+
+    of_packet_in_total_len_set(of_packet_in, of_octets->bytes);
+
+    match.version = OF_VERSION_1_3;
+    match.fields.in_port = in_port;
+    OF_MATCH_MASK_IN_PORT_EXACT_SET(&match);
+    if ((of_packet_in_match_set(of_packet_in, &match)) != OF_ERROR_NONE) {
+        printf("Failed to write match to packet-in message\n");
+        of_packet_in_delete(of_packet_in);
+        return INDIGO_ERROR_UNKNOWN;
+    }
+
+    if ((of_packet_in_data_set(of_packet_in, of_octets)) != OF_ERROR_NONE) {
+        printf("Failed to write packet data to packet-in message\n");
+        of_packet_in_delete(of_packet_in);
+        return INDIGO_ERROR_UNKNOWN;
+    }
+
+    if (lacpa_packet_in_listner(of_packet_in) == IND_CORE_LISTENER_RESULT_DROP) {
+        printf("Listener dropped packet-in\n");
+    } else {
+        printf("Listener passed packet-in\n");
+    }
+
+    of_packet_in_delete(of_packet_in);
+    return INDIGO_ERROR_NONE;
+}
+
 /*
  * Stub function's to avoid compilation failure lacp_agent module
  */
-extern void
+void
 indigo_cxn_send_controller_message (indigo_cxn_id_t cxn_id, of_object_t *obj)
 {
     printf("lacpa module: Send a REPLY to the controller\n");
 }
 
-extern void
+void
 indigo_cxn_send_async_message (of_object_t *obj)
 {
     printf("lacpa module: Send an ASYNC msg to the controller\n");
 }
 
-extern indigo_error_t
+indigo_error_t
 indigo_cxn_get_async_version (of_version_t *version)
 {
     *version = OF_VERSION_1_3;
     return INDIGO_ERROR_NONE;
 }
 
-extern indigo_error_t
+indigo_error_t
 indigo_fwd_packet_out(of_packet_out_t *of_packet_out)
 {
+    of_port_no_t     port_no;
+    of_octets_t      of_octets;
+    of_list_action_t action;
+    of_action_t      act;
+    int              rv;
+
+    if (!of_packet_out) return INDIGO_ERROR_NONE;
+    
     printf("lacpa module: Send a packet out the port\n");
-    return INDIGO_ERROR_NONE;
-}
 
-extern void
-lacpa_send_utest (lacpa_port_t *port, uint8_t *data, uint32_t bytes)
-{
-    if (!port) return;
-
-    if (port->actor.port_no == 10) {
-        vpi_send(vpi1, data, bytes);
-    } else if (port->actor.port_no == 20) {
-        vpi_send(vpi2, data, bytes);
+    of_packet_out_actions_bind(of_packet_out, &action);
+    OF_LIST_ACTION_ITER(&action, &act, rv) {
+        of_action_output_port_get(&act.output, &port_no);
     }
+
+    of_packet_out_data_get(of_packet_out, &of_octets);
+
+    printf("lacpa module: Send a packet out the port: %d\n", port_no);
+    if (port_no == 10) {
+        vpi_send(vpi1, of_octets.data, of_octets.bytes);
+    } else if (port_no == 20) {
+        vpi_send(vpi2, of_octets.data, of_octets.bytes);
+    }
+
+    return INDIGO_ERROR_NONE;
 }
 
 void lacp_init(void)
@@ -141,9 +191,9 @@ void lacp_init(void)
 
 int main(int argc, char* argv[])
 {
-    uint8_t buf[256];
-    struct pollfd fds[2];
-    uint32_t bytes = 0;
+    uint8_t     buf[256];
+    struct      pollfd fds[2];
+    of_octets_t of_octets;
 
     vpi_init();
     lacp_init();
@@ -166,17 +216,19 @@ int main(int argc, char* argv[])
     fds[0].events = POLLIN;
     fds[1].events = POLLIN;
 
+    of_octets.bytes = 0;
+    of_octets.data = buf;
     while (poll(fds, 2, -1) >= 0) {
         if (fds[0].revents & POLLIN) {
-            bytes = vpi_recv(vpi1, buf, 256, 0);
-            printf("received_pkt on tap0 with %d bytes\n", bytes);
-            lacpa_receive_utest(port1, buf, bytes);
+            of_octets.bytes = vpi_recv(vpi1, buf, 256, 0);
+            printf("received_pkt on tap0 with %d bytes\n", of_octets.bytes);
+            lacp_create_send_packet_in(10, &of_octets);
         }
 
         if (fds[1].revents & POLLIN) {
-            bytes = vpi_recv(vpi2, buf, 256, 0);
-            printf("received_pkt on tap1 with %d bytes\n", bytes);
-            lacpa_receive_utest(port2, buf, bytes);
+            of_octets.bytes = vpi_recv(vpi2, buf, 256, 0);
+            printf("received_pkt on tap1 with %d bytes\n", of_octets.bytes);
+            lacp_create_send_packet_in(20, &of_octets);    
         }
     }
     

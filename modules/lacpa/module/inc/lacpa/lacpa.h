@@ -149,6 +149,37 @@ extern aim_map_si_t lacpa_event_map[];
 /** lacpa_event_desc_map table. */
 extern aim_map_si_t lacpa_event_desc_map[];
 
+/** lacpa_log_flag */
+typedef enum lacpa_log_flag_e {
+    LACPA_LOG_FLAG_PORTSTATS,
+    LACPA_LOG_FLAG_LAST = LACPA_LOG_FLAG_PORTSTATS,
+    LACPA_LOG_FLAG_COUNT,
+    LACPA_LOG_FLAG_INVALID = -1,
+} lacpa_log_flag_t;
+
+/** Strings macro. */
+#define LACPA_LOG_FLAG_STRINGS \
+{\
+    "portstats", \
+}
+/** Enum names. */
+const char* lacpa_log_flag_name(lacpa_log_flag_t e);
+
+/** Enum values. */
+int lacpa_log_flag_value(const char* str, lacpa_log_flag_t* e, int substr);
+
+/** Enum descriptions. */
+const char* lacpa_log_flag_desc(lacpa_log_flag_t e);
+
+/** validator */
+#define LACPA_LOG_FLAG_VALID(_e) \
+    ( (0 <= (_e)) && ((_e) <= LACPA_LOG_FLAG_PORTSTATS))
+
+/** lacpa_log_flag_map table. */
+extern aim_map_si_t lacpa_log_flag_map[];
+/** lacpa_log_flag_desc_map table. */
+extern aim_map_si_t lacpa_log_flag_desc_map[];
+
 /** lacpa_transmit */
 typedef enum lacpa_transmit_e {
     LACPA_TRANSMIT_NONE,
@@ -264,5 +295,4 @@ lacpa_packet_in_listner (of_packet_in_t *packet_in);
 ind_core_listener_result_t 
 lacpa_controller_msg_listner (indigo_cxn_id_t cxn, of_object_t *obj);
 
-bool lacpa_receive_utest (lacpa_port_t *port, uint8_t *data, uint32_t bytes); 
 #endif /* __LACP__H__ */

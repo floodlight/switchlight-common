@@ -77,6 +77,9 @@ transmit: &transmit
 - PERIODIC_TIMER_EXPIRED
 - CURRENT_TIMER_EXPIRED
 
+lacpa_log_types: &lacpa_log_types
+- portstats
+
 definitions:
   cdefs:
     LACPA_CONFIG_HEADER:
@@ -108,7 +111,14 @@ definitions:
     lacpa_transmit:
       members: *transmit
 
+    lacpa_log_flag:
+      members: *lacpa_log_types
 
+  aim_custom_log_macro:
+    lacpa:
+      flags: *lacpa_log_types
+      prefix: LACPA_LOG_FLAG_
+     
   xenum:
     LACPA_ENUMERATION_ENTRY:
       members: *enums

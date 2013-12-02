@@ -124,14 +124,11 @@
  *****************************************************************************/
 void lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu);
 void lacpa_transmit (lacpa_port_t *port);
-bool lacpa_receive (of_packet_in_t *packet_in, of_octets_t *octets);
 
 void lacpa_periodic_machine (lacpa_port_t *port, bool timer_enabled);
 void lacpa_churn_detection_machine (lacpa_port_t *port,
                                            bool timer_enabled);
 void lacpa_current_while_timer (lacpa_port_t *port, bool timer_enabled);
-
-void lacpa_send_utest (lacpa_port_t *port, uint8_t *data, uint32_t bytes);
 
 void lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets);
 void lacpa_update_controller (lacpa_port_t *port);

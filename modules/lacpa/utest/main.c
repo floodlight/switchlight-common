@@ -20,7 +20,7 @@
 #include <lacpa/lacpa_config.h>
 #include <lacpa/lacpa.h>
 #include <lacpa/lacpa.h>
-#include <lacpa_int.h>
+//#include <lacpa_int.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,51 +37,98 @@ uint8_t data3[54] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x02, 0x00, 0x0E, 0x83, 0x16,
 
 lacpa_port_t *port1, *port2;
 
+indigo_error_t
+lacp_create_send_packet_in (of_port_no_t in_port, of_octets_t *of_octets) 
+{
+    of_match_t     match;
+    of_packet_in_t *of_packet_in;
+
+    if (!of_octets) return INDIGO_ERROR_UNKNOWN;
+
+    if ((of_packet_in = of_packet_in_new(OF_VERSION_1_3)) == NULL) {
+        return INDIGO_ERROR_RESOURCE;
+    }
+
+    of_packet_in_total_len_set(of_packet_in, of_octets->bytes);
+
+    match.version = OF_VERSION_1_3;
+    match.fields.in_port = in_port;
+    OF_MATCH_MASK_IN_PORT_EXACT_SET(&match);
+    if ((of_packet_in_match_set(of_packet_in, &match)) != OF_ERROR_NONE) {
+        printf("Failed to write match to packet-in message\n");
+        of_packet_in_delete(of_packet_in);
+        return INDIGO_ERROR_UNKNOWN;
+    }
+
+    if ((of_packet_in_data_set(of_packet_in, of_octets)) != OF_ERROR_NONE) {
+        printf("Failed to write packet data to packet-in message\n");
+        of_packet_in_delete(of_packet_in);
+        return INDIGO_ERROR_UNKNOWN;
+    }
+
+    if (lacpa_packet_in_listner(of_packet_in) == IND_CORE_LISTENER_RESULT_DROP) {
+        printf("Listener dropped packet-in\n");
+    } else {
+        printf("Listener passed packet-in\n");
+    }
+
+    of_packet_in_delete(of_packet_in);
+    return INDIGO_ERROR_NONE;
+}
+
 /*
  * Stub function's to avoid compilation failure in lacpa/utest module
  */
-extern void
+void
 indigo_cxn_send_controller_message (indigo_cxn_id_t cxn_id, of_object_t *obj)
 {
     printf("lacpa module: Send a REPLY to the controller\n");
 }
 
-extern void
+void
 indigo_cxn_send_async_message (of_object_t *obj)
 {
     printf("lacpa module: Send an ASYNC msg to the controller\n");
 }
 
-extern indigo_error_t
+indigo_error_t
 indigo_cxn_get_async_version (of_version_t *version)
 {
     *version = OF_VERSION_1_3;
     return INDIGO_ERROR_NONE;
 }
 
-extern indigo_error_t
+indigo_error_t
 indigo_fwd_packet_out(of_packet_out_t *of_packet_out)
 {
-    printf("lacpa module: Send a packet out the port\n");
-    return INDIGO_ERROR_NONE;
-}
+    of_port_no_t     port_no;
+    of_octets_t      of_octets;
+    of_list_action_t action;
+    of_action_t      act;
+    int              rv;
 
-extern void
-lacpa_send_utest (lacpa_port_t *port, uint8_t *data, uint32_t bytes)
-{
-    if (!port) return;
+    if (!of_packet_out) return INDIGO_ERROR_NONE;
 
-    if (port->actor.port_no == 10) {
-        lacpa_receive_utest(port2, data, bytes);
-    } else if (port->actor.port_no == 20){
-        lacpa_receive_utest(port1, data, bytes);
+    of_packet_out_actions_bind(of_packet_out, &action);
+    OF_LIST_ACTION_ITER(&action, &act, rv) {
+        of_action_output_port_get(&act.output, &port_no);
     }
+
+    of_packet_out_data_get(of_packet_out, &of_octets);
+
+    printf("lacpa module: Send a packet out the port: %d\n", port_no);
+    if (port_no == 10) {
+        lacp_create_send_packet_in(20, &of_octets);
+    } else if (port_no == 20){
+        lacp_create_send_packet_in(10, &of_octets);
+    }
+
+    return INDIGO_ERROR_NONE;
 }
 
 int
 aim_main(int argc, char* argv[])
 {
-    lacpa_system_t lacp_system;
     lacpa_info_t info1, info2;
     memset(&info1, 0, sizeof(lacpa_info_t));
     memset(&info2, 0, sizeof(lacpa_info_t));

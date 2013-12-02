@@ -28,6 +28,8 @@
 #include "lacpa_utils.h"
 #include <PPE/ppe.h>
 
+bool churn_detection_running = false;
+
 /*
  * Slow-Protocols Dest Mac
  */
@@ -46,34 +48,48 @@ lacpa_dump_state (lacpa_port_t *port)
 {
     if (!port) return;
 
-    AIM_LOG_TRACE("*************DUMPING STATE INFO*************\n");
-    AIM_LOG_TRACE("\nACTOR STATE FLAGS");
-    AIM_LOG_TRACE("ACTOR LACP ACTIVITY     : %s", LACPA_IS_STATE_LACP_ACTIVITY(
-                  port->actor.state)? "ACTIVE" : "PASSIVE");
-    AIM_LOG_TRACE("ACTOR LACP TIMEOUT      : %s", LACPA_IS_STATE_LACP_TIMEOUT(
-                  port->actor.state)? "SHORT" : "LONG");
-    AIM_LOG_TRACE("ACTOR AGGREGATION       : %s", LACPA_IS_STATE_AGGREGATION(
-                  port->actor.state)? "YES" : "NO");
-    AIM_LOG_TRACE("ACTOR SYNCHRONIZATION   : %s",LACPA_IS_STATE_SYNCHRONIZATION(
-                  port->actor.state)? "INSYNC" : "OUTofSYNC");
-    AIM_LOG_TRACE("ACTOR COLLECTING        : %s", LACPA_IS_STATE_COLLECTING(
-                  port->actor.state)? "YES" : "NO");
-    AIM_LOG_TRACE("ACTOR DISTRIBUTING      : %s", LACPA_IS_STATE_DISTRIBUTING(
-                  port->actor.state)? "YES" : "NO");
-    AIM_LOG_TRACE("\nPARTNER STATE FLAGS");
-    AIM_LOG_TRACE("PARTNER LACP ACTIVITY   : %s", LACPA_IS_STATE_LACP_ACTIVITY(
-                  port->partner.state)? "ACTIVE" : "PASSIVE");
-    AIM_LOG_TRACE("PARTNER LACP TIMEOUT    : %s", LACPA_IS_STATE_LACP_TIMEOUT(
-                  port->partner.state)? "SHORT" : "LONG");
-    AIM_LOG_TRACE("PARTNER AGGREGATION     : %s", LACPA_IS_STATE_AGGREGATION(
-                  port->partner.state)? "YES" : "NO");
-    AIM_LOG_TRACE("PARTNER SYNCHRONIZATION : %s",LACPA_IS_STATE_SYNCHRONIZATION(
-                  port->partner.state)? "INSYNC" : "OUTofSYNC");
-    AIM_LOG_TRACE("PARTNER COLLECTING      : %s", LACPA_IS_STATE_COLLECTING(
-                  port->partner.state)? "YES" : "NO");
-    AIM_LOG_TRACE("PARTNER DISTRIBUTING    : %s", LACPA_IS_STATE_DISTRIBUTING(
-                  port->partner.state)? "YES" : "NO");
-    AIM_LOG_TRACE("*************END DUMPING INFO**************\n");
+    LACPA_LOG_PORTSTATS("*************DUMPING STATE INFO*************\n");
+    LACPA_LOG_PORTSTATS("\nACTOR STATE FLAGS");
+    LACPA_LOG_PORTSTATS("ACTOR OF_PORT_NO        : %d", port->actor.port_no);
+    LACPA_LOG_PORTSTATS("ACTOR LACP ACTIVITY     : %s", 
+                        LACPA_IS_STATE_LACP_ACTIVITY(port->actor.state)? 
+                        "ACTIVE" : "PASSIVE");
+    LACPA_LOG_PORTSTATS("ACTOR LACP TIMEOUT      : %s", 
+                        LACPA_IS_STATE_LACP_TIMEOUT(port->actor.state)? 
+                        "SHORT" : "LONG");
+    LACPA_LOG_PORTSTATS("ACTOR AGGREGATION       : %s", 
+                        LACPA_IS_STATE_AGGREGATION(port->actor.state)?
+                        "YES" : "NO");
+    LACPA_LOG_PORTSTATS("ACTOR SYNCHRONIZATION   : %s", 
+                        LACPA_IS_STATE_SYNCHRONIZATION(port->actor.state)?
+                        "INSYNC" : "OUTofSYNC");
+    LACPA_LOG_PORTSTATS("ACTOR COLLECTING        : %s", 
+                        LACPA_IS_STATE_COLLECTING(port->actor.state)?
+                        "YES" : "NO");
+    LACPA_LOG_PORTSTATS("ACTOR DISTRIBUTING      : %s", 
+                        LACPA_IS_STATE_DISTRIBUTING(port->actor.state)?
+                        "YES" : "NO");
+    LACPA_LOG_PORTSTATS("\nPARTNER STATE FLAGS");
+    LACPA_LOG_PORTSTATS("PARTNER PORT_NUM        : %d", port->partner.port_num);
+    LACPA_LOG_PORTSTATS("PARTNER LACP ACTIVITY   : %s", 
+                        LACPA_IS_STATE_LACP_ACTIVITY(port->partner.state)? 
+                        "ACTIVE" : "PASSIVE");
+    LACPA_LOG_PORTSTATS("PARTNER LACP TIMEOUT    : %s", 
+                        LACPA_IS_STATE_LACP_TIMEOUT(port->partner.state)? 
+                        "SHORT" : "LONG");
+    LACPA_LOG_PORTSTATS("PARTNER AGGREGATION     : %s", 
+                        LACPA_IS_STATE_AGGREGATION(port->partner.state)? 
+                        "YES" : "NO");
+    LACPA_LOG_PORTSTATS("PARTNER SYNCHRONIZATION : %s",
+                        LACPA_IS_STATE_SYNCHRONIZATION(port->partner.state)?
+                        "INSYNC" : "OUTofSYNC");
+    LACPA_LOG_PORTSTATS("PARTNER COLLECTING      : %s", 
+                        LACPA_IS_STATE_COLLECTING(port->partner.state)?
+                        "YES" : "NO");
+    LACPA_LOG_PORTSTATS("PARTNER DISTRIBUTING    : %s", 
+                        LACPA_IS_STATE_DISTRIBUTING(port->partner.state)?
+                        "YES" : "NO");
+    LACPA_LOG_PORTSTATS("*************END DUMPING INFO**************\n");
 }
 
 /*
@@ -86,31 +102,62 @@ lacpa_dump_port (lacpa_port_t *port)
 {
     if (!port) return;
 
-    AIM_LOG_TRACE("*************DUMPING PORT INFO*************\n");
-    AIM_LOG_TRACE("\nACTOR PORT INFO");
-    AIM_LOG_TRACE("ACTOR SYS PRIORITY    : %d", port->actor.sys_priority);
-    AIM_LOG_TRACE("ACTOR SYS MAC         : %{mac}", port->actor.sys_mac.addr);
-    AIM_LOG_TRACE("ACTOR PORT PRIORITY   : %d", port->actor.port_priority);
-    AIM_LOG_TRACE("ACTOR PORT NUM        : %d", port->actor.port_num);
-    AIM_LOG_TRACE("ACTOR KEY             : %d", port->actor.key);
-    AIM_LOG_TRACE("ACTOR STATE           : %02x", port->actor.state);
-    AIM_LOG_TRACE("ACTOR OF_PORT_NO      : %d", port->actor.port_no);
-    AIM_LOG_TRACE("\nPARTNER PORT INFO");
-    AIM_LOG_TRACE("PARTNER SYS PRIORITY  : %d", port->partner.sys_priority);
-    AIM_LOG_TRACE("PARTNER SYS MAC       : %{mac}", port->partner.sys_mac.addr);
-    AIM_LOG_TRACE("PARTNER PORT PRIORITY : %d", port->partner.port_priority);
-    AIM_LOG_TRACE("PARTNER PORT NUM      : %d", port->partner.port_num);
-    AIM_LOG_TRACE("PARTNER KEY           : %d", port->partner.key);
-    AIM_LOG_TRACE("PARTNER STATE         : %02x", port->partner.state);
-    AIM_LOG_TRACE("PARTNER OF_PORT_NO    : %d", port->partner.port_no);
-    AIM_LOG_TRACE("\nPROTOCOL STATE INFO");
-    AIM_LOG_TRACE("LACP ENABLED          : %s", port->lacp_enabled? "YES":"NO");
-    AIM_LOG_TRACE("PROTOCOL CONVERGED    : %s", port->is_converged? "YES":"NO");
-    AIM_LOG_TRACE("LACP STATE            : %{lacpa_machine}", port->lacp_state);
-    AIM_LOG_TRACE("LACP EVENT            : %{lacpa_event}", port->lacp_event);
-    AIM_LOG_TRACE("LACP ERROR            : %{lacpa_error}", port->error);
-    AIM_LOG_TRACE("LACP TANSMIT REASON   : %{lacpa_transmit}",port->ntt_reason);
-    AIM_LOG_TRACE("*************END DUMPING INFO**************\n");
+    LACPA_LOG_PORTSTATS("*************DUMPING PORT INFO*************\n");
+    LACPA_LOG_PORTSTATS("\nACTOR PORT INFO");
+    LACPA_LOG_PORTSTATS("ACTOR SYS PRIORITY    : %d",
+                        port->actor.sys_priority);
+    LACPA_LOG_PORTSTATS("ACTOR SYS MAC         : %{mac}", 
+                        port->actor.sys_mac.addr);
+    LACPA_LOG_PORTSTATS("ACTOR PORT PRIORITY   : %d", 
+                        port->actor.port_priority);
+    LACPA_LOG_PORTSTATS("ACTOR PORT NUM        : %d", port->actor.port_num);
+    LACPA_LOG_PORTSTATS("ACTOR KEY             : %d", port->actor.key);
+    LACPA_LOG_PORTSTATS("ACTOR STATE           : %02x", port->actor.state);
+    LACPA_LOG_PORTSTATS("ACTOR OF_PORT_NO      : %d", port->actor.port_no);
+    LACPA_LOG_PORTSTATS("\nPARTNER PORT INFO");
+    LACPA_LOG_PORTSTATS("PARTNER SYS PRIORITY  : %d",
+                        port->partner.sys_priority);
+    LACPA_LOG_PORTSTATS("PARTNER SYS MAC       : %{mac}",
+                        port->partner.sys_mac.addr);
+    LACPA_LOG_PORTSTATS("PARTNER PORT PRIORITY : %d", 
+                        port->partner.port_priority);
+    LACPA_LOG_PORTSTATS("PARTNER PORT NUM      : %d", port->partner.port_num);
+    LACPA_LOG_PORTSTATS("PARTNER KEY           : %d", port->partner.key);
+    LACPA_LOG_PORTSTATS("PARTNER STATE         : %02x", port->partner.state);
+    LACPA_LOG_PORTSTATS("PARTNER OF_PORT_NO    : %d", port->partner.port_no);
+    LACPA_LOG_PORTSTATS("\nPROTOCOL STATE INFO");
+    LACPA_LOG_PORTSTATS("LACP ENABLED          : %s", 
+                        port->lacp_enabled? "YES":"NO");
+    LACPA_LOG_PORTSTATS("PROTOCOL CONVERGED    : %s", 
+                        port->is_converged? "YES":"NO");
+    LACPA_LOG_PORTSTATS("LACP STATE            : %{lacpa_machine}", 
+                        port->lacp_state);
+    LACPA_LOG_PORTSTATS("LACP EVENT            : %{lacpa_event}", 
+                        port->lacp_event);
+    LACPA_LOG_PORTSTATS("LACP ERROR            : %{lacpa_error}", port->error);
+    LACPA_LOG_PORTSTATS("LACP TANSMIT REASON   : %{lacpa_transmit}",
+                        port->ntt_reason);
+    LACPA_LOG_PORTSTATS("*************END DUMPING INFO**************\n");
+    lacpa_dump_state(port);
+}
+
+/*
+ * lacpa_clear_actor_state
+ *
+ * Clear lacp state flags: synchronization, collecting, distributing
+ *
+ * These flag states ensure that the protocol is restarted
+ */
+static void
+lacpa_clear_actor_state (lacpa_port_t *port)
+{
+    if (!port) return;
+
+    AIM_LOG_TRACE("Clearing actor state flags for port: %d", 
+                  port->actor.port_no);
+    LACPA_CLR_STATE_SYNCHRONIZATION(port->actor.state);
+    LACPA_CLR_STATE_COLLECTING(port->actor.state);
+    LACPA_CLR_STATE_DISTRIBUTING(port->actor.state);
 }
 
 /*
@@ -161,7 +208,9 @@ lacpa_update_partner (lacpa_port_t *port, lacpa_pdu_t *pdu)
  * 1. Mismatch in Actor-Partner port parameters
  * 2. Mismatch in Actor-Partner lacp state flags
  *    lacp_activity, aggregation, lacp_activity, synchronization, 
- *    collection, distributing 
+ *    collection, distributing
+ *
+ * Incase of a mismatch, clear actor lacp state flags 
  */
 static void
 lacpa_update_ntt (lacpa_port_t *port, lacpa_pdu_t *pdu, bool *ntt)
@@ -209,6 +258,7 @@ lacpa_update_ntt (lacpa_port_t *port, lacpa_pdu_t *pdu, bool *ntt)
 transmit:
     AIM_LOG_TRACE("Setting ntt for Port: %d, reason: %{lacpa_transmit}",
                   port->actor.port_no, port->ntt_reason);
+    lacpa_clear_actor_state(port); 
     *ntt = true;
 }
 
@@ -231,13 +281,21 @@ lacpa_update_convergence (lacpa_port_t *port, bool *ntt)
 
     if (!LACPA_IS_STATE_AGGREGATION(port->partner.state)) {
         if (prev_error != LACPA_ERROR_PARTNER_AGGREGATION_OFF) {
-            AIM_LOG_TRACE("Setting unconverged, Mismatch in aggregation state");
+            AIM_LOG_TRACE("Setting unconverged, Mismatch in aggregation state "
+                          "for port: %d", port->actor.port_no);
             port->error = LACPA_ERROR_PARTNER_AGGREGATION_OFF;
             port->lacp_event = LACPA_EVENT_PROTOCOL_UNCONVERGED;
             lacpa_machine(port, NULL);
         } else {
-            AIM_LOG_TRACE("Protocol Already Unconverged..No action required");
+            AIM_LOG_TRACE("Protocol already unconverged for port: %d", 
+                          port->actor.port_no);
         }
+        return;
+    }
+
+    if (*ntt) {
+        AIM_LOG_TRACE("Partner port has stale info, cannot procced with "
+                      "convergence for port: %d", port->actor.port_no);
         return;
     }
 
@@ -288,6 +346,8 @@ lacpa_update_convergence (lacpa_port_t *port, bool *ntt)
         port->is_converged = true;
         lacpa_update_controller(port);    
     }
+
+    LACPA_CLR_STATE_LACP_TIMEOUT(port->actor.state);
     return;
 
 unconverged:
@@ -375,7 +435,6 @@ lacpa_init_port (lacpa_system_t *system, lacpa_info_t *info,
     }
 
     port->system = system;
-    //Todo: replace with actual mac_address of the port
     LACPA_MEMCPY(port->src_mac.addr, port_src_mac_address, OF_MAC_ADDR_BYTES); 
 
     lacpa_machine(port, NULL);
@@ -443,7 +502,9 @@ lacpa_transmit (lacpa_port_t *port)
     /*
      *  Dump out the packet to verify all the fields are set properly
      */
-    ppe_packet_dump(&ppep, &aim_pvs_stdout);
+    if (AIM_LOG_CUSTOM_ENABLED(LACPA_LOG_FLAG_PORTSTATS)) {
+        ppe_packet_dump(&ppep, aim_log_pvs_get(&AIM_LOG_STRUCT));
+    }
 
     /*
      * Send the packet out the port
@@ -451,60 +512,9 @@ lacpa_transmit (lacpa_port_t *port)
     octets.data = data;
     octets.bytes = LACP_PKT_BUF_SIZE;
     lacpa_send_packet_out(port, &octets);
-    //lacpa_send_utest(port, data, LACP_PKT_BUF_SIZE);
 
     return;
 
-}
-
-/*
- * lacpa_receive_utest
- *
- * Process incoming LACPDU and take appropriate action
- */
-bool
-lacpa_receive_utest (lacpa_port_t *port, uint8_t *data, uint32_t bytes)
-{
-    lacpa_pdu_t  pdu;
-    ppe_packet_t ppep;
-
-    if (!port || !data) return false;
-
-    if (!port->lacp_enabled) {
-        AIM_LOG_ERROR("LACPDU-Rx-FAILED - Agent is Disabled on port: %d",
-                      port->actor.port_no);
-        return false;
-    }
-
-    LACPA_MEMSET(&pdu, 0, sizeof(lacpa_pdu_t));
-    AIM_LOG_TRACE("LACPDU Received on port: %d", port->actor.port_no);
-
-    /*
-     * Use ppe api's to fill info from data in our pdu
-     */
-    ppe_packet_init(&ppep, data, bytes);
-    if (ppe_parse(&ppep) < 0) {
-        AIM_LOG_ERROR("Packet parsing failed. packet=%{data}", data, bytes);
-        return false;
-    }
-
-    if (!ppe_header_get(&ppep, PPE_HEADER_LACP)) {
-        AIM_LOG_ERROR("Not a Valid LCAP Packet");
-        return false;
-    }
-
-    /*
-     * Retrieve the information from the LCAP packet
-     */
-    if (!lacpa_parse_pdu(&ppep, &pdu)) {
-        AIM_LOG_ERROR("Packet parsing failed.");
-        return false;
-    }
-
-    port->lacp_event = LACPA_EVENT_PDU_RECEIVED;
-    lacpa_machine(port, &pdu);
-
-    return true;
 }
 
 /*
@@ -517,18 +527,17 @@ lacpa_defaulted (lacpa_port_t *port)
 {
     if (!port) return;
 
+    churn_detection_running = false;
     lacpa_churn_detection_machine(port, false);
     lacpa_current_while_timer(port, false);
 
-    /*
-     * Set the Actor LACP_TIMEOUT to Long Timeout
-     */
-    LACPA_CLR_STATE_LACP_TIMEOUT(port->actor.state);
+    lacpa_clear_actor_state(port);
 
     AIM_LOG_TRACE("Actor State Defaulted for Port: %d,  Inform Controller",
                   port->actor.port_no);
     port->is_converged = false;
     lacpa_update_controller(port);
+    lacpa_transmit(port);
 }
 
 /*
@@ -567,20 +576,20 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu)
          * to default values
          */
         LACPA_SET_STATE_LACP_ACTIVITY(port->actor.state);
-        LACPA_CLR_STATE_LACP_TIMEOUT(port->actor.state);
+        LACPA_SET_STATE_LACP_TIMEOUT(port->actor.state);
         LACPA_SET_STATE_AGGREGATION(port->actor.state);
 
         port->ntt_reason = LACPA_TRANSMIT_AGENT_ENABLED;
         lacpa_transmit(port);
         lacpa_periodic_machine(port, true);
-        lacpa_churn_detection_machine(port, true);
+        //lacpa_churn_detection_machine(port, true);
         lacpa_current_while_timer(port, true);
         port->system->lacp_active_port_count++;
         break;
 
     case LACPA_EVENT_PDU_RECEIVED:
         port->lacp_state = LACPA_MACHINE_AGENT_CURRENT;
-        LACPA_CLR_STATE_LACP_TIMEOUT(port->actor.state);
+        LACPA_SET_STATE_LACP_TIMEOUT(port->actor.state);
         LACPA_CLR_STATE_EXPIRED(port->actor.state);
         LACPA_CLR_STATE_DEFAULTED(port->actor.state);
         prev_error = port->error;
@@ -591,10 +600,36 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu)
         lacpa_process_pdu(port, pdu);
 
         /*
+         * Start the churn detection timer if:
+         * Unconverged; because of the same reason and Churn Detection 
+         * is not running
+         *
+         * Stop the churn detection timer if:
+         * 1. Converged
+         * 2. Unconverged; but because of a different reason
+         */    
+        if (!port->is_converged && (prev_error == port->error) && 
+            !churn_detection_running) {
+            AIM_LOG_TRACE("Starting Churn Detection timer for port: %d, "
+                          "is_converged: %d, prev_error: %{lacpa_error}, "
+                          "new_error: %{lacpa_error}", port->actor.port_no,
+                          port->is_converged, prev_error, port->error);
+            lacpa_churn_detection_machine(port, true);
+            churn_detection_running = true;
+        } else if (port->is_converged || (prev_error != port->error)) {
+            AIM_LOG_TRACE("Stopping Churn Detection timer for port: %d, "
+                          "is_converged: %d, prev_error: %{lacpa_error}, "
+                          "new_error: %{lacpa_error}", port->actor.port_no,
+                          port->is_converged, prev_error, port->error);
+            lacpa_churn_detection_machine(port, false);
+            churn_detection_running = false;
+        }
+
+        /*
          * Restart the churn detection timer if:
          * 1. Converged
          * 2. Unconverged; but because of a different reason
-         */
+         *
         if (port->is_converged || (prev_error != port->error)) {
             AIM_LOG_TRACE("Restarting Churn Detection timer for port: %d, "
                           "is_converged: %d, prev_error: %{lacpa_error}, "
@@ -606,8 +641,8 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu)
                           "%{lacpa_error}, Staying in Defaulted State for port:"
                           "  %d", port->error, port->actor.port_no);
             port->lacp_state = LACPA_MACHINE_AGENT_DEFAULTED;
-            LACPA_SET_STATE_DEFAULTED(port->actor.state);
-        }
+            lacpa_clear_actor_state(port);
+        }*/
 
         lacpa_current_while_timer(port, true);
         break;
@@ -636,6 +671,7 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu)
     case LACPA_EVENT_PROTOCOL_UNCONVERGED:
         port->lacp_state = LACPA_MACHINE_AGENT_DEFAULTED;
         LACPA_SET_STATE_DEFAULTED(port->actor.state);
+        LACPA_CLR_STATE_LACP_TIMEOUT(port->actor.state);
         lacpa_defaulted(port);
         break;
 

@@ -116,7 +116,7 @@ lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets)
     action = of_action_output_new(OF_VERSION_1_3);
     AIM_TRUE_OR_DIE(action != NULL);
     
-    of_action_output_port_set(action, port->actor.port_num);
+    of_action_output_port_set(action, port->actor.port_no);
     of_list_append(list, action);
     of_object_delete(action);
     rv = of_packet_out_actions_set(obj, list);
@@ -192,6 +192,7 @@ lacpa_packet_in_listner (of_packet_in_t *packet_in)
         port_no = match.fields.in_port; 
     }
 
+    AIM_LOG_TRACE("LACPDU Received on port: %d", port_no);
     port = lacpa_find_port(&lacp_system, port_no);
     if (!port) return IND_CORE_LISTENER_RESULT_PASS;
  
@@ -199,10 +200,11 @@ lacpa_packet_in_listner (of_packet_in_t *packet_in)
         AIM_LOG_ERROR("LACPDU-Rx-FAILED - Agent is Disabled on port: %d",
                       port->actor.port_no);
         return IND_CORE_LISTENER_RESULT_PASS;
-    } 
+    }
 
-    AIM_LOG_TRACE("LACPDU Received on port: %d", port->actor.port_no);
-    ppe_packet_dump(&ppep, &aim_pvs_stdout);
+    if (AIM_LOG_CUSTOM_ENABLED(LACPA_LOG_FLAG_PORTSTATS)) {
+        ppe_packet_dump(&ppep, aim_log_pvs_get(&AIM_LOG_STRUCT));
+    }
 
     /*
      * Retrieve the information from the LACP packet
