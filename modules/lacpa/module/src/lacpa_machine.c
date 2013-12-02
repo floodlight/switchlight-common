@@ -50,7 +50,6 @@ lacpa_dump_state (lacpa_port_t *port)
 
     LACPA_LOG_PORTSTATS("*************DUMPING STATE INFO*************\n");
     LACPA_LOG_PORTSTATS("\nACTOR STATE FLAGS");
-    LACPA_LOG_PORTSTATS("ACTOR OF_PORT_NO        : %d", port->actor.port_no);
     LACPA_LOG_PORTSTATS("ACTOR LACP ACTIVITY     : %s", 
                         LACPA_IS_STATE_LACP_ACTIVITY(port->actor.state)? 
                         "ACTIVE" : "PASSIVE");
@@ -70,7 +69,6 @@ lacpa_dump_state (lacpa_port_t *port)
                         LACPA_IS_STATE_DISTRIBUTING(port->actor.state)?
                         "YES" : "NO");
     LACPA_LOG_PORTSTATS("\nPARTNER STATE FLAGS");
-    LACPA_LOG_PORTSTATS("PARTNER PORT_NUM        : %d", port->partner.port_num);
     LACPA_LOG_PORTSTATS("PARTNER LACP ACTIVITY   : %s", 
                         LACPA_IS_STATE_LACP_ACTIVITY(port->partner.state)? 
                         "ACTIVE" : "PASSIVE");
@@ -138,7 +136,6 @@ lacpa_dump_port (lacpa_port_t *port)
     LACPA_LOG_PORTSTATS("LACP TANSMIT REASON   : %{lacpa_transmit}",
                         port->ntt_reason);
     LACPA_LOG_PORTSTATS("*************END DUMPING INFO**************\n");
-    lacpa_dump_state(port);
 }
 
 /*
@@ -582,7 +579,6 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu)
         port->ntt_reason = LACPA_TRANSMIT_AGENT_ENABLED;
         lacpa_transmit(port);
         lacpa_periodic_machine(port, true);
-        //lacpa_churn_detection_machine(port, true);
         lacpa_current_while_timer(port, true);
         port->system->lacp_active_port_count++;
         break;
@@ -624,25 +620,6 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu)
             lacpa_churn_detection_machine(port, false);
             churn_detection_running = false;
         }
-
-        /*
-         * Restart the churn detection timer if:
-         * 1. Converged
-         * 2. Unconverged; but because of a different reason
-         *
-        if (port->is_converged || (prev_error != port->error)) {
-            AIM_LOG_TRACE("Restarting Churn Detection timer for port: %d, "
-                          "is_converged: %d, prev_error: %{lacpa_error}, "
-                          "new_error: %{lacpa_error}", port->actor.port_no,
-                          port->is_converged, prev_error, port->error);
-            lacpa_churn_detection_machine(port, true);
-        } else if (prev_state == LACPA_MACHINE_AGENT_DEFAULTED) {
-            AIM_LOG_TRACE("Prev State was AGENT_DEFAULTED due to same error: "
-                          "%{lacpa_error}, Staying in Defaulted State for port:"
-                          "  %d", port->error, port->actor.port_no);
-            port->lacp_state = LACPA_MACHINE_AGENT_DEFAULTED;
-            lacpa_clear_actor_state(port);
-        }*/
 
         lacpa_current_while_timer(port, true);
         break;
