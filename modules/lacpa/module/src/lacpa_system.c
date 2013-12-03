@@ -29,6 +29,7 @@
 
 lacpa_system_t lacp_system;
 bool lacp_system_initialized = false;
+aim_ratelimiter_t pktin_log_limiter;
 
 /*
  * lacp_system_initialized
@@ -61,6 +62,7 @@ lacpa_init_system (lacpa_system_t *system)
 
     ports_size = sizeof(lacpa_port_t) * (PHY_PORT_COUNT+1);
     system->lacp_active_port_count = 0;
+    aim_ratelimiter_init(&pktin_log_limiter, 1000*1000, 5, NULL);
     system->ports = (lacpa_port_t *) LACPA_MALLOC(ports_size);
 
     if (!system->ports) {
@@ -77,13 +79,13 @@ lacpa_init_system (lacpa_system_t *system)
      * Register listerners for port packet_in and Controller msg's
      */
     if (ind_core_packet_in_listener_register((ind_core_packet_in_listener_f)
-                                             lacpa_packet_in_listner) < 0) {
+                                             lacpa_packet_in_handler) < 0) {
         AIM_LOG_FATAL("Failed to register for port packet_in in LACPA module");
         return INDIGO_ERROR_INIT;
     }
 
     if (ind_core_message_listener_register((ind_core_message_listener_f)
-                                           lacpa_controller_msg_listner) < 0) {
+                                           lacpa_controller_msg_handler) < 0) {
         AIM_LOG_FATAL("Failed to register for Controller msg in LACPA module");
         return INDIGO_ERROR_INIT;
     }
@@ -103,8 +105,7 @@ lacpa_find_port (lacpa_system_t *system, uint32_t port_no)
     if (!system) return NULL;
 
     if (port_no > PHY_PORT_COUNT) {
-        AIM_LOG_ERROR("FATAL ERROR - Port No: %d Out of Range %d",
-                      port_no, PHY_PORT_COUNT);
+        AIM_LOG_ERROR("Port No: %d Out of Range %d", port_no, PHY_PORT_COUNT);
         return NULL;
     }
 

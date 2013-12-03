@@ -34,63 +34,71 @@
 static void
 lacpa_current_while_expiration_timer_cb (void *cookie)
 {
+    lacpa_event_t event;
+
     if (!cookie) return;
 
     lacpa_port_t *port = (lacpa_port_t *)cookie;
+    if (!port) return;
 
     AIM_LOG_TRACE("current_while timer callback for port: %d",
                   port->actor.port_no);
 
-    port = lacpa_find_port(port->system, port->actor.port_no);
-    if (!port) return;
-
     if (port->lacp_state == LACPA_MACHINE_AGENT_CURRENT) {
-        port->lacp_event = LACPA_EVENT_CURRENT_TIMER_EXPIRED;
+        event = LACPA_EVENT_CURRENT_TIMER_EXPIRED;
     } else if (port->lacp_state == LACPA_MACHINE_AGENT_EXPIRED) {
-        port->lacp_event = LACPA_EVENT_EXPIRY_TIMER_EXPIRED;
+        event = LACPA_EVENT_EXPIRY_TIMER_EXPIRED;
     } else {
 
         /*
          * Sanity check, disable the timer
          */
-        lacpa_current_while_timer(port, false);
+        lacpa_stop_current_while_timer(port);
         return;
     }
 
-    lacpa_machine(port, NULL);
+    lacpa_machine(port, NULL, event);
 }
 
 /*
- * lacpa_current_while_timer
+ * lacpa_start_current_while_timer
  */
 void
-lacpa_current_while_timer (lacpa_port_t *port, bool timer_enabled)
+lacpa_start_current_while_timer (lacpa_port_t *port)
 {
     if (!port) return;
 
-    AIM_LOG_TRACE("%s current_while timer for port: %d",
-                  timer_enabled? "START": "STOP", port->actor.port_no);
+    AIM_LOG_TRACE("Start current_while timer for port: %d", 
+                  port->actor.port_no);
 
-    if (timer_enabled && port->lacp_state == LACPA_MACHINE_AGENT_DEFAULTED) {
+    if (port->lacp_state == LACPA_MACHINE_AGENT_DEFAULTED) {
         AIM_LOG_TRACE("Failed to Start current_while timer since Agent State: "
                       "%{lacpa_machine}", port->lacp_state);
         return;
     }
 
-    if (timer_enabled) {
-        if (ind_soc_timer_event_register(
-                                    lacpa_current_while_expiration_timer_cb,
-                                         port, LACPA_IS_STATE_LACP_TIMEOUT(
-                                         port->actor.state)? 
-                                         LACP_SHORT_TIMEOUT_MS:
-                                         LACP_LONG_TIMEOUT_MS) < 0) {
-            AIM_LOG_ERROR("Failed to register timer for port %d", 
-                          port->actor.port_no);
-        }
-    } else {
-        ind_soc_timer_event_unregister(lacpa_current_while_expiration_timer_cb, 
-                                       port);
+    if (ind_soc_timer_event_register(lacpa_current_while_expiration_timer_cb,
+                                     port, LACPA_IS_STATE_LACP_TIMEOUT(
+                                     port->actor.state)? LACP_SHORT_TIMEOUT_MS: 
+                                     LACP_LONG_TIMEOUT_MS) < 0) {
+        AIM_LOG_ERROR("Failed to register timer for port %d", 
+                      port->actor.port_no);
     }
+}
+
+/*
+ * lacpa_stop_current_while_timer
+ */
+void
+lacpa_stop_current_while_timer (lacpa_port_t *port)
+{
+    if (!port) return;
+
+    AIM_LOG_TRACE("Stop current_while timer for port: %d", 
+                  port->actor.port_no);
+
+    ind_soc_timer_event_unregister(lacpa_current_while_expiration_timer_cb, 
+                                   port);
 }
 
 /*
@@ -104,45 +112,54 @@ lacpa_churn_expiration_timer_cb (void *cookie)
     if (!cookie) return;
 
     lacpa_port_t *port = (lacpa_port_t *)cookie;
+    if (!port) return;
 
     AIM_LOG_TRACE("Churn Detection timer callback for port: %d",
                   port->actor.port_no);
 
-    port = lacpa_find_port(port->system, port->actor.port_no);
-    if (!port) return;
-
-    port->lacp_event = LACPA_EVENT_CHURN_DETECTION_EXPIRED;
-    lacpa_machine(port, NULL);
+    lacpa_machine(port, NULL, LACPA_EVENT_CHURN_DETECTION_EXPIRED);
 }
 
 /*
- * lacpa_churn_detection_machine
+ * lacpa_start_churn_detection_timer
  *
  * Churn Detection Timer
  */
 void
-lacpa_churn_detection_machine (lacpa_port_t *port, bool timer_enabled)
+lacpa_start_churn_detection_timer (lacpa_port_t *port)
 {
     if (!port) return;
 
-    AIM_LOG_TRACE("%s Churn Detection timer for port: %d",
-                  timer_enabled? "START": "STOP", port->actor.port_no);
+    AIM_LOG_TRACE("Start Churn Detection timer for port: %d", 
+                  port->actor.port_no);
 
-    if (timer_enabled && port->lacp_state == LACPA_MACHINE_AGENT_DEFAULTED) {
+    if (port->lacp_state == LACPA_MACHINE_AGENT_DEFAULTED) {
         AIM_LOG_TRACE("Failed to Start Churn Detection timer since Agent State:"
                       " %{lacpa_machine}", port->lacp_state);
         return; 
     }
  
-    if (timer_enabled) {
-        if (ind_soc_timer_event_register(lacpa_churn_expiration_timer_cb, port,
-                                         LACP_CHURN_DETECTION_TIMEOUT_MS) < 0) {
-            AIM_LOG_ERROR("Failed to register timer for port %d",   
-                          port->actor.port_no);
-        }
-    } else {
-        ind_soc_timer_event_unregister(lacpa_churn_expiration_timer_cb, port); 
+    if (ind_soc_timer_event_register(lacpa_churn_expiration_timer_cb, port,
+                                     LACP_CHURN_DETECTION_TIMEOUT_MS) < 0) {
+        AIM_LOG_ERROR("Failed to register timer for port %d",   
+                      port->actor.port_no);
     }
+}
+
+/*
+ * lacpa_stop_churn_detection_timer
+ *
+ * Churn Detection Timer
+ */
+void
+lacpa_stop_churn_detection_timer (lacpa_port_t *port)
+{
+    if (!port) return;
+
+    AIM_LOG_TRACE("Stop Churn Detection timer for port: %d",
+                  port->actor.port_no);
+
+    ind_soc_timer_event_unregister(lacpa_churn_expiration_timer_cb, port);
 }
 
 /*
@@ -156,45 +173,52 @@ lacpa_periodic_expiration_timer_cb (void *cookie)
     if (!cookie) return;
 
     lacpa_port_t *port = (lacpa_port_t *)cookie;
+    if (!port) return;
 
     AIM_LOG_TRACE("Periodic timer callback for port: %d",
                   port->actor.port_no);
     
-    port = lacpa_find_port(port->system, port->actor.port_no);
-    if (!port) return;
-
     if (port->lacp_state != LACPA_MACHINE_AGENT_STOPPED) {
-        port->ntt_reason = LACPA_TRANSMIT_PERIODIC_TIMER_EXPIRED;
+        port->debug_info.ntt_reason = LACPA_TRANSMIT_PERIODIC_TIMER_EXPIRED;
         lacpa_transmit(port);
     } else {
-        lacpa_periodic_machine(port, false);
+        lacpa_stop_periodic_timer(port);
     }
 }
 
 /*
- * lacpa_periodic_machine
+ * lacpa_start_periodic_timer
  *
  * Periodic Timer
  */
 void
-lacpa_periodic_machine (lacpa_port_t * port, bool timer_enabled)
+lacpa_start_periodic_timer (lacpa_port_t * port)
 {
     if (!port) return;
 
-    AIM_LOG_TRACE("%s Periodic timer for port: %d", timer_enabled?
-                  "START": "STOP", port->actor.port_no);
+    AIM_LOG_TRACE("Start Periodic timer for port: %d", port->actor.port_no); 
 
-    if (timer_enabled) {
-        if (ind_soc_timer_event_register(lacpa_periodic_expiration_timer_cb,
-                                         port, LACPA_IS_STATE_LACP_TIMEOUT(
-                                         port->partner.state)?
-                                         LACP_FAST_PERIODIC_TIMEOUT_MS :
-                                         LACP_SLOW_PERIODIC_TIMEOUT_MS) < 0) {
-            AIM_LOG_ERROR("Failed to register timer for port %d",   
-                          port->actor.port_no);
-        }
-    } else {
-        ind_soc_timer_event_unregister(lacpa_periodic_expiration_timer_cb,port); 
+    if (ind_soc_timer_event_register(lacpa_periodic_expiration_timer_cb,
+                                     port, LACPA_IS_STATE_LACP_TIMEOUT(
+                                     port->partner.state)?
+                                     LACP_FAST_PERIODIC_TIMEOUT_MS :
+                                     LACP_SLOW_PERIODIC_TIMEOUT_MS) < 0) {
+        AIM_LOG_ERROR("Failed to register timer for port %d",
+                      port->actor.port_no);
     }
 }
 
+/*
+ * lacpa_stop_periodic_timer
+ *
+ * Periodic Timer
+ */
+void
+lacpa_stop_periodic_timer (lacpa_port_t * port)
+{
+    if (!port) return;
+
+    AIM_LOG_TRACE("Stop Periodic timer for port: %d", port->actor.port_no);
+
+    ind_soc_timer_event_unregister(lacpa_periodic_expiration_timer_cb,port);
+}

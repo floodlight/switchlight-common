@@ -52,8 +52,8 @@
 #include <poll.h>
 #include <lacpa/lacpa_config.h>
 #include <lacpa/lacpa.h>
+#include <lacpa_int.h>
 
-uint8_t src_mac[6] = {0x00, 0x0e, 0x83, 0x16, 0xf5, 0x00};
 uint8_t mac[6] = {0x00, 0x13, 0xc4, 0x12, 0x0f, 0x00};
 uint8_t mac2[6] = {0x00, 0x1c, 0x04, 0x1d, 0x0e, 0x00};
 
@@ -90,7 +90,7 @@ lacp_create_send_packet_in (of_port_no_t in_port, of_octets_t *of_octets)
         return INDIGO_ERROR_UNKNOWN;
     }
 
-    if (lacpa_packet_in_listner(of_packet_in) == IND_CORE_LISTENER_RESULT_DROP) {
+    if (lacpa_packet_in_handler(of_packet_in) == IND_CORE_LISTENER_RESULT_DROP) {
         printf("Listener dropped packet-in\n");
     } else {
         printf("Listener passed packet-in\n");
@@ -167,8 +167,6 @@ void lacp_init(void)
         printf("FATAL ERROR - PORT ALLOCATION FAILED");
         return;
     }
-    memcpy(&port1->src_mac, src_mac, 6);
-    memcpy(&port2->src_mac, src_mac, 6);
 
     info1.sys_priority = 32768;
     memcpy(&info1.sys_mac, mac, 6);

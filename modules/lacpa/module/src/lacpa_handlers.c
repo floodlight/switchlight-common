@@ -141,12 +141,12 @@ lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets)
 }
 
 /*
- * ind_core_packet_in_listener_register
+ * lacpa_packet_in_handler 
  *
  * API for handling incoming port packets
  */
 ind_core_listener_result_t
-lacpa_packet_in_listner (of_packet_in_t *packet_in)
+lacpa_packet_in_handler (of_packet_in_t *packet_in)
 {
     of_octets_t                octets;
     of_port_no_t               port_no;
@@ -154,12 +154,10 @@ lacpa_packet_in_listner (of_packet_in_t *packet_in)
     lacpa_port_t               *port;
     lacpa_pdu_t                pdu;
     ppe_packet_t               ppep;
-    aim_ratelimiter_t          pktin_log_limiter;
 
     if (!packet_in) return IND_CORE_LISTENER_RESULT_PASS;
 
     LACPA_MEMSET(&pdu, 0, sizeof(lacpa_pdu_t));
-    aim_ratelimiter_init(&pktin_log_limiter, 1000*1000, 5, NULL);
 
     of_packet_in_data_get(packet_in, &octets);  
 
@@ -168,9 +166,8 @@ lacpa_packet_in_listner (of_packet_in_t *packet_in)
      */
     ppe_packet_init(&ppep, octets.data, octets.bytes);
     if (ppe_parse(&ppep) < 0) {
-        AIM_LOG_RL_ERROR(&pktin_log_limiter, os_time_monotonic(), "Packet_in "
-                         "parsing failed. packet=%{data}", octets.data, 
-                         octets.bytes);
+        AIM_LOG_RL_ERROR(&pktin_log_limiter, os_time_monotonic(),
+                         "Packet_in parsing failed."); 
         return IND_CORE_LISTENER_RESULT_PASS;
     }
 
@@ -197,7 +194,7 @@ lacpa_packet_in_listner (of_packet_in_t *packet_in)
     if (!port) return IND_CORE_LISTENER_RESULT_PASS;
  
     if (!port->lacp_enabled) {
-        AIM_LOG_ERROR("LACPDU-Rx-FAILED - Agent is Disabled on port: %d",
+        AIM_LOG_TRACE("LACPDU-Rx-FAILED - Agent is Disabled on port: %d",
                       port->actor.port_no);
         return IND_CORE_LISTENER_RESULT_PASS;
     }
@@ -214,8 +211,7 @@ lacpa_packet_in_listner (of_packet_in_t *packet_in)
         return IND_CORE_LISTENER_RESULT_PASS;
     }
 
-    port->lacp_event = LACPA_EVENT_PDU_RECEIVED;
-    lacpa_machine(port, &pdu);
+    lacpa_machine(port, &pdu, LACPA_EVENT_PDU_RECEIVED);
 
     return IND_CORE_LISTENER_RESULT_DROP;
 }
@@ -358,8 +354,8 @@ lacpa_get_port_stats_handle (indigo_cxn_id_t cxn,
              * Append the entry obj created in the list of enteries
              */
             if (of_list_append(&entries, entry) < 0) {
-                AIM_LOG_ERROR("FATAL ERROR - Unable to add entry to stats reply"
-                              " for Port: %d", port->actor.port_no);
+                AIM_LOG_ERROR("Unable to add entry to stats reply for port: %d",
+                              port->actor.port_no);
                 break;
             }
         }
@@ -374,17 +370,17 @@ lacpa_get_port_stats_handle (indigo_cxn_id_t cxn,
 }
 
 /*
- * lacpa_controller_msg_listner
+ * lacpa_controller_msg_handler
  *
  * API for handling incoming Controller msg's
  */
 ind_core_listener_result_t
-lacpa_controller_msg_listner (indigo_cxn_id_t cxn, of_object_t *obj)
+lacpa_controller_msg_handler (indigo_cxn_id_t cxn, of_object_t *obj)
 {
     ind_core_listener_result_t result = IND_CORE_LISTENER_RESULT_PASS;
 
     if (!lacpa_is_system_initialized()) {
-        AIM_LOG_ERROR("FATAL ERROR - LACPA module uninitalized");
+        AIM_LOG_ERROR("LACPA module uninitalized");
         return result;
     }
 

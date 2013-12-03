@@ -258,19 +258,22 @@ typedef struct lacp_pdu_s { /* lacpa_pdu */
     lacpa_info_t     partner;
 } lacpa_pdu_t;
 
+typedef struct lacpa_debug_s { /* lacpa_debug */
+    lacpa_event_t    lacp_event;
+    lacpa_transmit_t ntt_reason;
+} lacpa_debug_t;
+
 typedef struct lacpa_port_s   lacpa_port_t;
 typedef struct lacpa_system_s lacpa_system_t;
 
 struct lacpa_port_s { /* lacpa_port */
-    of_mac_addr_t    src_mac;
     lacpa_info_t     actor;
     lacpa_info_t     partner;
     lacpa_machine_t  lacp_state;
-    lacpa_event_t    lacp_event;
     bool             lacp_enabled;
     bool             is_converged;
     lacpa_error_t    error;
-    lacpa_transmit_t ntt_reason;
+    lacpa_debug_t    debug_info;
     lacpa_system_t   *system;
 };
 
@@ -278,21 +281,13 @@ struct lacpa_port_s { /* lacpa_port */
  * LACP : LINK AGGREGATION CONTROL PROTOCOL : SYSTEM DATA & API DECLARATIONS
  *****************************************************************************/
 struct lacpa_system_s { /* lacpa_system */
-    uint32_t         lacp_active_port_count;
-    lacpa_port_t     *ports;
+    uint32_t          lacp_active_port_count;
+    lacpa_port_t      *ports;
 };
 
 extern lacpa_system_t lacp_system;
  
 indigo_error_t lacpa_init_system (lacpa_system_t *system);
-void lacpa_init_port (lacpa_system_t *system, lacpa_info_t *port,
-                      bool lacp_enabled);
 bool lacpa_is_system_initialized (void);
-lacpa_port_t *lacpa_find_port (lacpa_system_t *system, uint32_t port_no);
-
-ind_core_listener_result_t 
-lacpa_packet_in_listner (of_packet_in_t *packet_in);
-ind_core_listener_result_t 
-lacpa_controller_msg_listner (indigo_cxn_id_t cxn, of_object_t *obj);
 
 #endif /* __LACP__H__ */

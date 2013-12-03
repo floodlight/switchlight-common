@@ -117,21 +117,34 @@
 #define LACPA_IS_STATE_EXPIRED(_state) \
     (_state & LACPA_STATE_EXPIRED)
 
+extern aim_ratelimiter_t pktin_log_limiter;
+
 /******************************************************************************
  *
  * LACP : LINK AGGREGATION CONTROL PROTOCOL : LACPA INTERNAL API DECLARATIONS
  *
  *****************************************************************************/
-void lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu);
+void lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu, lacpa_event_t event);
 void lacpa_transmit (lacpa_port_t *port);
 
-void lacpa_periodic_machine (lacpa_port_t *port, bool timer_enabled);
-void lacpa_churn_detection_machine (lacpa_port_t *port,
-                                           bool timer_enabled);
-void lacpa_current_while_timer (lacpa_port_t *port, bool timer_enabled);
+void lacpa_start_periodic_timer (lacpa_port_t *port);
+void lacpa_stop_periodic_timer (lacpa_port_t *port);
+void lacpa_start_churn_detection_timer (lacpa_port_t *port);
+void lacpa_stop_churn_detection_timer (lacpa_port_t *port);
+void lacpa_start_current_while_timer (lacpa_port_t *port);
+void lacpa_stop_current_while_timer (lacpa_port_t *port);
 
 void lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets);
 void lacpa_update_controller (lacpa_port_t *port);
+
+void lacpa_init_port (lacpa_system_t *system, lacpa_info_t *port,
+                      bool lacp_enabled);
+lacpa_port_t *lacpa_find_port (lacpa_system_t *system, uint32_t port_no);
+
+ind_core_listener_result_t
+lacpa_packet_in_handler (of_packet_in_t *packet_in);
+ind_core_listener_result_t
+lacpa_controller_msg_handler (indigo_cxn_id_t cxn, of_object_t *obj);
 
 /******************************************************************************
  *
