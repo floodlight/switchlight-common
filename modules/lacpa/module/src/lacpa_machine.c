@@ -28,8 +28,6 @@
 #include "lacpa_utils.h"
 #include <PPE/ppe.h>
 
-bool churn_detection_running = false;
-
 /*
  * Slow-Protocols Dest Mac
  */
@@ -389,18 +387,17 @@ lacpa_process_pdu (lacpa_port_t *port, lacpa_pdu_t *pdu)
  * Start/Stop the necessay timers and enable/disable agent states.
  */
 void
-lacpa_init_port (lacpa_system_t *system, lacpa_info_t *info,
-                 bool lacp_enabled)
+lacpa_init_port (lacpa_info_t *info, bool lacp_enabled)
 {
     lacpa_event_t event;
     lacpa_port_t  *port = NULL;
 
-    if (!info || !system)  return;
+    if (!info)  return;
 
     /*
      * Find any port corresponding to the info received
      */
-    port = lacpa_find_port(system, info->port_no);
+    port = lacpa_find_port(info->port_no);
     if (!port) return;
 
     AIM_LOG_TRACE("LACP %s received for port: %d", lacp_enabled?
@@ -431,8 +428,7 @@ lacpa_init_port (lacpa_system_t *system, lacpa_info_t *info,
         event = LACPA_EVENT_DISABLED;
     }
 
-    port->system = system;
-
+    port->churn_detection_running = false;
     lacpa_machine(port, NULL, event);
 }
 
@@ -523,7 +519,7 @@ lacpa_defaulted (lacpa_port_t *port)
 {
     if (!port) return;
 
-    churn_detection_running = false;
+    port->churn_detection_running = false;
     lacpa_stop_churn_detection_timer(port);
     lacpa_stop_current_while_timer(port);
 
@@ -548,7 +544,7 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu, lacpa_event_t event)
 {
     lacpa_error_t prev_error;
 
-    if (!port || !port->system) return;
+    if (!port) return;
 
     lacpa_machine_t prev_state = port->lacp_state;
     port->debug_info.lacp_event = event;
@@ -560,7 +556,7 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu, lacpa_event_t event)
         lacpa_stop_periodic_timer(port);
         lacpa_stop_churn_detection_timer(port);
         lacpa_stop_current_while_timer(port);
-        port->system->lacp_active_port_count--;
+        lacpa_system.lacp_active_port_count--;
         LACPA_MEMSET(port, 0, sizeof(lacpa_port_t)); 
         break;
 
@@ -580,7 +576,7 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu, lacpa_event_t event)
         lacpa_transmit(port);
         lacpa_start_periodic_timer(port);
         lacpa_start_current_while_timer(port);
-        port->system->lacp_active_port_count++;
+        lacpa_system.lacp_active_port_count++;
         break;
 
     case LACPA_EVENT_PDU_RECEIVED:
@@ -605,20 +601,21 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu, lacpa_event_t event)
          * 2. Unconverged; but because of a different reason
          */    
         if (!port->is_converged && (prev_error == port->error) && 
-            !churn_detection_running) {
+            !port->churn_detection_running) {
             AIM_LOG_TRACE("Starting Churn Detection timer for port: %d, "
                           "is_converged: %d, prev_error: %{lacpa_error}, "
                           "new_error: %{lacpa_error}", port->actor.port_no,
                           port->is_converged, prev_error, port->error);
             lacpa_start_churn_detection_timer(port);
-            churn_detection_running = true;
-        } else if (port->is_converged || (prev_error != port->error)) {
+            port->churn_detection_running = true;
+        } else if (port->churn_detection_running && (port->is_converged || 
+                   (prev_error != port->error))) {
             AIM_LOG_TRACE("Stopping Churn Detection timer for port: %d, "
                           "is_converged: %d, prev_error: %{lacpa_error}, "
                           "new_error: %{lacpa_error}", port->actor.port_no,
                           port->is_converged, prev_error, port->error);
             lacpa_stop_churn_detection_timer(port);
-            churn_detection_running = false;
+            port->churn_detection_running = false;
         }
 
         lacpa_start_current_while_timer(port);

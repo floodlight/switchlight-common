@@ -238,56 +238,10 @@ extern aim_map_si_t lacpa_transmit_desc_map[];
 
 /******************************************************************************
  *
- * LACP : LINK AGGREGATION CONTROL PROTOCOL : PROTOCOL DATA
+ * LACP : LINK AGGREGATION CONTROL PROTOCOL : EXTERNAL API DEFINITIONS
  *
  *****************************************************************************/
-typedef uint8_t lacpa_state_t;
-
-typedef struct lacpa_info_s { /* lacpa_info */
-    uint16_t         sys_priority;
-    of_mac_addr_t    sys_mac;
-    uint16_t         port_priority;
-    uint16_t         port_num;
-    uint16_t         key;
-    lacpa_state_t    state;
-    of_port_no_t     port_no;
-} lacpa_info_t;
-
-typedef struct lacp_pdu_s { /* lacpa_pdu */
-    lacpa_info_t     actor;
-    lacpa_info_t     partner;
-} lacpa_pdu_t;
-
-typedef struct lacpa_debug_s { /* lacpa_debug */
-    lacpa_event_t    lacp_event;
-    lacpa_transmit_t ntt_reason;
-} lacpa_debug_t;
-
-typedef struct lacpa_port_s   lacpa_port_t;
-typedef struct lacpa_system_s lacpa_system_t;
-
-struct lacpa_port_s { /* lacpa_port */
-    lacpa_info_t     actor;
-    lacpa_info_t     partner;
-    lacpa_machine_t  lacp_state;
-    bool             lacp_enabled;
-    bool             is_converged;
-    lacpa_error_t    error;
-    lacpa_debug_t    debug_info;
-    lacpa_system_t   *system;
-};
-
-/******************************************************************************
- * LACP : LINK AGGREGATION CONTROL PROTOCOL : SYSTEM DATA & API DECLARATIONS
- *****************************************************************************/
-struct lacpa_system_s { /* lacpa_system */
-    uint32_t          lacp_active_port_count;
-    lacpa_port_t      *ports;
-};
-
-extern lacpa_system_t lacp_system;
- 
-indigo_error_t lacpa_init_system (lacpa_system_t *system);
-bool lacpa_is_system_initialized (void);
+indigo_error_t lacpa_init (void);
+bool lacpa_is_initialized (void);
 
 #endif /* __LACP__H__ */

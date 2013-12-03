@@ -157,12 +157,12 @@ void lacp_init(void)
     memset(&info1, 0, sizeof(lacpa_info_t));
     memset(&info2, 0, sizeof(lacpa_info_t));
 
-    if (!lacpa_is_system_initialized()) {
-        lacpa_init_system(&lacp_system);
+    if (!lacpa_is_initialized()) {
+        lacpa_init();
     }
 
-    port1 = lacpa_find_port(&lacp_system, 10);
-    port2 = lacpa_find_port(&lacp_system, 20);
+    port1 = lacpa_find_port(10);
+    port2 = lacpa_find_port(20);
     if (!port1 || !port2) {
         printf("FATAL ERROR - PORT ALLOCATION FAILED");
         return;
@@ -182,8 +182,8 @@ void lacp_init(void)
     info2.key = 0xe;
     info2.port_no = 20;
     
-    lacpa_init_port(&lacp_system, &info1, true);
-    lacpa_init_port(&lacp_system, &info2, true);
+    lacpa_init_port(&info1, true);
+    lacpa_init_port(&info2, true);
 
 }
 

@@ -166,7 +166,7 @@ lacpa_packet_in_handler (of_packet_in_t *packet_in)
      */
     ppe_packet_init(&ppep, octets.data, octets.bytes);
     if (ppe_parse(&ppep) < 0) {
-        AIM_LOG_RL_ERROR(&pktin_log_limiter, os_time_monotonic(),
+        AIM_LOG_RL_ERROR(&lacpa_pktin_log_limiter, os_time_monotonic(),
                          "Packet_in parsing failed."); 
         return IND_CORE_LISTENER_RESULT_PASS;
     }
@@ -190,7 +190,7 @@ lacpa_packet_in_handler (of_packet_in_t *packet_in)
     }
 
     AIM_LOG_TRACE("LACPDU Received on port: %d", port_no);
-    port = lacpa_find_port(&lacp_system, port_no);
+    port = lacpa_find_port(port_no);
     if (!port) return IND_CORE_LISTENER_RESULT_PASS;
  
     if (!port->lacp_enabled) {
@@ -255,7 +255,7 @@ lacpa_set_port_param_handle (indigo_cxn_id_t cxn,
                   "port_priority: %d, port_num: %d, key: %d", info.port_no,
                   info.sys_priority, info.sys_mac.addr, info.port_priority,
                   info.port_num, info.key);
-    lacpa_init_port(&lacp_system, &info, enabled);
+    lacpa_init_port(&info, enabled);
 
     /*
      * Set up reply 
@@ -315,7 +315,7 @@ lacpa_get_port_stats_handle (indigo_cxn_id_t cxn,
      * send their stats info to the controller in a packed msg
      */
     for (i = 0; i <= PHY_PORT_COUNT; i++) {
-        port = lacpa_find_port(&lacp_system, i);
+        port = lacpa_find_port(i);
 
         if (port && port->lacp_enabled) {
             AIM_LOG_TRACE("Filling Stats request for Port: %d",
@@ -379,7 +379,7 @@ lacpa_controller_msg_handler (indigo_cxn_id_t cxn, of_object_t *obj)
 {
     ind_core_listener_result_t result = IND_CORE_LISTENER_RESULT_PASS;
 
-    if (!lacpa_is_system_initialized()) {
+    if (!lacpa_is_initialized()) {
         AIM_LOG_ERROR("LACPA module uninitalized");
         return result;
     }

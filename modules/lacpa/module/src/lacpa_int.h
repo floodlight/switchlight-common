@@ -117,7 +117,55 @@
 #define LACPA_IS_STATE_EXPIRED(_state) \
     (_state & LACPA_STATE_EXPIRED)
 
-extern aim_ratelimiter_t pktin_log_limiter;
+extern aim_ratelimiter_t lacpa_pktin_log_limiter;
+
+/******************************************************************************
+ *
+ * LACP : LINK AGGREGATION CONTROL PROTOCOL : PROTOCOL DATA
+ *
+ *****************************************************************************/
+typedef uint8_t lacpa_state_t;
+
+typedef struct lacpa_info_s { /* lacpa_info */
+    uint16_t         sys_priority;
+    of_mac_addr_t    sys_mac;
+    uint16_t         port_priority;
+    uint16_t         port_num;
+    uint16_t         key;
+    lacpa_state_t    state;
+    of_port_no_t     port_no;
+} lacpa_info_t;
+
+typedef struct lacp_pdu_s { /* lacpa_pdu */
+    lacpa_info_t     actor;
+    lacpa_info_t     partner;
+} lacpa_pdu_t;
+
+typedef struct lacpa_debug_s { /* lacpa_debug */
+    lacpa_event_t    lacp_event;
+    lacpa_transmit_t ntt_reason;
+} lacpa_debug_t;
+
+typedef struct lacpa_port_s { /* lacpa_port */
+    lacpa_info_t     actor;
+    lacpa_info_t     partner;
+    lacpa_machine_t  lacp_state;
+    bool             lacp_enabled;
+    bool             is_converged;
+    bool             churn_detection_running;    
+    lacpa_error_t    error;
+    lacpa_debug_t    debug_info;
+} lacpa_port_t;
+
+/******************************************************************************
+ * LACP : LINK AGGREGATION CONTROL PROTOCOL : SYSTEM DATA & API DECLARATIONS
+ *****************************************************************************/
+typedef struct lacpa_system_s { /* lacpa_system */
+    uint32_t          lacp_active_port_count;
+    lacpa_port_t      *ports;
+} lacpa_system_t;
+
+extern lacpa_system_t lacpa_system;
 
 /******************************************************************************
  *
@@ -137,9 +185,8 @@ void lacpa_stop_current_while_timer (lacpa_port_t *port);
 void lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets);
 void lacpa_update_controller (lacpa_port_t *port);
 
-void lacpa_init_port (lacpa_system_t *system, lacpa_info_t *port,
-                      bool lacp_enabled);
-lacpa_port_t *lacpa_find_port (lacpa_system_t *system, uint32_t port_no);
+void lacpa_init_port (lacpa_info_t *port, bool lacp_enabled);
+lacpa_port_t *lacpa_find_port (uint32_t port_no);
 
 ind_core_listener_result_t
 lacpa_packet_in_handler (of_packet_in_t *packet_in);

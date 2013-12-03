@@ -131,12 +131,12 @@ aim_main(int argc, char* argv[])
     memset(&info1, 0, sizeof(lacpa_info_t));
     memset(&info2, 0, sizeof(lacpa_info_t));
 
-    if (!lacpa_is_system_initialized()) {
-        lacpa_init_system(&lacp_system);
+    if (!lacpa_is_initialized()) {
+        lacpa_init();
     }
 
-    port1 = lacpa_find_port(&lacp_system, 10);
-    port2 = lacpa_find_port(&lacp_system, 20);
+    port1 = lacpa_find_port(10);
+    port2 = lacpa_find_port(20);
     if (!port1 || !port2) {
         printf("ERROR - PORT ALLOCATION FAILED");
         return 0;
@@ -148,7 +148,7 @@ aim_main(int argc, char* argv[])
     info1.port_num = 25;
     info1.key = 13;
     info1.port_no = 10;
-    lacpa_init_port(&lacp_system, &info1, true);
+    lacpa_init_port(&info1, true);
 
     info2.sys_priority = 32768;
     memcpy(&info2.sys_mac.addr, mac2, 6);
@@ -156,7 +156,7 @@ aim_main(int argc, char* argv[])
     info2.port_num = 0x16;
     info2.key = 0xe;
     info2.port_no = 20;
-    lacpa_init_port(&lacp_system, &info2, true);
+    lacpa_init_port(&info2, true);
 
     /*
      * Make sure the lacp protocol converges
@@ -170,7 +170,7 @@ aim_main(int argc, char* argv[])
     info2.sys_priority = 25000;
     info2.key = 0xf;
     printf("Resending Port init() msg\n"); 
-    lacpa_init_port(&lacp_system, &info2, true);
+    lacpa_init_port(&info2, true);
 
     assert(port1->is_converged == true);
     assert(port2->is_converged == true);
