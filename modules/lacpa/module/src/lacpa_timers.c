@@ -143,7 +143,10 @@ lacpa_start_churn_detection_timer (lacpa_port_t *port)
                                      LACP_CHURN_DETECTION_TIMEOUT_MS) < 0) {
         AIM_LOG_ERROR("Failed to register timer for port %d",   
                       port->actor.port_no);
+        return;
     }
+    
+    port->churn_detection_running = true;
 }
 
 /*
@@ -159,6 +162,7 @@ lacpa_stop_churn_detection_timer (lacpa_port_t *port)
     AIM_LOG_TRACE("Stop Churn Detection timer for port: %d",
                   port->actor.port_no);
 
+    port->churn_detection_running = false;
     ind_soc_timer_event_unregister(lacpa_churn_expiration_timer_cb, port);
 }
 
