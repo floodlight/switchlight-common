@@ -23,7 +23,6 @@
 /* <auto.start.enum(ALL).source> */
 aim_map_si_t lldpa_contr_stype_map[] =
 {
-    { "PACKET_IN", LLDPA_CONTR_STYPE_PACKET_IN },
     { "TX_REQ", LLDPA_CONTR_STYPE_TX_REQ },
     { "TX_RES", LLDPA_CONTR_STYPE_TX_RES },
     { "RX_REQ", LLDPA_CONTR_STYPE_RX_REQ },
@@ -35,7 +34,6 @@ aim_map_si_t lldpa_contr_stype_map[] =
 
 aim_map_si_t lldpa_contr_stype_desc_map[] =
 {
-    { "None", LLDPA_CONTR_STYPE_PACKET_IN },
     { "None", LLDPA_CONTR_STYPE_TX_REQ },
     { "None", LLDPA_CONTR_STYPE_TX_RES },
     { "None", LLDPA_CONTR_STYPE_RX_REQ },
@@ -88,60 +86,6 @@ int
 lldpa_contr_stype_valid(lldpa_contr_stype_t e)
 {
     return aim_map_si_i(NULL, e, lldpa_contr_stype_map, 0) ? 1 : 0;
-}
-
-
-aim_map_si_t lldpa_pkt_type_map[] =
-{
-    { "RX_PACKET", LLDPA_PKT_TYPE_RX_PACKET },
-    { "TX_PACKET", LLDPA_PKT_TYPE_TX_PACKET },
-    { NULL, 0 }
-};
-
-aim_map_si_t lldpa_pkt_type_desc_map[] =
-{
-    { "None", LLDPA_PKT_TYPE_RX_PACKET },
-    { "None", LLDPA_PKT_TYPE_TX_PACKET },
-    { NULL, 0 }
-};
-
-const char*
-lldpa_pkt_type_name(lldpa_pkt_type_t e)
-{
-    const char* name;
-    if(aim_map_si_i(&name, e, lldpa_pkt_type_map, 0)) {
-        return name;
-    }
-    else {
-        return "-invalid value for enum type 'lldpa_pkt_type'";
-    }
-}
-
-int
-lldpa_pkt_type_value(const char* str, lldpa_pkt_type_t* e, int substr)
-{
-    int i;
-    AIM_REFERENCE(substr);
-    if(aim_map_si_s(&i, str, lldpa_pkt_type_map, 0)) {
-        /* Enum Found */
-        *e = i;
-        return 0;
-    }
-    else {
-        return -1;
-    }
-}
-
-const char*
-lldpa_pkt_type_desc(lldpa_pkt_type_t e)
-{
-    const char* name;
-    if(aim_map_si_i(&name, e, lldpa_pkt_type_desc_map, 0)) {
-        return name;
-    }
-    else {
-        return "-invalid value for enum type 'lldpa_pkt_type'";
-    }
 }
 
 /* <auto.end.enum(ALL).source> */

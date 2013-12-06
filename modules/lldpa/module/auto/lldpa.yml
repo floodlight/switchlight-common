@@ -40,12 +40,7 @@ cdefs: &cdefs
     doc: "Include generic uCli support."
     default: 0
 
-type: &type
-- RX_PACKET
-- TX_PACKET
-
 stype: &stype
-- PACKET_IN
 - TX_REQ : 31
 - TX_RES : 32
 - RX_REQ : 33
@@ -72,9 +67,6 @@ definitions:
         - strlen
 
   enum: &enums
-    lldpa_pkt_type:
-      members: *type
-
     lldpa_contr_stype:
       members: *stype
 
