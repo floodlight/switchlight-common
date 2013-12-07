@@ -147,7 +147,6 @@ aim_map_si_t lacpa_event_map[] =
     { "CURRENT_TIMER_EXPIRED", LACPA_EVENT_CURRENT_TIMER_EXPIRED },
     { "EXPIRY_TIMER_EXPIRED", LACPA_EVENT_EXPIRY_TIMER_EXPIRED },
     { "CHURN_DETECTION_EXPIRED", LACPA_EVENT_CHURN_DETECTION_EXPIRED },
-    { "PROTOCOL_CONVERGED", LACPA_EVENT_PROTOCOL_CONVERGED },
     { "PROTOCOL_UNCONVERGED", LACPA_EVENT_PROTOCOL_UNCONVERGED },
     { NULL, 0 }
 };
@@ -160,7 +159,6 @@ aim_map_si_t lacpa_event_desc_map[] =
     { "None", LACPA_EVENT_CURRENT_TIMER_EXPIRED },
     { "None", LACPA_EVENT_EXPIRY_TIMER_EXPIRED },
     { "None", LACPA_EVENT_CHURN_DETECTION_EXPIRED },
-    { "None", LACPA_EVENT_PROTOCOL_CONVERGED },
     { "None", LACPA_EVENT_PROTOCOL_UNCONVERGED },
     { NULL, 0 }
 };
@@ -205,20 +203,73 @@ lacpa_event_desc(lacpa_event_t e)
 }
 
 
+aim_map_si_t lacpa_log_flag_map[] =
+{
+    { "portstats", LACPA_LOG_FLAG_PORTSTATS },
+    { NULL, 0 }
+};
+
+aim_map_si_t lacpa_log_flag_desc_map[] =
+{
+    { "None", LACPA_LOG_FLAG_PORTSTATS },
+    { NULL, 0 }
+};
+
+const char*
+lacpa_log_flag_name(lacpa_log_flag_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, lacpa_log_flag_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'lacpa_log_flag'";
+    }
+}
+
+int
+lacpa_log_flag_value(const char* str, lacpa_log_flag_t* e, int substr)
+{
+    int i;
+    AIM_REFERENCE(substr);
+    if(aim_map_si_s(&i, str, lacpa_log_flag_map, 0)) {
+        /* Enum Found */
+        *e = i;
+        return 0;
+    }
+    else {
+        return -1;
+    }
+}
+
+const char*
+lacpa_log_flag_desc(lacpa_log_flag_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, lacpa_log_flag_desc_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'lacpa_log_flag'";
+    }
+}
+
+
 aim_map_si_t lacpa_transmit_map[] =
 {
     { "NONE", LACPA_TRANSMIT_NONE },
     { "AGENT_ENABLED", LACPA_TRANSMIT_AGENT_ENABLED },
     { "INFO_MISMATCH", LACPA_TRANSMIT_INFO_MISMATCH },
-    { "LCAP_ACTIVITY_MISTMATCH", LACPA_TRANSMIT_LCAP_ACTIVITY_MISTMATCH },
-    { "AGGREGATION_MISTMATCH", LACPA_TRANSMIT_AGGREGATION_MISTMATCH },
-    { "SYNCHRONIZATION_MISTMATCH", LACPA_TRANSMIT_SYNCHRONIZATION_MISTMATCH },
-    { "COLLECTING_MISTMATCH", LACPA_TRANSMIT_COLLECTING_MISTMATCH },
-    { "DISTRIBUTING_MISTMATCH", LACPA_TRANSMIT_DISTRIBUTING_MISTMATCH },
+    { "LCAP_ACTIVITY_MISMATCH", LACPA_TRANSMIT_LCAP_ACTIVITY_MISMATCH },
+    { "AGGREGATION_MISMATCH", LACPA_TRANSMIT_AGGREGATION_MISMATCH },
+    { "SYNCHRONIZATION_MISMATCH", LACPA_TRANSMIT_SYNCHRONIZATION_MISMATCH },
+    { "COLLECTING_MISMATCH", LACPA_TRANSMIT_COLLECTING_MISMATCH },
+    { "DISTRIBUTING_MISMATCH", LACPA_TRANSMIT_DISTRIBUTING_MISMATCH },
     { "SYNCHRONIZATION_SET", LACPA_TRANSMIT_SYNCHRONIZATION_SET },
     { "COLLECTING_SET", LACPA_TRANSMIT_COLLECTING_SET },
     { "DISTRIBUTING_SET", LACPA_TRANSMIT_DISTRIBUTING_SET },
     { "PERIODIC_TIMER_EXPIRED", LACPA_TRANSMIT_PERIODIC_TIMER_EXPIRED },
+    { "CURRENT_TIMER_EXPIRED", LACPA_TRANSMIT_CURRENT_TIMER_EXPIRED },
     { NULL, 0 }
 };
 
@@ -227,15 +278,16 @@ aim_map_si_t lacpa_transmit_desc_map[] =
     { "None", LACPA_TRANSMIT_NONE },
     { "None", LACPA_TRANSMIT_AGENT_ENABLED },
     { "None", LACPA_TRANSMIT_INFO_MISMATCH },
-    { "None", LACPA_TRANSMIT_LCAP_ACTIVITY_MISTMATCH },
-    { "None", LACPA_TRANSMIT_AGGREGATION_MISTMATCH },
-    { "None", LACPA_TRANSMIT_SYNCHRONIZATION_MISTMATCH },
-    { "None", LACPA_TRANSMIT_COLLECTING_MISTMATCH },
-    { "None", LACPA_TRANSMIT_DISTRIBUTING_MISTMATCH },
+    { "None", LACPA_TRANSMIT_LCAP_ACTIVITY_MISMATCH },
+    { "None", LACPA_TRANSMIT_AGGREGATION_MISMATCH },
+    { "None", LACPA_TRANSMIT_SYNCHRONIZATION_MISMATCH },
+    { "None", LACPA_TRANSMIT_COLLECTING_MISMATCH },
+    { "None", LACPA_TRANSMIT_DISTRIBUTING_MISMATCH },
     { "None", LACPA_TRANSMIT_SYNCHRONIZATION_SET },
     { "None", LACPA_TRANSMIT_COLLECTING_SET },
     { "None", LACPA_TRANSMIT_DISTRIBUTING_SET },
     { "None", LACPA_TRANSMIT_PERIODIC_TIMER_EXPIRED },
+    { "None", LACPA_TRANSMIT_CURRENT_TIMER_EXPIRED },
     { NULL, 0 }
 };
 

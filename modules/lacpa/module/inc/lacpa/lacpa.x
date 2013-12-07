@@ -27,6 +27,7 @@
 LACPA_ENUMERATION_ENTRY(lacpa_error, "")
 LACPA_ENUMERATION_ENTRY(lacpa_machine, "")
 LACPA_ENUMERATION_ENTRY(lacpa_event, "")
+LACPA_ENUMERATION_ENTRY(lacpa_log_flag, "")
 LACPA_ENUMERATION_ENTRY(lacpa_transmit, "")
 #undef LACPA_ENUMERATION_ENTRY
 #endif

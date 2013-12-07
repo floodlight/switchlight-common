@@ -17,26 +17,52 @@
  *
  ****************************************************************/
 
-#include <lacpa/lacpa_config.h>
-#include <lacpa/lacpa.h>
-#include <lacpa/lacpa.h>
-#include <lacpa_int.h>
+/*
+ * This file contains routines for setting up a bond with the linux kernel.
+ * The step-by-step procedure for setting up the bond is documented below.
+ *
+ * Bonding with linux kernel helps to test the lacp agent against the 
+ * standard linux lacp agent.
+ */
+
+/*
+ * Procedure for setting up linux kernel bonding:
+ * Pre-requisites: libpcap-dev
+ * Debugging tolls: dmesg, tcpdump
+ * 1. Enable bonding: sudo modprobe bonding
+ * 2. Setup tap interfaces for the bond. Running lacp_agent module binary 
+ *    will do that. ./build/gcc-local/bin/lacp-agent
+ * 3. Add the below config's
+ *    echo 802.3ad | sudo tee /sys/class/net/bond0/bonding/mode
+ *    echo +tap0 | sudo tee /sys/class/net/bond0/bonding/slaves 
+ *    echo +tap1 | sudo tee /sys/class/net/bond0/bonding/slaves
+ * 4. Verify bond0, tap0, tap1 interfaces are UP (ifconfig -a <intf>)
+ *    If Down bring the interfaces up: sudo ifconfig <intf> up
+ * 5. Run the ./build/gcc-local/bin/lacp-agent again 
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
+#include <unistd.h>
+#include <time.h>
 #include <AIM/aim.h>
+#include <VPI/vpi.h>
+#include <poll.h>
+#include <lacpa/lacpa_config.h>
+#include <lacpa/lacpa.h>
+#include <lacpa_int.h>
 
 uint8_t mac[6] = {0x00, 0x13, 0xc4, 0x12, 0x0f, 0x00};
-uint8_t mac2[6] = {0x00, 0x0e, 0x83, 0x16, 0xf5, 0x00};
-uint8_t data1[54] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x02, 0x00, 0x0E, 0x83, 0x16, 0xF5, 0x10, 0x88, 0x09, 0x01, 0x01, 0x01, 0x014, 0x80, 0x00, 0x00, 0x0e, 0x83, 0x16, 0xf5, 0x00, 0x00, 0xe, 0x80, 0x00, 0x00, 0x16, 0x0a, 0x00, 0x00, 0x00, 0x2, 0x14, 0x80, 0x00, 0x00, 0x13, 0xc4, 0x12, 0x0f, 0x00, 0x00, 0x0d, 0x80, 0x00, 0x00, 0x19, 0x5, 0x0};
-uint8_t data2[54] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x02, 0x00, 0x0E, 0x83, 0x16, 0xF5, 0x10, 0x88, 0x09, 0x01, 0x01, 0x01, 0x014, 0x80, 0x00, 0x00, 0x0e, 0x83, 0x16, 0xf5, 0x00, 0x00, 0xe, 0x80, 0x00, 0x00, 0x16, 0x06, 0x00, 0x00, 0x00, 0x2, 0x14, 0x80, 0x00, 0x00, 0x13, 0xc4, 0x12, 0x0f, 0x00, 0x00, 0x0d, 0x80, 0x00, 0x00, 0x19, 0x5, 0x0};
-uint8_t data3[54] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x02, 0x00, 0x0E, 0x83, 0x16, 0xF5, 0x10, 0x88, 0x09, 0x01, 0x01, 0x01, 0x014, 0x80, 0x00, 0x00, 0x0e, 0x83, 0x16, 0xf5, 0x00, 0x00, 0xe, 0x80, 0x00, 0x00, 0x16, 0x6, 0x00, 0x00, 0x00, 0x2, 0x14, 0x80, 0x00, 0x00, 0x13, 0xc4, 0x12, 0x0f, 0x00, 0x00, 0x0d, 0x80, 0x00, 0x00, 0x19, 0x1d, 0x0};
+uint8_t mac2[6] = {0x00, 0x1c, 0x04, 0x1d, 0x0e, 0x00};
 
+vpi_t vpi1, vpi2;
+lacpa_info_t info1, info2;
 lacpa_port_t *port1, *port2;
 
 indigo_error_t
-lacp_create_send_packet_in (of_port_no_t in_port, of_octets_t *of_octets) 
+lacp_create_send_packet_in (of_port_no_t in_port, of_octets_t *of_octets)
 {
     of_match_t     match;
     of_packet_in_t *of_packet_in;
@@ -75,7 +101,7 @@ lacp_create_send_packet_in (of_port_no_t in_port, of_octets_t *of_octets)
 }
 
 /*
- * Stub function's to avoid compilation failure in lacpa/utest module
+ * Stub function's to avoid compilation failure lacp_agent module
  */
 void
 indigo_cxn_send_controller_message (indigo_cxn_id_t cxn_id, of_object_t *obj)
@@ -106,6 +132,8 @@ indigo_fwd_packet_out(of_packet_out_t *of_packet_out)
     int              rv;
 
     if (!of_packet_out) return INDIGO_ERROR_NONE;
+    
+    printf("lacpa module: Send a packet out the port\n");
 
     of_packet_out_actions_bind(of_packet_out, &action);
     OF_LIST_ACTION_ITER(&action, &act, rv) {
@@ -116,18 +144,16 @@ indigo_fwd_packet_out(of_packet_out_t *of_packet_out)
 
     printf("lacpa module: Send a packet out the port: %d\n", port_no);
     if (port_no == 10) {
-        lacp_create_send_packet_in(20, &of_octets);
-    } else if (port_no == 20){
-        lacp_create_send_packet_in(10, &of_octets);
+        vpi_send(vpi1, of_octets.data, of_octets.bytes);
+    } else if (port_no == 20) {
+        vpi_send(vpi2, of_octets.data, of_octets.bytes);
     }
 
     return INDIGO_ERROR_NONE;
 }
 
-int
-aim_main(int argc, char* argv[])
+void lacp_init(void)
 {
-    lacpa_info_t info1, info2;
     memset(&info1, 0, sizeof(lacpa_info_t));
     memset(&info2, 0, sizeof(lacpa_info_t));
 
@@ -138,42 +164,76 @@ aim_main(int argc, char* argv[])
     port1 = lacpa_find_port(10);
     port2 = lacpa_find_port(20);
     if (!port1 || !port2) {
-        printf("ERROR - PORT ALLOCATION FAILED");
-        return 0;
+        printf("FATAL ERROR - PORT ALLOCATION FAILED");
+        return;
     }
 
     info1.sys_priority = 32768;
-    memcpy(&info1.sys_mac.addr, mac, 6);
+    memcpy(&info1.sys_mac, mac, 6);
     info1.port_priority = 32768;
     info1.port_num = 25;
     info1.key = 13;
     info1.port_no = 10;
-    lacpa_init_port(&info1, true);
 
     info2.sys_priority = 32768;
-    memcpy(&info2.sys_mac.addr, mac2, 6);
+    memcpy(&info2.sys_mac, mac2, 6);
     info2.port_priority = 32768;
     info2.port_num = 0x16;
     info2.key = 0xe;
     info2.port_no = 20;
+    
+    lacpa_init_port(&info1, true);
     lacpa_init_port(&info2, true);
 
-    /*
-     * Make sure the lacp protocol converges
-     */
-    assert(port1->is_converged == true);
-    assert(port2->is_converged == true);
+}
 
-    /*
-     * Code to test recv of init() msg from controller with different params
-     */
-    info2.sys_priority = 25000;
-    info2.key = 0xf;
-    printf("Resending Port init() msg\n"); 
-    lacpa_init_port(&info2, true);
+int main(int argc, char* argv[])
+{
+    uint8_t     buf[256];
+    struct      pollfd fds[2];
+    of_octets_t of_octets;
 
-    assert(port1->is_converged == true);
-    assert(port2->is_converged == true);
+    vpi_init();
+    lacp_init();
+ 
+    vpi1 = vpi_create("tap|tap0");  
+    vpi2 = vpi_create("tap|tap1");  
+
+    if (!vpi1) {
+        assert(vpi1);
+        return 0;
+    }
+
+    if (!vpi2) {
+        assert(vpi2);
+        return 0;
+    }
+    
+    fds[0].fd = vpi_descriptor_get(vpi1);
+    fds[1].fd = vpi_descriptor_get(vpi2);
+    fds[0].events = POLLIN;
+    fds[1].events = POLLIN;
+
+    of_octets.bytes = 0;
+    of_octets.data = buf;
+    while (poll(fds, 2, -1) >= 0) {
+        if (fds[0].revents & POLLIN) {
+            of_octets.bytes = vpi_recv(vpi1, buf, 256, 0);
+            printf("received_pkt on tap0 with %d bytes\n", of_octets.bytes);
+            lacp_create_send_packet_in(10, &of_octets);
+        }
+
+        if (fds[1].revents & POLLIN) {
+            of_octets.bytes = vpi_recv(vpi2, buf, 256, 0);
+            printf("received_pkt on tap1 with %d bytes\n", of_octets.bytes);
+            lacp_create_send_packet_in(20, &of_octets);    
+        }
+    }
+    
+    vpi_unref(vpi1);
+    vpi_unref(vpi2);
+    vpi_close();
+ 
     return 0;
 }
 
