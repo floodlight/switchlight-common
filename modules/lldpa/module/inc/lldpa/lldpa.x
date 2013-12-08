@@ -26,7 +26,6 @@
 /* <auto.start.xenum(ALL).define> */
 #ifdef LLDPA_ENUMERATION_ENTRY
 LLDPA_ENUMERATION_ENTRY(lldpa_contr_stype, "")
-LLDPA_ENUMERATION_ENTRY(lldpa_pkt_type, "")
 #undef LLDPA_ENUMERATION_ENTRY
 #endif
 /* <auto.end.xenum(ALL).define> */

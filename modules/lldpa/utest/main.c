@@ -31,49 +31,14 @@
 #include <AIM/aim.h>
 #include <lldpa/lldpa.h>
 
-#ifdef USE_OS_ALARM
-extern uint32_t os_alarm_register  (unsigned int when, unsigned int flags,
-									int (*cb)(void* arg), void *ca);
-extern void os_alarm_unregister (unsigned int alarm_id);
-#endif
+#include <loci/loci_obj_dump.h>
+#include <PPE/ppe_types.h>
 
-typedef struct octets_buf {
-	size_t   len;
-	octets_t *buf;
-} octets_buf_t;
+/* Dummy packet */
+uint8_t Lldppdu_Tx[] = {10,11,12,13,250,251,252,253};
+/* LLDP type packet */
+uint8_t Lldppdu_Rx[] = {1,2,3,4,5,6,1,2,3,4,5,6,0x88,0xcc,0xd,0xe,0xa,0xf,0xb,0xe,0xe,0xf};
 
-#define NUMPORT 1
-#define CTRLID 1
-lldpa_port_t* PortList[NUMPORT];
-octets_buf_t Tx_Pkt_Q[NUMPORT];
-octets_buf_t Tx_Pkt_Q_Expected[NUMPORT];
-
-octets_buf_t Tx_Ctrl_Msg_Q[CTRLID];
-octets_buf_t Tx_Ctrl_Msg_Q_Expected[CTRLID];
-
-uint32_t Lldppdu_Tx[4] = {1, 1001, 1002, 1003};
-uint32_t Lldppdu_Rx[4] = {1, 2001, 2002, 2003};
-of_bsn_header_t PKT =
-{
-	.version = 0,
-	.type    = 4,
-	.length  = sizeof(PKT),
-	.xid     = 0,
-	.experimenter = 0x5c16c7,
-	.subtype = 0,
-	.status  = 0,
-	.port_no = 0,
-	.slot_num = 0,
-	.interval_ms = 0
-};
-
-struct bsn_pkt_in {
-	of_bsn_header_t hdr;
-	uint32_t payload[4];
-} PKT_IN =
-{
-	.payload = {1, 2001, 2002, 2003} //Must be equal Lldppdu_Rx
-};
 
 #ifndef HEXDUMP_COLS
 #define HEXDUMP_COLS 8
@@ -124,340 +89,187 @@ void hexdump(void *mem, unsigned int len)
 	}
 }
 
-int
-os_fwd_pkt_out(void* buf, size_t count, of_port_no_t port)
+void t_send_controller_message (indigo_cxn_id_t cxn_id, of_object_t *obj)
 {
-	int idx = port-1;
-	assert((0 <=idx) && (idx <NUMPORT));
-	Tx_Pkt_Q[idx].buf = (octets_t *)malloc(count);
-	if(!Tx_Pkt_Q[idx].buf){
-		printf("OS_FWD PKT Out of Mem = %d\n", (int)count);
-		exit(1);
-	}
-	Tx_Pkt_Q[idx].len = count;
-	memcpy(Tx_Pkt_Q[idx].buf,buf,count);
-	printf("OS_FWD PKT Sent = %d\n", (int)count);
-	return count;
+    printf("\nSend REPLY msg to controller\n");
+    of_object_dump((loci_writer_f)aim_printf, &aim_pvs_stdout, obj);
+
+    //Consume obj
+    of_object_delete(obj);
 }
 
-int
-os_send_ctrl_msg(void* buf, size_t count, of_port_no_t ctrl_cxn_id)
+void t_send_async_message     (of_object_t *obj)
 {
-	int idx = ctrl_cxn_id-1;
-	assert((0<=idx) && (idx <NUMPORT));
-	if (Tx_Ctrl_Msg_Q[idx].buf){
-		printf("OS_SND_CTRL Controller not consume buf yet = %d\n", (int)count);
-		exit(1);
-	}
+    printf("\nSend TIMEOUT Msg to controller\n");
+    of_object_dump((loci_writer_f)aim_printf, &aim_pvs_stdout, obj);
 
-	Tx_Ctrl_Msg_Q[idx].buf = (octets_t *)malloc(count);
-	if(!Tx_Ctrl_Msg_Q[idx].buf){
-		printf("OS_SND_CTRL PKT Out of Mem = %d\n", (int)count);
-		exit(1);
-	}
-
-	Tx_Ctrl_Msg_Q[idx].len = count;
-	memcpy(Tx_Ctrl_Msg_Q[idx].buf,buf,count);
-	printf("OS_SND_CTRL MSG Sent = %d, buf[1]=%d\n", (int)count, (int)((char*)buf)[1] );
-	return count;
-
+    //Consume obj
+    of_object_delete(obj);
 }
 
-octets_t *
-gen_pkt(uint32_t subtype, uint32_t time_ms, uint32_t port_no, octets_t *buf,  uint32_t len)
+indigo_error_t t_fwd_packet_out (of_packet_out_t *pkt)
 {
-	octets_t* pkt = NULL;
-	of_bsn_header_t *hdr = NULL;
-	pkt = (octets_t*) malloc(sizeof(of_bsn_header_t)+len);
-	if (!pkt)
-		return pkt;
+    of_octets_t data;
+    printf("\nFwd TX pkt out\n");
+    of_object_dump((loci_writer_f)aim_printf, &aim_pvs_stdout, pkt);
 
-	memcpy (pkt, &PKT, sizeof(of_bsn_header_t));
-	hdr = (of_bsn_header_t *) pkt;
-	hdr->subtype = subtype;
-	hdr->port_no = port_no;
-	hdr->length  = sizeof(of_bsn_header_t) + len;
-	hdr->interval_ms = time_ms;
-	memcpy ((pkt+sizeof(of_bsn_header_t)),buf,len);
-	return pkt;
+    of_packet_out_data_get(pkt, &data);
+    hexdump(data.data, data.bytes);
+
+    //Don't consume obj
+    return INDIGO_ERROR_NONE;
 }
 
-/* Return 1 if correct / expected */
-int
-is_fwd_packet_correct(uint32_t port_no, int expected)
+indigo_error_t t_get_async_version(of_version_t *ver)
 {
-	int ret = 0;
-	int idx = port_no-1;
-	octets_buf_t *obuf;
-
-    assert((0<=idx) && (idx <NUMPORT));
-	if (!Tx_Pkt_Q[idx].buf || !Tx_Pkt_Q_Expected[idx].buf) {
-		printf ("port %u not see TX pkt yet or not expected\n", port_no);
-		if (!expected)
-			ret = 1;
-	} else {
-		obuf = &Tx_Pkt_Q_Expected[idx];
-		ret = memcmp(Tx_Pkt_Q[idx].buf, obuf->buf, obuf->len);
-		if (expected && !ret)
-			ret = 1;
-		else
-			ret = 0;
-
-		free(Tx_Pkt_Q[idx].buf);
-		Tx_Pkt_Q[idx].buf = NULL;
-		Tx_Pkt_Q[idx].len = 0;
-	}
-
-	return ret;
+    *ver = OF_VERSION_1_3;
+    return INDIGO_ERROR_NONE;
 }
 
-int
-is_snd_ctrl_msg_correct (uint32_t ctrl_id, int expected)
-{
-	int ret = 0;
-	int idx = ctrl_id-1;
-	octets_buf_t *obuf;
-
-    assert((0<=idx) && (idx <NUMPORT));
-	if (!Tx_Ctrl_Msg_Q[idx].buf || !Tx_Ctrl_Msg_Q_Expected[idx].buf) {
-		printf ("CTRL %u not see msg yet or not expected\n", ctrl_id);
-		if (!expected)
-			ret = 1;
-	} else {
-		obuf = &Tx_Ctrl_Msg_Q_Expected[idx];
-
-		ret = memcmp(Tx_Ctrl_Msg_Q[idx].buf, obuf->buf, obuf->len);
-
-		if (expected && !ret)
-			ret = 1;
-		else {
-			ret = 0;
-			hexdump(Tx_Ctrl_Msg_Q[idx].buf,Tx_Ctrl_Msg_Q[idx].len);
-			hexdump(Tx_Ctrl_Msg_Q_Expected[idx].buf,Tx_Ctrl_Msg_Q_Expected[idx].len);
-		}
-		free(Tx_Ctrl_Msg_Q[idx].buf);
-		Tx_Ctrl_Msg_Q[idx].buf = NULL;
-		Tx_Ctrl_Msg_Q[idx].len = 0;
-	}
-
-	return ret;
-}
-
-/* Send Req Start Pkt
- * Wait and check msg 2 times
- * Then Send Req Stop Pkt
- * Wait and check msg 2 times
+/*NOTE:
+ * This is used to test timeout.
+ * When we register we do call back
  */
-int test_1_simple_TX_REQ(lldpa_port_t *lldpa)
+indigo_error_t t_timer_event_register (ind_soc_timer_callback_f callback, void *cookie, int repeat_time_ms)
 {
-	int i, ret = 0;
-	octets_t *pkt = NULL;
-	uint32_t time_ms = 0;
-
-	/*1. Gen the TX Req Start packet */
-	octets_buf_t *lldp_pdu = &Tx_Pkt_Q_Expected[lldpa->port_no-1];
-	lldp_pdu->buf = (octets_t *)Lldppdu_Tx;
-	lldp_pdu->len = sizeof(Lldppdu_Tx);
-
-	time_ms = 4;
-	printf("Send RX-REQ Start Message\n");
-	pkt = gen_pkt(SW_CONTR_TX_REQ, time_ms, lldpa->port_no,lldp_pdu->buf , lldp_pdu->len);
-	if (!pkt)
-		return -1;
-
-
-
-	lldpa_agent_handle_msg (lldpa, pkt);
-	free(pkt);
-
-	PKT.subtype = SW_CONTR_TX_RES;
-	PKT.length = sizeof(PKT);
-	PKT.interval_ms = time_ms;
-	PKT.port_no     = lldpa->port_no;
-	Tx_Ctrl_Msg_Q_Expected[lldpa->port_no-1].buf = (octets_t*)&PKT;
-	Tx_Ctrl_Msg_Q_Expected[lldpa->port_no-1].len = sizeof(PKT);
-	is_snd_ctrl_msg_correct(os_ctrl_cxn_id, 1) == 1 ?
-					printf("CTRL:CORRECT\n") : printf("CTRL:WRONG\n");
-
-	/*2. Will expect TX packet every interval
-	 *   Do it 2 times
-	 */
-	i = 2;
-	time_ms = 4;
-	while (i-- > 0) {
-		printf("sleep ... %u\n", time_ms);
-		sleep(time_ms);
-		printf("sleep WAKEUP and check MS\n");
-		is_fwd_packet_correct(lldpa->port_no, 1) == 1 ?
-				printf("%d:CORRECT\n", i) : printf("%d:WRONG\n", i);
-	}
-
-	/*3. Gen the TX Req Stop packet */
-	sleep(2);
-	time_ms = 0;
-	pkt = gen_pkt(SW_CONTR_TX_REQ, time_ms, lldpa->port_no, (octets_t *)Lldppdu_Tx, sizeof(Lldppdu_Tx));
-	if (!pkt)
-		return -1;
-
-	printf("Send RX-REQ Stop Message\n");
-	lldpa_agent_handle_msg (lldpa, pkt);
-	free(pkt);
-
-	PKT.subtype = SW_CONTR_TX_RES;
-	PKT.length = sizeof(PKT);
-	PKT.interval_ms = time_ms;
-	PKT.port_no     = lldpa->port_no;
-	Tx_Ctrl_Msg_Q_Expected[lldpa->port_no-1].buf = (octets_t*)&PKT;
-	Tx_Ctrl_Msg_Q_Expected[lldpa->port_no-1].len = sizeof(PKT);
-	is_snd_ctrl_msg_correct(os_ctrl_cxn_id, 1) == 1 ?
-					printf("CTRL:CORRECT\n") : printf("CTRL:WRONG\n");
-
-	i = 2;
-	time_ms = 4;
-	while (i-- > 0) {
-		printf("sleep ... %u\n", time_ms);
-		sleep(time_ms);
-		printf("sleep WAKEUP and check MS\n");
-		is_fwd_packet_correct(lldpa->port_no, 0) == 1 ?
-					printf("%d:CORRECT\n", i) : printf("%d:WRONG\n", i);
-	}
-
-	return ret;
+    callback(cookie);
+    return INDIGO_ERROR_NONE;
 }
 
-int test_2_simple_RX_REQ(lldpa_port_t *lldpa)
+indigo_error_t  t_timer_event_unregister (ind_soc_timer_callback_f callback, void *cookie)
 {
-	int i, ret = 0;
-	octets_t *pkt = NULL;
-	uint32_t time_ms = 0;
+    return INDIGO_ERROR_NONE;
+}
 
-	/*1. Gen the RX Req Start packet */
-	octets_buf_t *lldp_pdu = &Tx_Pkt_Q_Expected[lldpa->port_no-1];
-
-	lldp_pdu->buf = (octets_t *)Lldppdu_Rx;
-	lldp_pdu->len = sizeof(Lldppdu_Rx);
-
-	time_ms = 4;
-	printf("Send RX-REQ Start Message\n");
-	pkt = gen_pkt(SW_CONTR_RX_REQ, time_ms, lldpa->port_no, lldp_pdu->buf, lldp_pdu->len);
-	if (!pkt)
-		return -1;
-
-	lldpa_agent_handle_msg (lldpa, pkt);
-	free(pkt);
-
-	PKT.subtype = SW_CONTR_RX_RES;
-	PKT.length = sizeof(PKT);
-	PKT.interval_ms = time_ms;
-	PKT.port_no     = lldpa->port_no;
-	Tx_Ctrl_Msg_Q_Expected[lldpa->port_no-1].buf = (octets_t*)&PKT;
-	Tx_Ctrl_Msg_Q_Expected[lldpa->port_no-1].len = sizeof(PKT);
-	is_snd_ctrl_msg_correct(os_ctrl_cxn_id, 1) == 1 ?
-					printf("CTRL:CORRECT\n") : printf("CTRL:WRONG\n");
-
-	lldpa->rx_pkt_matched == 0 ?
-			        printf("RX_EXPECTED 0: CORRECT\n") : printf("RX_EXPECTED 0: WRONG\n");
-	/*2. Will expect RX packet every interval
-	 *   Do it 2 times
-	 */
-	i =2;
-	time_ms = 4;
-	while (i-- > 0) {
-		lldpa_agent_handle_pkt (lldpa, lldp_pdu->buf, lldp_pdu->len);
-		lldpa->rx_pkt_matched == 1 ?
-					        printf("RX_EXPECTED 1: CORRECT\n") : printf("RX_EXPECTED 1: WRONG\n");
-		printf("sleep ... %u\n", time_ms);
-		sleep(time_ms);
-		printf("sleep WAKEUP and check\n");
-		lldpa->rx_pkt_matched == 0 ?
-					        printf("RX_EXPECTED 0: CORRECT\n") : printf("RX_EXPECTED 0: WRONG\n");
-	}
-
-	/*3. Test timeout
-	 *   Control will expect TIMEOUT PACKET*/
-	i = 2;
-	time_ms = 4;
-	while (i-- > 0) {
-		printf("sleep ... for timeout %u\n", time_ms);
-		sleep(time_ms);
-		printf("sleep WAKEUP and check TIMEOUT MSG\n");
-		lldpa->rx_pkt_matched == 0 ?
-							printf("RX_EXPECTED 0: CORRECT\n") : printf("RX_EXPECTED 0: WRONG\n");
-		PKT.subtype = LLDPA_CONTR_STYPE_TIMEOUT;
-		PKT.length = sizeof(PKT);
-		PKT.interval_ms = 0;
-		PKT.port_no     = lldpa->port_no;
-		Tx_Ctrl_Msg_Q_Expected[lldpa->port_no-1].buf = (octets_t*)&PKT;
-		Tx_Ctrl_Msg_Q_Expected[lldpa->port_no-1].len = sizeof(PKT);
-		is_snd_ctrl_msg_correct(os_ctrl_cxn_id, 1) == 1 ?
-						printf("CTRL:TIMEOUT CORRECT\n") : printf("CTRL:TIMEOUT WRONG\n");
-	}
-
-	/*4. Gen the TX Req Stop packet */
-	sleep(2);
-	time_ms = 0;
-	pkt = gen_pkt(SW_CONTR_RX_REQ, time_ms, lldpa->port_no, NULL , 0);
-	if (!pkt)
-		return -1;
-
-	printf("Send RX-REQ Stop NULL Message\n");
-	lldpa_agent_handle_msg (lldpa, pkt);
-	free(pkt);
-
-	PKT.subtype = SW_CONTR_RX_RES;
-	PKT.length = sizeof(PKT);
-	PKT.interval_ms = time_ms;
-	PKT.port_no     = lldpa->port_no;
-	Tx_Ctrl_Msg_Q_Expected[lldpa->port_no-1].buf = (octets_t*)&PKT;
-	Tx_Ctrl_Msg_Q_Expected[lldpa->port_no-1].len = sizeof(PKT);
-	is_snd_ctrl_msg_correct(os_ctrl_cxn_id, 1) == 1 ?
-					printf("CTRL:CORRECT\n") : printf("CTRL:WRONG\n");
+int
+test_tx_request(int port_no)
+{
+    int rv = 0;
+    uint32_t interval = 5;
+    of_bsn_pdu_tx_request_t *obj;
+    of_octets_t data;
 
 
-	/*5. Receive Unexpected Msg - Sent to controller */
-	lldpa_agent_handle_pkt (lldpa, lldp_pdu->buf, lldp_pdu->len);
-	PKT_IN.hdr = PKT;
-	PKT_IN.hdr.subtype = SW_CONTR_PACKET_IN;
-	PKT_IN.hdr.length = sizeof(PKT_IN);
-	PKT_IN.hdr.interval_ms = 0;
-	PKT_IN.hdr.port_no     = lldpa->port_no;
-	Tx_Ctrl_Msg_Q_Expected[lldpa->port_no-1].buf = (octets_t*)&PKT_IN;
-	Tx_Ctrl_Msg_Q_Expected[lldpa->port_no-1].len = sizeof(PKT_IN);
-	is_snd_ctrl_msg_correct(os_ctrl_cxn_id, 1) == 1 ?
-					printf("CTRL: RX CORRECT\n") : printf("CTRL: RX WRONG\n");
+    printf("\n\nTEST 1: TX_REQUEST on port:%d\nExpect: 1 TX_REQ, 2 FWD, 1 REPLY\n", port_no);
 
-	return ret;
+    data.data = (uint8_t*)Lldppdu_Tx;
+    data.bytes = sizeof(Lldppdu_Tx);
+
+    printf("TX_REQUEST bytes = %d\n", data.bytes);
+    hexdump(data.data, data.bytes);
+
+    obj = of_bsn_pdu_tx_request_new(OF_VERSION_1_3);
+    AIM_TRUE_OR_DIE(obj);
+    of_bsn_pdu_tx_request_port_no_set(obj,port_no);
+    of_bsn_pdu_tx_request_tx_interval_ms_set(obj,interval);
+
+    if(of_bsn_pdu_tx_request_data_set(obj, &data) < 0) {
+        AIM_TRUE_OR_DIE(obj);
+    }
+
+    /*Dump tx_req obj */
+    of_object_dump((loci_writer_f)aim_printf, &aim_pvs_stdout, obj);
+    lldpa_handle_msg (0, obj);
+
+    of_bsn_pdu_tx_request_delete(obj);
+
+    return rv;
+}
+
+int
+test_rx_request(int port_no)
+{
+    int rv = 0;
+    uint32_t interval = 5;
+    of_bsn_pdu_rx_request_t *obj;
+    of_octets_t data;
+
+    printf("\n\nTEST 2: RX_REQUEST on port:%d\nExpect: 1 RX_REQ, 1 TIMEOUT, 1 REPLY\n", port_no);
+
+    data.data = Lldppdu_Rx;
+    data.bytes = sizeof(Lldppdu_Rx);
+
+    printf("Rx_request bytes = %d\n", data.bytes);
+    hexdump(data.data, data.bytes);
+
+    obj = of_bsn_pdu_rx_request_new(OF_VERSION_1_3);
+    AIM_TRUE_OR_DIE(obj);
+    of_bsn_pdu_rx_request_port_no_set(obj,port_no);
+    of_bsn_pdu_rx_request_timeout_ms_set(obj,interval);
+
+    if(of_bsn_pdu_rx_request_data_set(obj, &data) < 0) {
+        AIM_TRUE_OR_DIE(obj);
+    }
+
+    /*Dump rx_req obj */
+    of_object_dump((loci_writer_f)aim_printf, &aim_pvs_stdout, obj);
+    lldpa_handle_msg (0, obj);
+
+    of_bsn_pdu_tx_request_delete(obj);
+    return rv;
+}
+
+
+int
+test_pkt_in(int port_no)
+{
+    int rv = 0;
+    of_packet_in_t *obj;
+    of_octets_t data = {
+            .data = Lldppdu_Rx,
+            .bytes = sizeof(Lldppdu_Rx)
+    };
+
+    /* Timeout due to re-register the timer */
+    printf("\n\nTEST 3: PKT_IN on port:%d\nExpect: 1 PKT_IN, 1 TIMEOUT, and MATCHED\n", port_no);
+    printf("pkt_in bytes = %d\n", data.bytes);
+    hexdump(data.data, data.bytes);
+
+    obj = of_packet_in_new(OF_VERSION_1_0);
+    AIM_TRUE_OR_DIE(obj);
+    of_packet_in_in_port_set(obj,port_no);
+
+    if(of_packet_in_data_set(obj, &data) < 0) {
+        AIM_TRUE_OR_DIE(obj);
+    }
+
+    /*Dump rx_req obj */
+    of_object_dump((loci_writer_f)aim_printf, &aim_pvs_stdout, obj);
+    rv = lldpa_handle_pkt (obj);
+
+    if (rv == IND_CORE_LISTENER_RESULT_PASS) {
+        printf("\nError: NOT LLDP packet-in\n");
+    } else if (rv == IND_CORE_LISTENER_RESULT_DROP)
+        printf("\nIS LLDP packet-in\n");
+    else
+        printf("\nError: Unsupport packet-in\n");
+
+    of_packet_in_delete(obj);
+    return rv;
 }
 
 int aim_main(int argc, char* argv[])
 {
-	int i = 0;
-	int port_id;
+    lldpa_sys_fn_t fn;
+	int port_test_no = 1;
+
     printf("lldpa Utest Start ..\n");
     lldpa_config_show(&aim_pvs_stdout);
 
-#ifdef USE_OS_ALARM
-    printf("Setup alarm_register\n");
-    os_alarm_register_fn = &os_alarm_register;
-    os_alarm_unregister_fn = &os_alarm_unregister;
-#endif
+    fn.send_controller_message = t_send_controller_message; //(indigo_cxn_send_controller_message);
+    fn.fwd_packet_out          = t_fwd_packet_out;          //indigo_fwd_packet_out();
+    fn.send_async_message      = t_send_async_message;      //(indigo_cxn_send_async_message);
+    fn.get_async_version       = t_get_async_version;       //(indigo_cxn_get_async_version);
+    fn.timer_event_register    = t_timer_event_register;    //ind_soc_timer_event_register();
+    fn.timer_event_unregister  = t_timer_event_unregister;  //ind_soc_timer_event_unregister();
+    lldpa_system_init(&fn);
 
-    os_ctrl_cxn_id = CTRLID;
 
-    printf("lldpa Utest Create %d Ports  ..\n", NUMPORT);
-    /*1. Create lldpa_port with lldpa_port_rx_check and lldpa_port_tx callback */
-    for (i = 0; i < NUMPORT;i++) {
-    	port_id = i+1;
-    	PortList[i] = lldpa_port_create(port_id);
-    	lldpa_port_set_fwd_pkt_fn(PortList[i], os_fwd_pkt_out);
-    	lldpa_port_set_snd_ctrl_msg_fn(PortList[i], os_send_ctrl_msg);
-    }
+    test_tx_request(port_test_no);
+    test_rx_request(port_test_no);
+    test_pkt_in(port_test_no);
 
-    /*2. Test */
-    for (i = 0; i < NUMPORT;i++) {
-    	//test_1_simple_TX_REQ(PortList[i]);
-    	//test_2_simple_RX_REQ(PortList[i]);
-    }
+    lldpa_system_finish();
 
     return 0;
 }
