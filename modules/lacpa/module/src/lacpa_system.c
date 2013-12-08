@@ -27,49 +27,68 @@
 #include "lacpa_int.h"
 #include "lacpa_utils.h"
 
-lacpa_system_t lacp_system;
-bool lacp_system_initialized = FALSE;
+lacpa_system_t lacpa_system;
+bool lacp_system_initialized = false;
+aim_ratelimiter_t lacpa_pktin_log_limiter;
 
 /*
- * lacp_system_initialized
+ * lacpa_is_initialized
  *
- * TRUE = System Initialized
- * FASLE = System Uninitialized
+ * true = System Initialized
+ * false = System Uninitialized
  */
-extern bool
-lacpa_is_system_initialized (void)
+bool
+lacpa_is_initialized (void)
 {
-	return lacp_system_initialized;
+    return lacp_system_initialized;
 }
 
 /*
- * lacp_init_system
+ * lacpa_init
  *
  * API to init the LACP System
  * This should only be done once at the beginning.
  */
-extern void
-lacpa_init_system (lacpa_system_t *system)
+indigo_error_t
+lacpa_init (void)
 {
-    uint32_t  num_of_ports = 0;
+    uint32_t ports_size = 0;
 
-    if (lacpa_is_system_initialized() || !system) return;
+    if (lacpa_is_initialized()) return INDIGO_ERROR_NONE;
 
-	AIM_LOG_TRACE("Initing the LACP System...");
+    AIM_LOG_TRACE("Initing the LACP System...");
 
-    num_of_ports = PHY_PORT_COUNT;
-    system->lacp_active_port_count = 0;
-    system->ports = (lacpa_port_t *) LACPA_MALLOC(
-                    sizeof(lacpa_port_t) * (num_of_ports+1));
+    ports_size = sizeof(lacpa_port_t) * (PHY_PORT_COUNT+1);
+    lacpa_system.lacp_active_port_count = 0;
+    aim_ratelimiter_init(&lacpa_pktin_log_limiter, 1000*1000, 5, NULL);
+    lacpa_system.ports = (lacpa_port_t *) LACPA_MALLOC(ports_size);
 
-    if (!system->ports) {
-		AIM_LOG_ERROR("Failed to allocate resources for ports..");
-	    return;
+    if (lacpa_system.ports == NULL) {
+        AIM_LOG_ERROR("Failed to allocate resources for ports..");
+        return INDIGO_ERROR_RESOURCE;
     }
 
     AIM_LOG_TRACE("Succesfully inited LACP System for %d ports...",
-                  num_of_ports);
-	lacp_system_initialized = TRUE;
+                  PHY_PORT_COUNT);
+    LACPA_MEMSET(lacpa_system.ports, 0, ports_size);
+    lacp_system_initialized = true;
+
+    /*
+     * Register listerners for port packet_in and Controller msg's
+     */
+    if (ind_core_packet_in_listener_register((ind_core_packet_in_listener_f)
+                                             lacpa_packet_in_handler) < 0) {
+        AIM_LOG_FATAL("Failed to register for port packet_in in LACPA module");
+        return INDIGO_ERROR_INIT;
+    }
+
+    if (ind_core_message_listener_register((ind_core_message_listener_f)
+                                           lacpa_controller_msg_handler) < 0) {
+        AIM_LOG_FATAL("Failed to register for Controller msg in LACPA module");
+        return INDIGO_ERROR_INIT;
+    }
+
+    return INDIGO_ERROR_NONE;
 }
 
 /*
@@ -78,16 +97,13 @@ lacpa_init_system (lacpa_system_t *system)
  * Returns port pointer in the system for valid port_no else
  * returns NULL
  */
-extern lacpa_port_t *
-lacpa_find_port (lacpa_system_t *system, uint32_t port_no)
+lacpa_port_t *
+lacpa_find_port (uint32_t port_no)
 {
-	if (!system) return NULL;
-
     if (port_no > PHY_PORT_COUNT) {
-        AIM_LOG_ERROR("FATAL ERROR - Port No: %d Out of Range %d",
-                      port_no, PHY_PORT_COUNT);
-		return NULL;
+        AIM_LOG_ERROR("Port No: %d Out of Range %d", port_no, PHY_PORT_COUNT);
+        return NULL;
     }
 
-    return (&system->ports[port_no]);
+    return (&lacpa_system.ports[port_no]);
 }

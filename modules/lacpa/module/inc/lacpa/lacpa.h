@@ -22,6 +22,12 @@
 
 #include <lacpa/lacpa_config.h>
 #include <lacpa/lacpa_porting.h>
+#include <stdbool.h>
+#include <indigo/error.h>
+#include <loci/loci.h>
+#include <OS/os_time.h>
+#include <OFStateManager/ofstatemanager.h>
+#include <indigo/of_connection_manager.h>
 
 /* <auto.start.enum(ALL).header> */
 /** lacpa_error */
@@ -108,7 +114,6 @@ typedef enum lacpa_event_e {
     LACPA_EVENT_CURRENT_TIMER_EXPIRED,
     LACPA_EVENT_EXPIRY_TIMER_EXPIRED,
     LACPA_EVENT_CHURN_DETECTION_EXPIRED,
-    LACPA_EVENT_PROTOCOL_CONVERGED,
     LACPA_EVENT_PROTOCOL_UNCONVERGED,
     LACPA_EVENT_LAST = LACPA_EVENT_PROTOCOL_UNCONVERGED,
     LACPA_EVENT_COUNT,
@@ -124,7 +129,6 @@ typedef enum lacpa_event_e {
     "CURRENT_TIMER_EXPIRED", \
     "EXPIRY_TIMER_EXPIRED", \
     "CHURN_DETECTION_EXPIRED", \
-    "PROTOCOL_CONVERGED", \
     "PROTOCOL_UNCONVERGED", \
 }
 /** Enum names. */
@@ -145,21 +149,53 @@ extern aim_map_si_t lacpa_event_map[];
 /** lacpa_event_desc_map table. */
 extern aim_map_si_t lacpa_event_desc_map[];
 
+/** lacpa_log_flag */
+typedef enum lacpa_log_flag_e {
+    LACPA_LOG_FLAG_PORTSTATS,
+    LACPA_LOG_FLAG_LAST = LACPA_LOG_FLAG_PORTSTATS,
+    LACPA_LOG_FLAG_COUNT,
+    LACPA_LOG_FLAG_INVALID = -1,
+} lacpa_log_flag_t;
+
+/** Strings macro. */
+#define LACPA_LOG_FLAG_STRINGS \
+{\
+    "portstats", \
+}
+/** Enum names. */
+const char* lacpa_log_flag_name(lacpa_log_flag_t e);
+
+/** Enum values. */
+int lacpa_log_flag_value(const char* str, lacpa_log_flag_t* e, int substr);
+
+/** Enum descriptions. */
+const char* lacpa_log_flag_desc(lacpa_log_flag_t e);
+
+/** validator */
+#define LACPA_LOG_FLAG_VALID(_e) \
+    ( (0 <= (_e)) && ((_e) <= LACPA_LOG_FLAG_PORTSTATS))
+
+/** lacpa_log_flag_map table. */
+extern aim_map_si_t lacpa_log_flag_map[];
+/** lacpa_log_flag_desc_map table. */
+extern aim_map_si_t lacpa_log_flag_desc_map[];
+
 /** lacpa_transmit */
 typedef enum lacpa_transmit_e {
     LACPA_TRANSMIT_NONE,
     LACPA_TRANSMIT_AGENT_ENABLED,
     LACPA_TRANSMIT_INFO_MISMATCH,
-    LACPA_TRANSMIT_LCAP_ACTIVITY_MISTMATCH,
-    LACPA_TRANSMIT_AGGREGATION_MISTMATCH,
-    LACPA_TRANSMIT_SYNCHRONIZATION_MISTMATCH,
-    LACPA_TRANSMIT_COLLECTING_MISTMATCH,
-    LACPA_TRANSMIT_DISTRIBUTING_MISTMATCH,
+    LACPA_TRANSMIT_LCAP_ACTIVITY_MISMATCH,
+    LACPA_TRANSMIT_AGGREGATION_MISMATCH,
+    LACPA_TRANSMIT_SYNCHRONIZATION_MISMATCH,
+    LACPA_TRANSMIT_COLLECTING_MISMATCH,
+    LACPA_TRANSMIT_DISTRIBUTING_MISMATCH,
     LACPA_TRANSMIT_SYNCHRONIZATION_SET,
     LACPA_TRANSMIT_COLLECTING_SET,
     LACPA_TRANSMIT_DISTRIBUTING_SET,
     LACPA_TRANSMIT_PERIODIC_TIMER_EXPIRED,
-    LACPA_TRANSMIT_LAST = LACPA_TRANSMIT_PERIODIC_TIMER_EXPIRED,
+    LACPA_TRANSMIT_CURRENT_TIMER_EXPIRED,
+    LACPA_TRANSMIT_LAST = LACPA_TRANSMIT_CURRENT_TIMER_EXPIRED,
     LACPA_TRANSMIT_COUNT,
     LACPA_TRANSMIT_INVALID = -1,
 } lacpa_transmit_t;
@@ -170,15 +206,16 @@ typedef enum lacpa_transmit_e {
     "NONE", \
     "AGENT_ENABLED", \
     "INFO_MISMATCH", \
-    "LCAP_ACTIVITY_MISTMATCH", \
-    "AGGREGATION_MISTMATCH", \
-    "SYNCHRONIZATION_MISTMATCH", \
-    "COLLECTING_MISTMATCH", \
-    "DISTRIBUTING_MISTMATCH", \
+    "LCAP_ACTIVITY_MISMATCH", \
+    "AGGREGATION_MISMATCH", \
+    "SYNCHRONIZATION_MISMATCH", \
+    "COLLECTING_MISMATCH", \
+    "DISTRIBUTING_MISMATCH", \
     "SYNCHRONIZATION_SET", \
     "COLLECTING_SET", \
     "DISTRIBUTING_SET", \
     "PERIODIC_TIMER_EXPIRED", \
+    "CURRENT_TIMER_EXPIRED", \
 }
 /** Enum names. */
 const char* lacpa_transmit_name(lacpa_transmit_t e);
@@ -191,7 +228,7 @@ const char* lacpa_transmit_desc(lacpa_transmit_t e);
 
 /** validator */
 #define LACPA_TRANSMIT_VALID(_e) \
-    ( (0 <= (_e)) && ((_e) <= LACPA_TRANSMIT_PERIODIC_TIMER_EXPIRED))
+    ( (0 <= (_e)) && ((_e) <= LACPA_TRANSMIT_CURRENT_TIMER_EXPIRED))
 
 /** lacpa_transmit_map table. */
 extern aim_map_si_t lacpa_transmit_map[];
@@ -201,88 +238,10 @@ extern aim_map_si_t lacpa_transmit_desc_map[];
 
 /******************************************************************************
  *
- * LACP : LINK AGGREGATION CONTROL PROTOCOL : PROTOCOL DATA
+ * LACP : LINK AGGREGATION CONTROL PROTOCOL : EXTERNAL API DEFINITIONS
  *
  *****************************************************************************/
-#define MAC_ADDRESS_BYTES      6
-
-#define FALSE                  0
-#define TRUE                   1
-
-typedef uint8_t  bool;
-
-typedef uint8_t  lacpa_mac_t[MAC_ADDRESS_BYTES];
-
-typedef uint8_t lacpa_state_t;
-
-typedef struct lacpa_info_e { /* lacpa_info */
-    uint16_t         sys_priority;
-    lacpa_mac_t      sys_mac;
-    uint16_t         port_priority;
-    uint16_t         port_num;
-    uint16_t         key;
-    lacpa_state_t    state;
-    uint32_t         port_no;
-} lacpa_info_t;
-
-typedef struct lacp_pdu_e { /* lacpa_pdu */
-    lacpa_info_t     actor;
-    lacpa_info_t     partner;
-} lacpa_pdu_t;
-
-typedef struct lacpa_port_e   lacpa_port_t;
-typedef struct lacpa_system_e lacpa_system_t;
-
-/******************************************************************************
- * LACP : LINK AGGREGATION CONTROL PROTOCOL : PHYSICAL PORT INSTANCE
- *****************************************************************************/
-struct lacpa_port_e { /* lacpa_port */
-    lacpa_mac_t      src_mac;
-    lacpa_info_t     actor;
-    lacpa_info_t     partner;
-    lacpa_machine_t  lacp_state;
-    lacpa_event_t    lacp_event;
-    bool             lacp_enabled;
-    bool             is_converged;
-    lacpa_error_t    error;
-    lacpa_transmit_t ntt_reason;
-    lacpa_system_t   *system;
-};
-
-/******************************************************************************
- * LACP : LINK AGGREGATION CONTROL PROTOCOL : SYSTEM DATA & API DECLARATIONS
- ******************************************************************************
- */
-struct lacpa_system_e { /* lacpa_system */
-    uint32_t         lacp_active_port_count;
-    lacpa_port_t     *ports;
-};
-
-extern lacpa_system_t lacp_system;
-
-extern void lacpa_init_system (lacpa_system_t *system);
-extern void lacpa_deinit_system (lacpa_system_t *system);
-extern bool lacpa_is_system_initialized (void);
-extern lacpa_port_t *lacpa_find_port (lacpa_system_t *system, uint32_t port_no);
-
-/******************************************************************************
- *
- * LACP : LINK AGGREGATION CONTROL PROTOCOL : LACPA EXTERNAL API DECLARATIONS
- *
- *****************************************************************************/
-extern void lacpa_init_port (lacpa_system_t *system, lacpa_info_t *port,
-                             uint8_t lacp_enabled);
-extern bool lacpa_receive (lacpa_port_t *port, uint8_t *data, uint32_t bytes);
-extern void lacpa_send (lacpa_port_t *port, uint8_t *data, uint32_t bytes);
-
-extern void lacpa_update_controller (lacpa_port_t *port);
-
-/******************************************************************************
- *
- * LACP : LINK AGGREGATION CONTROL PROTOCOL : DEBUG API DECLARATIONS
- *
- *****************************************************************************/
-extern void lacpa_dump_port (lacpa_port_t *port);
-extern void lacpa_dump_state (lacpa_port_t *port);
+indigo_error_t lacpa_init (void);
+bool lacpa_is_initialized (void);
 
 #endif /* __LACP__H__ */

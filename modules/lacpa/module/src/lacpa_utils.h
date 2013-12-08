@@ -23,16 +23,6 @@
 #include <PPE/ppe.h>
 
 /*
- * lacpa_copy_mac
- */
-static inline void
-lacpa_copy_mac (lacpa_mac_t from, lacpa_mac_t to)
-{
-    if (!from || !to) return;
-    LACPA_MEMCPY(to, from, MAC_ADDRESS_BYTES);
-}
-
-/*
  * lacpa_copy_info
  */
 static inline void
@@ -41,7 +31,7 @@ lacpa_copy_info (lacpa_info_t *from, lacpa_info_t *to)
     if (!from || !to) return;
 
     to->sys_priority          = from->sys_priority;
-    lacpa_copy_mac(from->sys_mac, to->sys_mac);
+    LACPA_MEMCPY(to->sys_mac.addr, from->sys_mac.addr, OF_MAC_ADDR_BYTES);
     to->port_priority         = from->port_priority;
     to->port_num              = from->port_num;
     to->key                   = from->key;
@@ -55,10 +45,10 @@ lacpa_copy_info (lacpa_info_t *from, lacpa_info_t *to)
 static inline bool
 same_partner(lacpa_info_t *a, lacpa_info_t *b)
 {
-    if (!a || !b) return FALSE;
+    if (!a || !b) return false;
 
     return ((a->sys_priority           == b->sys_priority)
-            && (!memcmp(a->sys_mac, b->sys_mac, MAC_ADDRESS_BYTES))
+            && (!memcmp(a->sys_mac.addr, b->sys_mac.addr, OF_MAC_ADDR_BYTES))
             && (a->port_priority       == b->port_priority)
             && (a->port_num            == b->port_num)
             && (a->key                 == b->key));
@@ -70,32 +60,32 @@ same_partner(lacpa_info_t *a, lacpa_info_t *b)
 static inline bool
 lacpa_parse_pdu (ppe_packet_t *ppep, lacpa_pdu_t *pdu)
 {
-	uint32_t actor_tmp = 0, partner_tmp = 0;
+    uint32_t actor_tmp = 0, partner_tmp = 0;
 
-	if (!ppep || !pdu) return FALSE;
+    if (!ppep || !pdu) return false;
 
     /*
      * Get Actor and Partner Info and Info length
      */
-	ppe_field_get(ppep, PPE_FIELD_LACP_ACTOR_INFO, &actor_tmp);
-	ppe_field_get(ppep, PPE_FIELD_LACP_PARTNER_INFO, &partner_tmp);
+    ppe_field_get(ppep, PPE_FIELD_LACP_ACTOR_INFO, &actor_tmp);
+    ppe_field_get(ppep, PPE_FIELD_LACP_PARTNER_INFO, &partner_tmp);
 
     if (actor_tmp != DEFAULT_ACTOR_INFO ||
         partner_tmp != DEFAULT_PARTNER_INFO) {
         AIM_LOG_TRACE("Bad Parameters - actor_info: 0x%02x, partner_info: "
                       "0x%02x", actor_tmp, partner_tmp);
-        return FALSE;
+        return false;
     }
 
     actor_tmp = 0, partner_tmp = 0;
-	ppe_field_get(ppep, PPE_FIELD_LACP_ACTOR_INFO_LEN, &actor_tmp);
-	ppe_field_get(ppep, PPE_FIELD_LACP_PARTNER_INFO_LEN, &partner_tmp);
+    ppe_field_get(ppep, PPE_FIELD_LACP_ACTOR_INFO_LEN, &actor_tmp);
+    ppe_field_get(ppep, PPE_FIELD_LACP_PARTNER_INFO_LEN, &partner_tmp);
 
     if (actor_tmp != DEFAULT_ACTOR_PARTNER_INFO_LEN ||
-		partner_tmp != DEFAULT_ACTOR_PARTNER_INFO_LEN) {
+        partner_tmp != DEFAULT_ACTOR_PARTNER_INFO_LEN) {
         AIM_LOG_TRACE("Bad Parameters - actor_info_len: 0x%02x, "
                       "partner_info_len: 0x%02x", actor_tmp, partner_tmp);
-        return FALSE;
+        return false;
     }
 
     /*
@@ -104,16 +94,16 @@ lacpa_parse_pdu (ppe_packet_t *ppep, lacpa_pdu_t *pdu)
     actor_tmp = 0, partner_tmp = 0;
     ppe_field_get(ppep, PPE_FIELD_LACP_ACTOR_SYS_PRI, &actor_tmp);
     ppe_field_get(ppep, PPE_FIELD_LACP_PARTNER_SYS_PRI, &partner_tmp);
-    ppe_wide_field_get(ppep, PPE_FIELD_LACP_ACTOR_SYS, pdu->actor.sys_mac);
-    ppe_wide_field_get(ppep, PPE_FIELD_LACP_PARTNER_SYS, pdu->partner.sys_mac);
+    ppe_wide_field_get(ppep, PPE_FIELD_LACP_ACTOR_SYS, pdu->actor.sys_mac.addr);
+    ppe_wide_field_get(ppep, PPE_FIELD_LACP_PARTNER_SYS, pdu->partner.sys_mac.addr);
 
     pdu->actor.sys_priority = (uint16_t) actor_tmp;
     pdu->partner.sys_priority = (uint16_t) partner_tmp;
 
     AIM_LOG_TRACE("Received actor_sys_prio: %d, actor_sys_mac: %{mac}",
-                  pdu->actor.sys_priority, pdu->actor.sys_mac);
+                  pdu->actor.sys_priority, pdu->actor.sys_mac.addr);
     AIM_LOG_TRACE("Received partner_sys_prio: %d, partner_sys_mac: %{mac}",
-                  pdu->partner.sys_priority, pdu->partner.sys_mac);
+                  pdu->partner.sys_priority, pdu->partner.sys_mac.addr);
 
     /*
      * Get Actor and Partner Key's
@@ -163,13 +153,13 @@ lacpa_parse_pdu (ppe_packet_t *ppep, lacpa_pdu_t *pdu)
     AIM_LOG_TRACE("Received actor_state: 0x%02x, partner_state: 0x%02x",
                   pdu->actor.state, pdu->partner.state);
 
-    return TRUE;
+    return true;
 }
 
 static inline bool
 lacpa_build_pdu (ppe_packet_t *ppep, lacpa_port_t *port)
 {
-    if (!ppep || !port) return FALSE;
+    if (!ppep || !port) return false;
 
     ppe_field_set(ppep, PPE_FIELD_LACP_VERSION, DEFAULT_LACP_VERSION);
 
@@ -181,13 +171,14 @@ lacpa_build_pdu (ppe_packet_t *ppep, lacpa_port_t *port)
                   DEFAULT_ACTOR_PARTNER_INFO_LEN);
     ppe_field_set(ppep, PPE_FIELD_LACP_ACTOR_SYS_PRI,
                   port->actor.sys_priority);
-    ppe_wide_field_set(ppep, PPE_FIELD_LACP_ACTOR_SYS, port->actor.sys_mac);
+    ppe_wide_field_set(ppep, PPE_FIELD_LACP_ACTOR_SYS, 
+                       port->actor.sys_mac.addr);
     ppe_field_set(ppep, PPE_FIELD_LACP_ACTOR_KEY, port->actor.key);
     ppe_field_set(ppep, PPE_FIELD_LACP_ACTOR_PORT_PRI,
                   port->actor.port_priority);
     ppe_field_set(ppep, PPE_FIELD_LACP_ACTOR_PORT, port->actor.port_num);
     ppe_field_set(ppep, PPE_FIELD_LACP_ACTOR_STATE, port->actor.state);
-    ppe_field_set(ppep, PPE_FIELD_LACP_RSV0, DEFAULT_ZERO);
+    ppe_field_set(ppep, PPE_FIELD_LACP_RSV0, 0);
 
     /*
      * Set Partner Parameters
@@ -197,13 +188,14 @@ lacpa_build_pdu (ppe_packet_t *ppep, lacpa_port_t *port)
                   DEFAULT_ACTOR_PARTNER_INFO_LEN);
     ppe_field_set(ppep, PPE_FIELD_LACP_PARTNER_SYS_PRI,
                   port->partner.sys_priority);
-    ppe_wide_field_set(ppep, PPE_FIELD_LACP_PARTNER_SYS, port->partner.sys_mac);
+    ppe_wide_field_set(ppep, PPE_FIELD_LACP_PARTNER_SYS, 
+                       port->partner.sys_mac.addr);
     ppe_field_set(ppep, PPE_FIELD_LACP_PARTNER_KEY, port->partner.key);
     ppe_field_set(ppep, PPE_FIELD_LACP_PARTNER_PORT_PRI,
                   port->partner.port_priority);
     ppe_field_set(ppep, PPE_FIELD_LACP_PARTNER_PORT, port->partner.port_num);
     ppe_field_set(ppep, PPE_FIELD_LACP_PARTNER_STATE, port->partner.state);
-    ppe_field_set(ppep, PPE_FIELD_LACP_RSV1, DEFAULT_ZERO);
+    ppe_field_set(ppep, PPE_FIELD_LACP_RSV1, 0);
 
     /*
      * Set other non-essential fields
@@ -213,12 +205,10 @@ lacpa_build_pdu (ppe_packet_t *ppep, lacpa_port_t *port)
                   DEFAULT_COLLECTOR_INFO_LEN);
     ppe_field_set(ppep, PPE_FIELD_LACP_COLLECTOR_MAX_DELAY,
                   DEFAULT_COLLECTOR_MAX_DELAY);
-    //ppe_field_set(ppep, PPE_FIELD_LACP_RSV2, DEFAULT_ZERO);
-    ppe_field_set(ppep, PPE_FIELD_LACP_TERMINATOR_INFO, DEFAULT_ZERO);
-    ppe_field_set(ppep, PPE_FIELD_LACP_TERMINATOR_LENGTH, DEFAULT_ZERO);
-    //ppe_field_set(ppep, PPE_FIELD_LACP_RSV4, DEFAULT_ZERO);
+    ppe_field_set(ppep, PPE_FIELD_LACP_TERMINATOR_INFO, 0);
+    ppe_field_set(ppep, PPE_FIELD_LACP_TERMINATOR_LENGTH, 0);
 
-    return TRUE;
+    return true;
 }
 
 #endif /* __LACPA_UTILS_H__ */

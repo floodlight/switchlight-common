@@ -25,7 +25,7 @@
 AIM_LOG_STRUCT_DEFINE(
                       LACPA_CONFIG_LOG_OPTIONS_DEFAULT,
                       LACPA_CONFIG_LOG_BITS_DEFAULT,
-                      NULL, /* Custom log map */
+                      lacpa_log_flag_map, /* Custom log map */
                       LACPA_CONFIG_LOG_CUSTOM_BITS_DEFAULT
                      );
 
