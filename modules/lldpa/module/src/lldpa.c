@@ -31,6 +31,7 @@
 #include <lldpa/lldpa_config.h>
 #include <lldpa/lldpa_porting.h>
 #include <lldpa/lldpa.h>
+#include "lldpa_int.h"
 
 static lldpa_port_t* lldpa_find_port(of_port_no_t port_no);
 static int  lldpa_pkt_data_set(lldpa_pkt_t *lpkt, of_octets_t *data);
@@ -47,7 +48,6 @@ static void lldpdu_timeout_rx(void *cookie);
 #define LLDPA_DEBUG(fmt, ...)                       \
             AIM_LOG_TRACE(fmt, ##__VA_ARGS__)
 
-lldpa_sys_fn_t lldpa_sys;
 lldpa_system_t lldpa_port_sys;
 
 static lldpa_port_t*
@@ -96,6 +96,7 @@ lldpa_pkt_data_free (lldpa_pkt_t *lpkt)
             lpkt->data.bytes = 0;
         }
     }
+    return;
 }
 
 /* Unregister timer and free data */
@@ -131,7 +132,7 @@ lldpdu_timeout_rx(void *cookie)
     if (!lldpa)
         return;
 
-    if (lldpa_sys.get_async_version(&version) < 0) {
+    if (indigo_cxn_get_async_version(&version) < 0) {
         AIM_LOG_ERROR("%s: No controller connected",__FUNCTION__);
         return;
     }
@@ -152,7 +153,7 @@ lldpdu_timeout_rx(void *cookie)
 
     LLDPA_DEBUG("%s:%d: send async version %u",__FUNCTION__,__LINE__,lldpa->version);
     /* Send to controller, don't delete when send to controller */
-    lldpa_sys.send_async_message(to_pkt);
+    indigo_cxn_send_async_message(to_pkt);
 
     lldpa->timeout_pkt_cnt++;
 
@@ -204,13 +205,15 @@ lldpdu_periodic_tx(void *cookie)
 
     LLDPA_DEBUG("%s:%d: fwd version %u",__FUNCTION__,__LINE__,lldpa->version);
 
-    if ((rv = lldpa_sys.fwd_packet_out(pkt_out)) == INDIGO_ERROR_NONE)
+    if ((rv = indigo_fwd_packet_out(pkt_out)) == INDIGO_ERROR_NONE)
         lldpa->tx_pkt_out_cnt++;
     else {
         AIM_LOG_ERROR("%s:%d Fwd pkt out failed",__FILE__,__LINE__);
     }
     /* Fwding pkt out HAS to delete obj */
     of_packet_out_delete(pkt_out);
+
+    return;
 }
 
 static void
@@ -221,7 +224,6 @@ rx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req)
 
     /* rx_req info */
     uint32_t     xid;
-    uint32_t     subtype;
     of_port_no_t port_no;
     uint32_t     timeout_ms;
     of_octets_t  data;
@@ -230,17 +232,10 @@ rx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req)
     uint32_t              status_failed = 0;
 
     /* Get rx req info */
-    of_bsn_pdu_rx_request_subtype_get(rx_req, &subtype);
     of_bsn_pdu_rx_request_xid_get       (rx_req, &xid);
     of_bsn_pdu_rx_request_timeout_ms_get(rx_req, &timeout_ms);
     of_bsn_pdu_rx_request_data_get      (rx_req, &data);
     of_bsn_pdu_rx_request_port_no_get(rx_req, &port_no);
-
-    /* Legality check */
-    if (subtype != LLDPA_CONTR_STYPE_RX_REQ ) {
-        status_failed = 1;
-        AIM_LOG_ERROR("Unsupported subtype %", subtype);
-    }
 
     if (timeout_ms && !data.data) {
         status_failed = 1;
@@ -256,7 +251,7 @@ rx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req)
     if (!status_failed) {
         lldpa->version = rx_req->version;
         if(lldpa->rx_pkt.interval_ms) {
-            if (lldpa_sys.timer_event_unregister(lldpdu_timeout_rx, lldpa)
+            if (ind_soc_timer_event_unregister(lldpdu_timeout_rx, lldpa)
                 == INDIGO_ERROR_NONE) {
                 lldpa->rx_pkt.interval_ms = 0;
                 lldpa_pkt_data_free(&lldpa->rx_pkt);
@@ -276,7 +271,7 @@ rx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req)
     /* 2. Set up new rx_pkt, timer */
     if(!status_failed && timeout_ms) {
         if (!(rv = lldpa_pkt_data_set(&lldpa->rx_pkt, &data))) {
-            if (lldpa_sys.timer_event_register(lldpdu_timeout_rx, lldpa, timeout_ms)
+            if (ind_soc_timer_event_register(lldpdu_timeout_rx, lldpa, timeout_ms)
                 == INDIGO_ERROR_NONE) {
                 lldpa->rx_pkt.interval_ms = timeout_ms;
                 /* When it reaches here: success */
@@ -303,7 +298,7 @@ rx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req)
 
     LLDPA_DEBUG("%s:%d: send reply version %u",__FUNCTION__,__LINE__,lldpa->version);
     /* 4. Send to controller, don't delete obj */
-    lldpa_sys.send_controller_message(cxn_id, rx_reply);
+    indigo_cxn_send_controller_message(cxn_id, rx_reply);
 
     return;
 }
@@ -320,7 +315,6 @@ tx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *tx_req)
     uint32_t     xid;
 	of_port_no_t port_no;
 	uint32_t     tx_interval_ms;
-	uint32_t     subtype;
 	of_octets_t  data;
 
 	/* tx_reply info */
@@ -328,17 +322,10 @@ tx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *tx_req)
 	uint32_t              status_failed = 0;
 
 	/* Get tx req info */
-	of_bsn_pdu_tx_request_subtype_get       (tx_req, &subtype);
     of_bsn_pdu_tx_request_xid_get           (tx_req, &xid);
     of_bsn_pdu_tx_request_tx_interval_ms_get(tx_req, &tx_interval_ms);
     of_bsn_pdu_tx_request_data_get          (tx_req, &data);
     of_bsn_pdu_tx_request_port_no_get       (tx_req, &port_no);
-
-    /* Legality check */
-    if (subtype != LLDPA_CONTR_STYPE_TX_REQ ) {
-        status_failed = 1;
-        AIM_LOG_ERROR("Unsupported subtype %u", subtype);
-    }
 
     if (tx_interval_ms && !data.data) {
         status_failed = 1;
@@ -354,7 +341,7 @@ tx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *tx_req)
     if (!status_failed) {
         lldpa->version = tx_req->version;
         if (lldpa->tx_pkt.interval_ms) {
-            if (lldpa_sys.timer_event_unregister(lldpdu_periodic_tx, lldpa)
+            if (ind_soc_timer_event_unregister(lldpdu_periodic_tx, lldpa)
                 == INDIGO_ERROR_NONE) {
                 lldpa->tx_pkt.interval_ms = 0;
                 lldpa_pkt_data_free(&lldpa->tx_pkt);
@@ -376,7 +363,7 @@ tx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *tx_req)
 	    if (!(rv=lldpa_pkt_data_set(&lldpa->tx_pkt, &data))) {
             /* Send one immediately */
             lldpdu_periodic_tx(lldpa);
-            if (lldpa_sys.timer_event_register(lldpdu_periodic_tx, lldpa, tx_interval_ms)
+            if (ind_soc_timer_event_register(lldpdu_periodic_tx, lldpa, tx_interval_ms)
                     == INDIGO_ERROR_NONE) {
                 lldpa->tx_pkt.interval_ms = tx_interval_ms;
                 /* When it reaches here: success */
@@ -404,7 +391,7 @@ tx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *tx_req)
 
 	LLDPA_DEBUG("%s:%d: send reply version %u",__FUNCTION__,__LINE__,tx_req->version);
 	/* 4. Send to controller, don't delete obj */
-	lldpa_sys.send_controller_message(cxn_id, tx_reply);
+	indigo_cxn_send_controller_message(cxn_id, tx_reply);
 
 	return;
 }
@@ -471,7 +458,7 @@ static inline void
 lldpa_update_rx_timeout(lldpa_port_t* lldpa)
 {
     LLDPA_DEBUG("%s:%d using reset timer",__FUNCTION__,__LINE__);
-    if (lldpa_sys.timer_event_register(lldpdu_timeout_rx, lldpa, lldpa->rx_pkt.interval_ms) !=
+    if (ind_soc_timer_event_register(lldpdu_timeout_rx, lldpa, lldpa->rx_pkt.interval_ms) !=
             INDIGO_ERROR_NONE) {
         AIM_LOG_ERROR("%s:%d timer register failed",__FUNCTION__,__LINE__);
     }
@@ -557,25 +544,13 @@ lldpa_handle_pkt (of_packet_in_t *packet_in)
 
 /* Return 0: success */
 int
-lldpa_system_init(lldpa_sys_fn_t *fn)
+lldpa_system_init() //REMOVE ME lldpa_sys_fn_t *fn)
 {
     int i;
     lldpa_port_t *lldpa;
 
     AIM_LOG_INFO("init");
 
-    lldpa_sys.send_controller_message = fn->send_controller_message; //void indigo_cxn_send_controller_message();
-    lldpa_sys.fwd_packet_out          = fn->fwd_packet_out;          //indigo_error_t indigo_fwd_packet_out();
-    lldpa_sys.send_async_message      = fn->send_async_message;      //void indigo_cxn_send_async_message();
-    lldpa_sys.get_async_version       = fn->get_async_version;       //indigo_error_t indigo_cxn_get_async_version();
-    lldpa_sys.timer_event_register    = fn->timer_event_register;    //indigo_error_t ind_soc_timer_event_register();
-    lldpa_sys.timer_event_unregister  = fn->timer_event_unregister;  //indigo_error_t ind_soc_timer_event_register();
-    AIM_TRUE_OR_DIE(lldpa_sys.send_controller_message);
-    AIM_TRUE_OR_DIE(lldpa_sys.fwd_packet_out);
-    AIM_TRUE_OR_DIE(lldpa_sys.get_async_version);
-    AIM_TRUE_OR_DIE(lldpa_sys.send_async_message);
-    AIM_TRUE_OR_DIE(lldpa_sys.timer_event_register);
-    AIM_TRUE_OR_DIE(lldpa_sys.timer_event_unregister);
     lldpa_port_sys.lldpa_total_phy_ports = MAX_LLDPA_PORT;
     for (i=0; i<MAX_LLDPA_PORT;i++) {
         lldpa = lldpa_find_port(i);

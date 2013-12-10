@@ -30,9 +30,14 @@
 
 #include <AIM/aim.h>
 #include <lldpa/lldpa.h>
+#include <OFStateManager/ofstatemanager.h>
+#include <SocketManager/socketmanager.h>
 
 #include <loci/loci_obj_dump.h>
 #include <PPE/ppe_types.h>
+
+extern ind_core_listener_result_t lldpa_handle_msg (indigo_cxn_id_t cxn_id, of_object_t *msg);
+extern ind_core_listener_result_t lldpa_handle_pkt (of_packet_in_t *packet_in);
 
 /* Dummy packet */
 uint8_t Lldppdu_Tx[] = {10,11,12,13,250,251,252,253};
@@ -89,7 +94,7 @@ void hexdump(void *mem, unsigned int len)
 	}
 }
 
-void t_send_controller_message (indigo_cxn_id_t cxn_id, of_object_t *obj)
+void indigo_cxn_send_controller_message (indigo_cxn_id_t cxn_id, of_object_t *obj)
 {
     printf("\nSend REPLY msg to controller\n");
     of_object_dump((loci_writer_f)aim_printf, &aim_pvs_stdout, obj);
@@ -98,7 +103,7 @@ void t_send_controller_message (indigo_cxn_id_t cxn_id, of_object_t *obj)
     of_object_delete(obj);
 }
 
-void t_send_async_message     (of_object_t *obj)
+void indigo_cxn_send_async_message     (of_object_t *obj)
 {
     printf("\nSend TIMEOUT Msg to controller\n");
     of_object_dump((loci_writer_f)aim_printf, &aim_pvs_stdout, obj);
@@ -107,7 +112,7 @@ void t_send_async_message     (of_object_t *obj)
     of_object_delete(obj);
 }
 
-indigo_error_t t_fwd_packet_out (of_packet_out_t *pkt)
+indigo_error_t indigo_fwd_packet_out (of_packet_out_t *pkt)
 {
     of_octets_t data;
     printf("\nFwd TX pkt out\n");
@@ -120,7 +125,7 @@ indigo_error_t t_fwd_packet_out (of_packet_out_t *pkt)
     return INDIGO_ERROR_NONE;
 }
 
-indigo_error_t t_get_async_version(of_version_t *ver)
+indigo_error_t indigo_cxn_get_async_version(of_version_t *ver)
 {
     *ver = OF_VERSION_1_3;
     return INDIGO_ERROR_NONE;
@@ -130,13 +135,13 @@ indigo_error_t t_get_async_version(of_version_t *ver)
  * This is used to test timeout.
  * When we register we do call back
  */
-indigo_error_t t_timer_event_register (ind_soc_timer_callback_f callback, void *cookie, int repeat_time_ms)
+indigo_error_t ind_timer_event_register (ind_soc_timer_callback_f callback, void *cookie, int repeat_time_ms)
 {
     callback(cookie);
     return INDIGO_ERROR_NONE;
 }
 
-indigo_error_t  t_timer_event_unregister (ind_soc_timer_callback_f callback, void *cookie)
+indigo_error_t  ind_timer_event_unregister (ind_soc_timer_callback_f callback, void *cookie)
 {
     return INDIGO_ERROR_NONE;
 }
@@ -250,19 +255,21 @@ test_pkt_in(int port_no)
 
 int aim_main(int argc, char* argv[])
 {
-    lldpa_sys_fn_t fn;
 	int port_test_no = 1;
 
     printf("lldpa Utest Start ..\n");
     lldpa_config_show(&aim_pvs_stdout);
 
+#if 0
     fn.send_controller_message = t_send_controller_message; //(indigo_cxn_send_controller_message);
     fn.fwd_packet_out          = t_fwd_packet_out;          //indigo_fwd_packet_out();
     fn.send_async_message      = t_send_async_message;      //(indigo_cxn_send_async_message);
     fn.get_async_version       = t_get_async_version;       //(indigo_cxn_get_async_version);
     fn.timer_event_register    = t_timer_event_register;    //ind_soc_timer_event_register();
     fn.timer_event_unregister  = t_timer_event_unregister;  //ind_soc_timer_event_unregister();
-    lldpa_system_init(&fn);
+#endif
+
+    lldpa_system_init();
 
 
     test_tx_request(port_test_no);
