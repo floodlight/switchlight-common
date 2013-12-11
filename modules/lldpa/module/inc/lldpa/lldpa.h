@@ -24,13 +24,11 @@
 /* <--auto.start.enum(ALL).header> */
 /* <auto.end.enum(ALL).header> */
 
-
-/*********************
- **** MANUALLY ADD****
- *********************/
+/****************************
+ **** LLDPA external APIs ****
+ ****************************/
 
 int lldpa_system_init();
 void lldpa_system_finish();
 
-extern int LLDPA_RX_USE_POLLING;
 #endif /* __LLDPA_H__ */

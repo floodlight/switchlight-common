@@ -51,47 +51,38 @@ uint8_t Lldppdu_Rx[] = {1,2,3,4,5,6,1,2,3,4,5,6,0x88,0xcc,0xd,0xe,0xa,0xf,0xb,0x
 
 void hexdump(void *mem, unsigned int len)
 {
-	unsigned int i, j;
+    unsigned int i, j;
 
-	for(i = 0; i < len + ((len % HEXDUMP_COLS) ? (HEXDUMP_COLS - len % HEXDUMP_COLS) : 0); i++)
-	{
-		/* print offset */
-		if(i % HEXDUMP_COLS == 0)
-		{
-			printf("0x%06x: ", i);
-		}
+    for(i = 0; i < len + ((len % HEXDUMP_COLS) ? (HEXDUMP_COLS - len % HEXDUMP_COLS) : 0); i++) {
+        /* print offset */
+        if(i % HEXDUMP_COLS == 0) {
+            printf("0x%06x: ", i);
+        }
 
-		/* print hex data */
-		if(i < len)
-		{
-			printf("%02x ", 0xFF & ((char*)mem)[i]);
-		}
-		else /* end of block, just aligning for ASCII dump */
-		{
-			printf("   ");
-		}
-
-		/* print ASCII dump */
-		if(i % HEXDUMP_COLS == (HEXDUMP_COLS - 1))
-		{
-			for(j = i - (HEXDUMP_COLS - 1); j <= i; j++)
-			{
-				if(j >= len) /* end of block, not really printing */
-				{
-					putchar(' ');
-				}
-				else if(isprint(((char*)mem)[j])) /* printable char */
-				{
-					putchar(0xFF & ((char*)mem)[j]);
-				}
-				else /* other char */
-				{
-					putchar('.');
-				}
-			}
-			putchar('\n');
-		}
-	}
+        /* print hex data */
+        if(i < len) {
+            printf("%02x ", 0xFF & ((char*)mem)[i]);
+        }
+        else { /* end of block, just aligning for ASCII dump */
+            printf("   ");
+        }
+        
+        /* print ASCII dump */
+        if(i % HEXDUMP_COLS == (HEXDUMP_COLS - 1)) {
+            for(j = i - (HEXDUMP_COLS - 1); j <= i; j++) {
+                if(j >= len) { /* end of block, not really printing */
+                    putchar(' ');
+                }
+                else if(isprint(((char*)mem)[j])) { /* printable char */
+                    putchar(0xFF & ((char*)mem)[j]);
+                }
+                else {/* other char */
+                    putchar('.');
+                }
+            }
+            putchar('\n');
+        }
+    }
 }
 
 void indigo_cxn_send_controller_message (indigo_cxn_id_t cxn_id, of_object_t *obj)
@@ -255,22 +246,12 @@ test_pkt_in(int port_no)
 
 int aim_main(int argc, char* argv[])
 {
-	int port_test_no = 1;
+    int port_test_no = 1;
 
     printf("lldpa Utest Start ..\n");
     lldpa_config_show(&aim_pvs_stdout);
 
-#if 0
-    fn.send_controller_message = t_send_controller_message; //(indigo_cxn_send_controller_message);
-    fn.fwd_packet_out          = t_fwd_packet_out;          //indigo_fwd_packet_out();
-    fn.send_async_message      = t_send_async_message;      //(indigo_cxn_send_async_message);
-    fn.get_async_version       = t_get_async_version;       //(indigo_cxn_get_async_version);
-    fn.timer_event_register    = t_timer_event_register;    //ind_soc_timer_event_register();
-    fn.timer_event_unregister  = t_timer_event_unregister;  //ind_soc_timer_event_unregister();
-#endif
-
     lldpa_system_init();
-
 
     test_tx_request(port_test_no);
     test_rx_request(port_test_no);
