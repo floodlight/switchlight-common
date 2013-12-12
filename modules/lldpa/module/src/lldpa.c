@@ -22,9 +22,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <PPE/ppe.h>
-#include <PPE/ppe_types.h>
-
 #define AIM_LOG_MODULE_NAME lldpa
 #include <AIM/aim_log.h>
 
@@ -36,7 +33,10 @@
 static lldpa_port_t *lldpa_find_port(of_port_no_t port_no);
 static indigo_error_t  lldpa_pkt_data_set(lldpa_pkt_t *lpkt, of_octets_t *data);
 static void lldpa_pkt_data_free (lldpa_pkt_t *lpkt);
-static void  lldpa_free_pkts(lldpa_port_t *lldpa);
+static indigo_error_t lldpa_port_disable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *port);
+static indigo_error_t lldpa_port_enable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *port, 
+                                        of_octets_t *data, uint32_t interval_ms);
+static void  lldpa_disable_tx_rx(lldpa_port_t *lldpa);
 static void lldpdu_timeout_rx(void *cookie);
 static void lldpdu_periodic_tx(void *cookie);
 static void rx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req);
@@ -97,25 +97,58 @@ lldpa_pkt_data_free (lldpa_pkt_t *lpkt)
     }
 }
 
+static indigo_error_t
+lldpa_port_disable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *port)
+{
+    indigo_error_t rv;
+
+    if ((rv = ind_soc_timer_event_unregister(cb, port)) == INDIGO_ERROR_NONE) {
+        pkt->interval_ms = 0;
+        lldpa_pkt_data_free(pkt);
+    } 
+    return rv;
+}
+
+static indigo_error_t
+lldpa_port_enable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *port,
+                  of_octets_t *data, uint32_t interval_ms)
+{
+    indigo_error_t rv;
+    
+    if ((rv = lldpa_pkt_data_set(pkt, data)) == INDIGO_ERROR_NONE) {
+        if ((rv = ind_soc_timer_event_register(cb, port, interval_ms))
+                == INDIGO_ERROR_NONE) {
+            pkt->interval_ms = interval_ms;
+        } else {
+            lldpa_pkt_data_free(pkt);
+        }
+    }
+    return rv;
+}
+
 /* Unregister timer and free data */
 static void
-lldpa_free_pkts(lldpa_port_t *port)
+lldpa_disable_tx_rx(lldpa_port_t *port)
 {
+    indigo_error_t rv;
+
     if (!port)
         return;
 
     if (port->tx_pkt.interval_ms) {
-        ind_soc_timer_event_unregister(lldpdu_periodic_tx, port);
-        port->tx_pkt.interval_ms = 0;
+        if((rv = lldpa_port_disable(lldpdu_periodic_tx, &port->tx_pkt, port))
+               != INDIGO_ERROR_NONE) {
+            AIM_LOG_ERROR("Port tx %u failed to disable %d\n", port->port_no, rv);
+        }
     }
 
     if (port->rx_pkt.interval_ms) {
-        ind_soc_timer_event_unregister(lldpdu_timeout_rx, port);
-        port->rx_pkt.interval_ms = 0;
+        if((rv = lldpa_port_disable(lldpdu_timeout_rx, &port->rx_pkt, port))
+               != INDIGO_ERROR_NONE) {
+            AIM_LOG_ERROR("Port rx %u failed to disable %d\n", port->port_no, rv);
+        }
     }
 
-    lldpa_pkt_data_free(&port->rx_pkt);
-    lldpa_pkt_data_free(&port->tx_pkt);
 }
 
 static void
@@ -129,20 +162,20 @@ lldpdu_timeout_rx(void *cookie)
         return;
 
     if (indigo_cxn_get_async_version(&version) != INDIGO_ERROR_NONE) {
-        AIM_LOG_ERROR("%s: No controller connected",__FUNCTION__);
+        AIM_LOG_ERROR("No controller connected");
         return;
     }
 
     timeout_msg = of_bsn_pdu_rx_timeout_new(version);
     if(!timeout_msg){
-        AIM_LOG_ERROR("%s:%d Failed to allocate timeout msg",__FILE__,__LINE__);
+        AIM_LOG_ERROR("Failed to allocate timeout msg");
         return;
     }
 
     /* Set port number */
     of_bsn_pdu_rx_timeout_port_no_set (timeout_msg, port->port_no);
 
-    LLDPA_DEBUG("%s:%d: send async version %u",__FUNCTION__,__LINE__,version);
+    LLDPA_DEBUG("Send async msg");
     /* Send to controller, don't delete when send to controller */
     indigo_cxn_send_async_message(timeout_msg);
 
@@ -158,30 +191,31 @@ lldpdu_periodic_tx(void *cookie)
     of_action_output_t *action;
     indigo_error_t     rv;
 
+    /* Always use OF_VERSION_1_3 */
+    uint32_t version = OF_VERSION_1_3;
+
     if(!port)
         return;
 
-    pkt_out = of_packet_out_new (port->version);
+    pkt_out = of_packet_out_new (version);
     if(!pkt_out){
-        AIM_LOG_ERROR("%s:%d Failed to allocate packet out",__FILE__,__LINE__);
+        AIM_LOG_ERROR("Failed to allocate packet out");
         return;
     }
 
-    action = of_action_output_new(port->version);
+    action = of_action_output_new(version);
     if(!action){
         of_packet_out_delete(pkt_out);
-        AIM_LOG_ERROR("%s:%d Failed to allocation action",
-                      __FILE__,__LINE__);
+        AIM_LOG_ERROR("Failed to allocation action");
         return;
     }
     of_action_output_port_set(action, port->port_no);
 
-    list = of_list_action_new(port->version);
+    list = of_list_action_new(version);
     if(!list){
         of_packet_out_delete(pkt_out);
         of_object_delete(action);
-        AIM_LOG_ERROR("%s:%d Failed to allocate action list",
-                      __FILE__,__LINE__);
+        AIM_LOG_ERROR("Failed to allocate action list");
         return;
     }
 
@@ -197,12 +231,12 @@ lldpdu_periodic_tx(void *cookie)
         return;
     }
 
-    LLDPA_DEBUG("%s:%d: fwd version %u",__FUNCTION__,__LINE__,port->version);
+    LLDPA_DEBUG("Fwd pkt out");
 
     if ((rv = indigo_fwd_packet_out(pkt_out)) == INDIGO_ERROR_NONE)
         port->tx_pkt_out_cnt++;
     else {
-        AIM_LOG_ERROR("%s:%d Fwd pkt out failed",__FILE__,__LINE__);
+        AIM_LOG_ERROR("Fwd pkt out failed %d",rv);
     }
     /* Fwding pkt out HAS to delete obj */
     of_packet_out_delete(pkt_out);
@@ -251,41 +285,22 @@ rx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req)
     }
 
     /* 1. Unreg timer, delete the current rx_pkt */
-    port->version = rx_req->version;
     if(port->rx_pkt.interval_ms) {
-        if (ind_soc_timer_event_unregister(lldpdu_timeout_rx, port)
-            == INDIGO_ERROR_NONE) {
-            port->rx_pkt.interval_ms = 0;
-            lldpa_pkt_data_free(&port->rx_pkt);
-        } else {
+        if ((rv = lldpa_port_disable(lldpdu_timeout_rx, &port->rx_pkt, port)) != INDIGO_ERROR_NONE) {
             status_failed = 1;
-            AIM_LOG_ERROR("Port %u non-exist timer", port->port_no);
+            AIM_LOG_ERROR("Port rx %u failed to disable %d", port->port_no, rv);
             goto rx_reply_to_ctrl;
         }
     }
-
-    /* Additional consistent state check */
-    if (port->rx_pkt.interval_ms || port->rx_pkt.data.data) {
-        status_failed = 1;
-        AIM_LOG_ERROR("Port %u state inconsistent", port->port_no);
-        goto rx_reply_to_ctrl;
-    }
+    
+    AIM_TRUE_OR_DIE(!port->rx_pkt.interval_ms && !port->rx_pkt.data.data);
 
     /* 2. Set up new rx_pkt, timer */
     if(timeout_ms) {
-        if ((rv = lldpa_pkt_data_set(&port->rx_pkt, &data)) == INDIGO_ERROR_NONE) {
-            if (ind_soc_timer_event_register(lldpdu_timeout_rx, port, timeout_ms)
-                == INDIGO_ERROR_NONE) {
-                port->rx_pkt.interval_ms = timeout_ms;
-                /* When it reaches here: success */
-            } else {
-                status_failed = 1;
-                lldpa_pkt_data_free(&port->rx_pkt);
-                AIM_LOG_ERROR("timer event register failed %s:%d",__FILE__,__LINE__);
-            }
-        } else {
+        if ((rv = lldpa_port_enable(lldpdu_timeout_rx, &port->rx_pkt, port,
+                                    &data, timeout_ms)) != INDIGO_ERROR_NONE) {
             status_failed = 1;
-            AIM_LOG_ERROR("%s:%d data set failed rv %d",__FILE__,__LINE__,rv);
+            AIM_LOG_ERROR("Port rx %u failed to enable %d", port->port_no, rv);
         }
     }
 
@@ -293,14 +308,14 @@ rx_reply_to_ctrl:
     /* 3. Setup reply */
     rx_reply = of_bsn_pdu_rx_reply_new(rx_req->version);
     if(!rx_reply){
-        AIM_LOG_ERROR("%s:%d Failed to allocate rx_reply",__FILE__,__LINE__);
+        AIM_LOG_ERROR("Failed to allocate rx_reply");
         return;
     }
     of_bsn_pdu_rx_reply_xid_set     (rx_reply, xid);
     of_bsn_pdu_rx_reply_port_no_set (rx_reply, port_no);
     of_bsn_pdu_rx_reply_status_set  (rx_reply, status_failed);
 
-    LLDPA_DEBUG("%s:%d: send reply version %u",__FUNCTION__,__LINE__,rx_req->version);
+    LLDPA_DEBUG("Rx sends a reply to ctrl, version %u", rx_req->version);
     /* 4. Send to controller, don't delete obj */
     indigo_cxn_send_controller_message(cxn_id, rx_reply);
 
@@ -350,45 +365,27 @@ tx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *tx_req)
         AIM_LOG_ERROR("Port %u doesn't exist", port_no);
         goto tx_reply_to_ctrl;
     }
-
+    
     /* 1. unreg old timer, delete old data */
-    port->version = tx_req->version;
     if (port->tx_pkt.interval_ms) {
-        if (ind_soc_timer_event_unregister(lldpdu_periodic_tx, port)
-            == INDIGO_ERROR_NONE) {
-            port->tx_pkt.interval_ms = 0;
-            lldpa_pkt_data_free(&port->tx_pkt);
-        } else {
+        if ((rv = lldpa_port_disable(lldpdu_periodic_tx, &port->tx_pkt, port)) != INDIGO_ERROR_NONE) {
             status_failed = 1;
-            AIM_LOG_ERROR("Port %u non-exist timer", port->port_no);
+            AIM_LOG_ERROR("Port tx %u failed to disable %d", port->port_no, rv);
             goto tx_reply_to_ctrl;
         }
     }
 
-    /* Additional consistent state check */
-    if (port->tx_pkt.interval_ms || port->tx_pkt.data.data) {
-        status_failed = 1;
-        AIM_LOG_ERROR("Port %u state inconsistent", port->port_no);
-        goto tx_reply_to_ctrl;
-    }
+    AIM_TRUE_OR_DIE(!port->tx_pkt.interval_ms && !port->tx_pkt.data.data);
 
     /* 2. Set up new tx_pkt, alarm */
-    if(!status_failed && tx_interval_ms) {
-        if ((rv=lldpa_pkt_data_set(&port->tx_pkt, &data)) == INDIGO_ERROR_NONE) {
-            /* Send one immediately */
+    if(tx_interval_ms) {
+        if ((rv = lldpa_port_enable(lldpdu_periodic_tx, &port->tx_pkt, port,
+                                    &data, tx_interval_ms)) == INDIGO_ERROR_NONE) {
+            /* Successfully enable, send one out immediately */
             lldpdu_periodic_tx(port);
-            if (ind_soc_timer_event_register(lldpdu_periodic_tx, port, tx_interval_ms)
-                    == INDIGO_ERROR_NONE) {
-                port->tx_pkt.interval_ms = tx_interval_ms;
-                /* When it reaches here: success */
-            } else {
-                status_failed = 1;
-                lldpa_pkt_data_free(&port->tx_pkt);
-                AIM_LOG_ERROR("timer event register failed %s:%d",__FILE__,__LINE__);
-            }
         } else {
             status_failed = 1;
-            AIM_LOG_ERROR("%s:%d data set failed rv %d",__FILE__,__LINE__,rv);
+            AIM_LOG_ERROR("Port tx %u failed to enable %d", port->port_no, rv);
         }
     }
 
@@ -396,7 +393,7 @@ tx_reply_to_ctrl:
     /* 3. Setup reply  */
     tx_reply = of_bsn_pdu_tx_reply_new(tx_req->version);
     if(!tx_reply){
-        AIM_LOG_ERROR("%s:%d Failed to allocate tx reply",__FILE__,__LINE__);
+        AIM_LOG_ERROR("Failed to allocate tx reply");
         return;
     }
 
@@ -404,7 +401,7 @@ tx_reply_to_ctrl:
     of_bsn_pdu_tx_reply_port_no_set (tx_reply, port_no);
     of_bsn_pdu_tx_reply_status_set  (tx_reply, status_failed);
 
-    LLDPA_DEBUG("%s:%d: send reply version %u",__FUNCTION__,__LINE__,tx_req->version);
+    LLDPA_DEBUG("Tx sends  a reply to ctrl, version %u",tx_req->version);
     /* 4. Send to controller, don't delete obj */
     indigo_cxn_send_controller_message(cxn_id, tx_reply);
 
@@ -448,7 +445,7 @@ lldpa_handle_msg (indigo_cxn_id_t cxn_id, of_object_t *msg)
  *****************/
 
 /*
- * Caller must ensure lldap != NULL, data != NULL
+ * Caller must ensure port != NULL, data != NULL
  * return 1 if pkt is expected
  * */
 static inline int
@@ -471,10 +468,11 @@ lldpa_rx_pkt_is_expected(lldpa_port_t *port, of_octets_t *data)
 static inline void
 lldpa_update_rx_timeout(lldpa_port_t *port)
 {
-    LLDPA_DEBUG("%s:%d using reset timer",__FUNCTION__,__LINE__);
-    if (ind_soc_timer_event_register(lldpdu_timeout_rx, port, port->rx_pkt.interval_ms) !=
+    indigo_error_t rv;
+    LLDPA_DEBUG("Using reset timer");
+    if ((rv = ind_soc_timer_event_register(lldpdu_timeout_rx, port, port->rx_pkt.interval_ms)) !=
             INDIGO_ERROR_NONE) {
-        AIM_LOG_ERROR("%s:%d timer register failed",__FUNCTION__,__LINE__);
+        AIM_LOG_ERROR("Port %u failed to register %d",port->port_no, rv);
     }
 }
 
@@ -486,7 +484,6 @@ lldpa_handle_pkt (of_packet_in_t *packet_in)
     of_octets_t                data;
     of_port_no_t               port_no;
     of_match_t                 match;
-    ppe_packet_t               ppep;
     ind_core_listener_result_t ret = IND_CORE_LISTENER_RESULT_PASS;
 
     if(!packet_in)
@@ -498,33 +495,19 @@ lldpa_handle_pkt (of_packet_in_t *packet_in)
     if(!data.data)
         return ret;
 
-    /* Parsing ether pkt and identify if this is a LLDP Packet */
-    ppe_packet_init(&ppep, data.data, data.bytes);
-
-    if (ppe_parse(&ppep) < 0) {
-        AIM_LOG_ERROR("Packet parsing failed. packet=%{data}", data.data, data.bytes);
-        return ret;
-    }
-
-    if (!ppe_header_get(&ppep, PPE_HEADER_LLDP)) {
-        /* Since we listen to all pkt_in
-         * Rate is high, no need add debug msg here
-         * Not LLDP packet, simply return */
-        return ret;
-    }
-
     /* Only count pkt_in with valid data */
     lldpa_port_sys.total_pkt_in_cnt++;
 
     if (packet_in->version <= OF_VERSION_1_1) {
         of_packet_in_in_port_get(packet_in, &port_no);
+        LLDPA_DEBUG("port %u pkt in version %d", port_no, packet_in->version);
     } else {
         if (of_packet_in_match_get(packet_in, &match) < 0) {
             AIM_LOG_ERROR("match get failed");
             return ret;
         }
         port_no = match.fields.in_port;
-        LLDPA_DEBUG("%s:%d: port %u",__FUNCTION__,__LINE__,port_no);
+        LLDPA_DEBUG("Port %u",port_no);
     }
 
     port = lldpa_find_port(port_no);
@@ -546,7 +529,7 @@ lldpa_handle_pkt (of_packet_in_t *packet_in)
         lldpa_update_rx_timeout(port);
     }
 
-    LLDPA_DEBUG("%s:%d: port %u, rx_pkt_in_cnt %l, pkt MATCH=%s",__FUNCTION__,__LINE__,port_no,
+    LLDPA_DEBUG("Port %u, rx_pkt_in_cnt %l, pkt MATCH=%s",port_no,
             port->rx_pkt_in_cnt, ret == IND_CORE_LISTENER_RESULT_DROP ? "true" : "false");
     return ret;
 }
@@ -592,7 +575,7 @@ lldpa_system_finish()
     for (i=0; i<MAX_LLDPA_PORT;i++) {
         port = lldpa_find_port(i);
         if (port)
-            lldpa_free_pkts(port);
+            lldpa_disable_tx_rx(port);
         else
             AIM_LOG_ERROR("Port %d not existing", i);
     }

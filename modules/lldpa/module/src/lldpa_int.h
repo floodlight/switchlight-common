@@ -32,12 +32,12 @@
 #include <SocketManager/socketmanager.h>
 
 typedef struct lldpa_pkt_s {
+    /* interval_ms == 0: disable */
     uint32_t              interval_ms;
     of_octets_t           data;
 } lldpa_pkt_t;
 
 typedef struct lldpa_port_s {
-    uint32_t      version;
     of_port_no_t  port_no;
     lldpa_pkt_t   rx_pkt;
     lldpa_pkt_t   tx_pkt;
