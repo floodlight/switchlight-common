@@ -40,19 +40,6 @@ cdefs: &cdefs
     doc: "Include generic uCli support."
     default: 0
 
-type: &type
-- RX_PACKET
-- TX_PACKET
-
-stype: &stype
-- PACKET_IN
-- TX_REQ : 31
-- TX_RES : 32
-- RX_REQ : 33
-- RX_RES : 34
-- TIMEOUT : 35
-- DUMMY
-
 definitions:
   cdefs:
     LLDPA_CONFIG_HEADER:
@@ -70,14 +57,3 @@ definitions:
         - vsnprintf
         - snprintf
         - strlen
-
-  enum: &enums
-    lldpa_pkt_type:
-      members: *type
-
-    lldpa_contr_stype:
-      members: *stype
-
-  xenum:
-    LLDPA_ENUMERATION_ENTRY:
-      members: *enums
