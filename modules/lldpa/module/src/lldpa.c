@@ -138,14 +138,14 @@ lldpa_disable_tx_rx(lldpa_port_t *port)
     if (port->tx_pkt.interval_ms) {
         if((rv = lldpa_port_disable(lldpdu_periodic_tx, &port->tx_pkt, port))
                != INDIGO_ERROR_NONE) {
-            AIM_LOG_ERROR("Port tx %u failed to disable %d\n", port->port_no, rv);
+            AIM_LOG_ERROR("Port tx %u failed to disable %s\n", port->port_no, indigo_strerror(rv));
         }
     }
 
     if (port->rx_pkt.interval_ms) {
         if((rv = lldpa_port_disable(lldpdu_timeout_rx, &port->rx_pkt, port))
                != INDIGO_ERROR_NONE) {
-            AIM_LOG_ERROR("Port rx %u failed to disable %d\n", port->port_no, rv);
+            AIM_LOG_ERROR("Port rx %u failed to disable %s\n", port->port_no, indigo_strerror(rv));
         }
     }
 
@@ -189,7 +189,7 @@ lldpdu_periodic_tx(void *cookie)
     of_packet_out_t *pkt_out;
     of_list_action_t   *list;
     of_action_output_t *action;
-    indigo_error_t     rv;
+    int     rv;
 
     /* Always use OF_VERSION_1_3 */
     uint32_t version = OF_VERSION_1_3;
@@ -225,7 +225,7 @@ lldpdu_periodic_tx(void *cookie)
     rv = of_packet_out_actions_set(pkt_out, list);
     of_object_delete(list);
 
-    if ((rv = of_packet_out_data_set(pkt_out, &port->tx_pkt.data)) != INDIGO_ERROR_NONE) {
+    if ((rv = of_packet_out_data_set(pkt_out, &port->tx_pkt.data)) != OF_ERROR_NONE) {
         AIM_LOG_TRACE("Packet out failed to set data %d", rv);
         of_packet_out_delete(pkt_out);
         return;
@@ -236,7 +236,7 @@ lldpdu_periodic_tx(void *cookie)
     if ((rv = indigo_fwd_packet_out(pkt_out)) == INDIGO_ERROR_NONE)
         port->tx_pkt_out_cnt++;
     else {
-        AIM_LOG_ERROR("Fwd pkt out failed %d",rv);
+        AIM_LOG_ERROR("Fwd pkt out failed %s", indigo_strerror(rv));
     }
     /* Fwding pkt out HAS to delete obj */
     of_packet_out_delete(pkt_out);
@@ -246,7 +246,7 @@ static void
 rx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req)
 {
     lldpa_port_t *port = NULL;
-    int           rv;
+    indigo_error_t rv;
 
     /* rx_req info */
     uint32_t     xid;
@@ -288,7 +288,7 @@ rx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req)
     if(port->rx_pkt.interval_ms) {
         if ((rv = lldpa_port_disable(lldpdu_timeout_rx, &port->rx_pkt, port)) != INDIGO_ERROR_NONE) {
             status_failed = 1;
-            AIM_LOG_ERROR("Port rx %u failed to disable %d", port->port_no, rv);
+            AIM_LOG_ERROR("Port rx %u failed to disable %s", port->port_no, indigo_strerror(rv));
             goto rx_reply_to_ctrl;
         }
     }
@@ -300,7 +300,7 @@ rx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req)
         if ((rv = lldpa_port_enable(lldpdu_timeout_rx, &port->rx_pkt, port,
                                     &data, timeout_ms)) != INDIGO_ERROR_NONE) {
             status_failed = 1;
-            AIM_LOG_ERROR("Port rx %u failed to enable %d", port->port_no, rv);
+            AIM_LOG_ERROR("Port rx %u failed to enable %s", port->port_no, indigo_strerror(rv));
         }
     }
 
@@ -327,7 +327,7 @@ tx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *tx_req)
 {
     lldpa_port_t *port = NULL;
 
-    int rv;
+    indigo_error_t rv;
 
     /* tx_req info */
     uint32_t     xid;
@@ -370,7 +370,7 @@ tx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *tx_req)
     if (port->tx_pkt.interval_ms) {
         if ((rv = lldpa_port_disable(lldpdu_periodic_tx, &port->tx_pkt, port)) != INDIGO_ERROR_NONE) {
             status_failed = 1;
-            AIM_LOG_ERROR("Port tx %u failed to disable %d", port->port_no, rv);
+            AIM_LOG_ERROR("Port tx %u failed to disable %s", port->port_no, indigo_strerror(rv));
             goto tx_reply_to_ctrl;
         }
     }
@@ -385,7 +385,7 @@ tx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *tx_req)
             lldpdu_periodic_tx(port);
         } else {
             status_failed = 1;
-            AIM_LOG_ERROR("Port tx %u failed to enable %d", port->port_no, rv);
+            AIM_LOG_ERROR("Port tx %u failed to enable %s", port->port_no, indigo_strerror(rv));
         }
     }
 
@@ -472,7 +472,7 @@ lldpa_update_rx_timeout(lldpa_port_t *port)
     LLDPA_DEBUG("Using reset timer");
     if ((rv = ind_soc_timer_event_register(lldpdu_timeout_rx, port, port->rx_pkt.interval_ms)) !=
             INDIGO_ERROR_NONE) {
-        AIM_LOG_ERROR("Port %u failed to register %d",port->port_no, rv);
+        AIM_LOG_ERROR("Port %u failed to register %s",port->port_no, indigo_strerror(rv));
     }
 }
 
