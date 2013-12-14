@@ -38,7 +38,7 @@ cdefs: &cdefs
     default: LACPA_CONFIG_PORTING_STDLIB
 - LACPA_CONFIG_INCLUDE_UCLI:
     doc: "Include generic uCli support."
-    default: 0
+    default: 1
 
 state: &state
 - AGENT_STOPPED
