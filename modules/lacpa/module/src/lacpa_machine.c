@@ -108,7 +108,7 @@ lacpa_dump_port (lacpa_port_t *port)
                         port->actor.port_priority);
     LACPA_LOG_PORTSTATS("ACTOR PORT NUM        : %d", port->actor.port_num);
     LACPA_LOG_PORTSTATS("ACTOR KEY             : %d", port->actor.key);
-    LACPA_LOG_PORTSTATS("ACTOR STATE           : %02x", port->actor.state);
+    LACPA_LOG_PORTSTATS("ACTOR STATE           : 0x%02x", port->actor.state);
     LACPA_LOG_PORTSTATS("ACTOR OF_PORT_NO      : %d", port->actor.port_no);
     LACPA_LOG_PORTSTATS("\nPARTNER PORT INFO");
     LACPA_LOG_PORTSTATS("PARTNER SYS PRIORITY  : %d",
@@ -119,7 +119,7 @@ lacpa_dump_port (lacpa_port_t *port)
                         port->partner.port_priority);
     LACPA_LOG_PORTSTATS("PARTNER PORT NUM      : %d", port->partner.port_num);
     LACPA_LOG_PORTSTATS("PARTNER KEY           : %d", port->partner.key);
-    LACPA_LOG_PORTSTATS("PARTNER STATE         : %02x", port->partner.state);
+    LACPA_LOG_PORTSTATS("PARTNER STATE         : 0x%02x", port->partner.state);
     LACPA_LOG_PORTSTATS("PARTNER OF_PORT_NO    : %d", port->partner.port_no);
     LACPA_LOG_PORTSTATS("\nPROTOCOL STATE INFO");
     LACPA_LOG_PORTSTATS("LACP ENABLED          : %s", 
@@ -133,6 +133,11 @@ lacpa_dump_port (lacpa_port_t *port)
     LACPA_LOG_PORTSTATS("LACP ERROR            : %{lacpa_error}", port->error);
     LACPA_LOG_PORTSTATS("LACP TANSMIT REASON   : %{lacpa_transmit}",
                         port->debug_info.ntt_reason);
+    LACPA_LOG_PORTSTATS("\nPACKET INFO");
+    LACPA_LOG_PORTSTATS("LACP PACKET IN        : %" PRId64, 
+                        port->debug_info.lacp_port_in_packets);
+    LACPA_LOG_PORTSTATS("LACP PACKET OUT       : %" PRId64, 
+                        port->debug_info.lacp_port_out_packets);
     LACPA_LOG_PORTSTATS("*************END DUMPING INFO**************\n");
 }
 
@@ -428,6 +433,8 @@ lacpa_init_port (lacpa_info_t *info, bool lacp_enabled)
         event = LACPA_EVENT_DISABLED;
     }
 
+    port->debug_info.lacp_port_in_packets = 0;
+    port->debug_info.lacp_port_out_packets = 0;
     port->churn_detection_running = false;
     lacpa_machine(port, NULL, event);
 }
@@ -519,7 +526,6 @@ lacpa_defaulted (lacpa_port_t *port)
 {
     if (!port) return;
 
-    port->churn_detection_running = false;
     lacpa_stop_churn_detection_timer(port);
     lacpa_stop_current_while_timer(port);
 
@@ -585,6 +591,7 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu, lacpa_event_t event)
         LACPA_CLR_STATE_EXPIRED(port->actor.state);
         LACPA_CLR_STATE_DEFAULTED(port->actor.state);
         prev_error = port->error;
+        ++port->debug_info.lacp_port_in_packets;
 
         /*
          * Process the received Partner LACPDU
@@ -607,7 +614,6 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu, lacpa_event_t event)
                           "new_error: %{lacpa_error}", port->actor.port_no,
                           port->is_converged, prev_error, port->error);
             lacpa_start_churn_detection_timer(port);
-            port->churn_detection_running = true;
         } else if (port->churn_detection_running && (port->is_converged || 
                    (prev_error != port->error))) {
             AIM_LOG_TRACE("Stopping Churn Detection timer for port: %d, "
@@ -615,7 +621,6 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu, lacpa_event_t event)
                           "new_error: %{lacpa_error}", port->actor.port_no,
                           port->is_converged, prev_error, port->error);
             lacpa_stop_churn_detection_timer(port);
-            port->churn_detection_running = false;
         }
 
         lacpa_start_current_while_timer(port);

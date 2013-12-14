@@ -135,6 +135,8 @@ lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets)
     } else {
         AIM_LOG_TRACE("Successfully sent packet out the port: %d", 
                       port->actor.port_no);
+        ++port->debug_info.lacp_port_out_packets;
+        ++lacpa_system.debug_info.lacp_system_out_packets;
     }
 
     of_packet_out_delete(obj);
@@ -155,6 +157,7 @@ lacpa_packet_in_handler (of_packet_in_t *packet_in)
     lacpa_pdu_t                pdu;
     ppe_packet_t               ppep;
 
+    ++lacpa_system.debug_info.lacp_total_in_packets;
     if (!packet_in) return IND_CORE_LISTENER_RESULT_PASS;
 
     LACPA_MEMSET(&pdu, 0, sizeof(lacpa_pdu_t));
@@ -175,6 +178,8 @@ lacpa_packet_in_handler (of_packet_in_t *packet_in)
         AIM_LOG_TRACE("Not a LCAP Packet");
         return IND_CORE_LISTENER_RESULT_PASS;
     }
+
+    ++lacpa_system.debug_info.lacp_system_in_packets; 
 
     /*
      * Identify the recv port and see if it has LACP agent running

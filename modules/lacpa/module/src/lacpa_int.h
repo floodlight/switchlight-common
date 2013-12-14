@@ -21,6 +21,7 @@
 
 #include <lacpa/lacpa.h>
 #include "lacpa_log.h"
+#include <inttypes.h>
 
 /******************************************************************************
  *
@@ -141,28 +142,37 @@ typedef struct lacp_pdu_s { /* lacpa_pdu */
     lacpa_info_t     partner;
 } lacpa_pdu_t;
 
-typedef struct lacpa_debug_s { /* lacpa_debug */
+typedef struct lacpa_port_debug_s { /* lacpa_port_debug */
     lacpa_event_t    lacp_event;
     lacpa_transmit_t ntt_reason;
-} lacpa_debug_t;
+    uint64_t         lacp_port_in_packets;
+    uint64_t         lacp_port_out_packets;
+} lacpa_port_debug_t;
 
 typedef struct lacpa_port_s { /* lacpa_port */
-    lacpa_info_t     actor;
-    lacpa_info_t     partner;
-    lacpa_machine_t  lacp_state;
-    bool             lacp_enabled;
-    bool             is_converged;
-    bool             churn_detection_running;    
-    lacpa_error_t    error;
-    lacpa_debug_t    debug_info;
+    lacpa_info_t       actor;
+    lacpa_info_t       partner;
+    lacpa_machine_t    lacp_state;
+    bool               lacp_enabled;
+    bool               is_converged;
+    bool               churn_detection_running;    
+    lacpa_error_t      error;
+    lacpa_port_debug_t debug_info;
 } lacpa_port_t;
 
 /******************************************************************************
  * LACP : LINK AGGREGATION CONTROL PROTOCOL : SYSTEM DATA & API DECLARATIONS
  *****************************************************************************/
+typedef struct lacpa_system_debug_s { /* lacpa_system_debug */
+    uint64_t          lacp_total_in_packets;
+    uint64_t          lacp_system_in_packets;
+    uint64_t          lacp_system_out_packets;
+} lacpa_system_debug_t;
+
 typedef struct lacpa_system_s { /* lacpa_system */
-    uint32_t          lacp_active_port_count;
-    lacpa_port_t      *ports;
+    uint32_t             lacp_active_port_count;
+    lacpa_system_debug_t debug_info;
+    lacpa_port_t         *ports;
 } lacpa_system_t;
 
 extern lacpa_system_t lacpa_system;
