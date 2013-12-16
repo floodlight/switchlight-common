@@ -21,7 +21,7 @@ include ../../../init.mk
 MODULE := lacpa_utest
 TEST_MODULE := lacpa
 DEPENDMODULES := AIM PPE IOF loci indigo SocketManager cjson Configuration \
-	BigList OFStateManager murmur OFConnectionManager OS uCli
+	BigList BigHash OFStateManager murmur OFConnectionManager OS uCli
 
 GLOBAL_CFLAGS += -DINDIGO_LINUX_LOGGING
 GLOBAL_CFLAGS += -DINDIGO_LINUX_TIME
