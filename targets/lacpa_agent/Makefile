@@ -28,8 +28,9 @@ $(LIBRARY)_SUBDIR := $(dir $(lastword $(MAKEFILE_LIST)))
 include $(BUILDER)/lib.mk
 
 DEPENDMODULES := lacpa AIM PPE IOF VPI BigList OS loci indigo SocketManager \
-				 cjson Configuration OFStateManager murmur OFConnectionManager \
-                 uCli
+		 cjson Configuration OFStateManager murmur OFConnectionManager \
+                 uCli BigHash
+
 include $(BUILDER)/dependmodules.mk
 
 BINARY := lacp-agent
