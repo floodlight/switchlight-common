@@ -20,6 +20,8 @@
 #include <arpa/arpa.h>
 #include <indigo/of_state_manager.h>
 
+#include "arpa_log.h"
+
 static indigo_core_gentable_t *arp_table;
 
 static const indigo_core_gentable_ops_t arp_ops;
@@ -46,8 +48,85 @@ arpa_finish()
 /* arp table operations */
 
 static indigo_error_t
+arp_parse_key(of_list_bsn_tlv_t *key, uint16_t *vlan, uint32_t *ip)
+{
+    of_bsn_tlv_t tlv;
+
+    if (of_list_bsn_tlv_first(key, &tlv) < 0) {
+        AIM_LOG_ERROR("empty key list");
+        return INDIGO_ERROR_PARAM;
+    }
+
+    if (tlv.header.object_id == OF_BSN_TLV_VLAN_VID) {
+        of_bsn_tlv_vlan_vid_value_get(&tlv.vlan_vid, vlan);
+    } else {
+        AIM_LOG_ERROR("expected vlan key TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
+        return INDIGO_ERROR_PARAM;
+    }
+
+    if (of_list_bsn_tlv_next(key, &tlv) < 0) {
+        AIM_LOG_ERROR("unexpected end of key list");
+        return INDIGO_ERROR_PARAM;
+    }
+
+    if (tlv.header.object_id == OF_BSN_TLV_IPV4) {
+        of_bsn_tlv_ipv4_value_get(&tlv.ipv4, ip);
+    } else {
+        AIM_LOG_ERROR("expected ipv4 key TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
+        return INDIGO_ERROR_PARAM;
+    }
+
+    if (of_list_bsn_tlv_next(key, &tlv) == 0) {
+        AIM_LOG_ERROR("expected end of key list, instead got %s", of_object_id_str[tlv.header.object_id]);
+        return INDIGO_ERROR_PARAM;
+    }
+
+    return INDIGO_ERROR_NONE;
+}
+
+static indigo_error_t
+arp_parse_value(of_list_bsn_tlv_t *value, of_mac_addr_t *mac)
+{
+    of_bsn_tlv_t tlv;
+
+    if (of_list_bsn_tlv_first(value, &tlv) < 0) {
+        AIM_LOG_ERROR("empty value list");
+        return INDIGO_ERROR_PARAM;
+    }
+
+    if (tlv.header.object_id == OF_BSN_TLV_MAC) {
+        of_bsn_tlv_mac_value_get(&tlv.mac, mac);
+    } else {
+        AIM_LOG_ERROR("expected mac value TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
+        return INDIGO_ERROR_PARAM;
+    }
+
+    if (of_list_bsn_tlv_next(value, &tlv) == 0) {
+        AIM_LOG_ERROR("expected end of value list, instead got %s", of_object_id_str[tlv.header.object_id]);
+        return INDIGO_ERROR_PARAM;
+    }
+
+    return INDIGO_ERROR_NONE;
+}
+
+static indigo_error_t
 arp_add(void *table_priv, of_list_bsn_tlv_t *key, of_list_bsn_tlv_t *value, void **entry_priv)
 {
+    indigo_error_t rv;
+    uint16_t vlan;
+    uint32_t ip;
+    of_mac_addr_t mac;
+
+    rv = arp_parse_key(key, &vlan, &ip);
+    if (rv < 0) {
+        return rv;
+    }
+
+    rv = arp_parse_value(value, &mac);
+    if (rv < 0) {
+        return rv;
+    }
+
     *entry_priv = NULL;
     return INDIGO_ERROR_NONE;
 }
@@ -55,6 +134,14 @@ arp_add(void *table_priv, of_list_bsn_tlv_t *key, of_list_bsn_tlv_t *value, void
 static indigo_error_t
 arp_modify(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key, of_list_bsn_tlv_t *value)
 {
+    indigo_error_t rv;
+    of_mac_addr_t mac;
+
+    rv = arp_parse_value(value, &mac);
+    if (rv < 0) {
+        return rv;
+    }
+
     return INDIGO_ERROR_NONE;
 }
 
