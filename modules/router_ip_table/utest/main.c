@@ -43,6 +43,7 @@ int aim_main(int argc, char* argv[])
     of_list_bsn_tlv_t *key1, *key2, *value1, *value2, *value3;
     void *entry_priv;
     indigo_error_t rv;
+    uint32_t ip;
 
     router_ip_table_init();
 
@@ -56,14 +57,28 @@ int aim_main(int argc, char* argv[])
 
     /* Successful add/modify/delete */
     {
+        rv = router_ip_table_lookup(10, &ip);
+        ASSERT(rv == INDIGO_ERROR_NOT_FOUND);
+
         rv = ops->add(table_priv, key1, value1, &entry_priv);
         ASSERT(rv == INDIGO_ERROR_NONE);
+
+        rv = router_ip_table_lookup(10, &ip);
+        ASSERT(rv == INDIGO_ERROR_NONE);
+        ASSERT(ip == 0x1234);
 
         rv = ops->modify(table_priv, entry_priv, key1, value2);
         ASSERT(rv == INDIGO_ERROR_NONE);
 
+        rv = router_ip_table_lookup(10, &ip);
+        ASSERT(rv == INDIGO_ERROR_NONE);
+        ASSERT(ip == 0x5678);
+
         rv = ops->del(table_priv, entry_priv, key1);
         ASSERT(rv == INDIGO_ERROR_NONE);
+
+        rv = router_ip_table_lookup(10, &ip);
+        ASSERT(rv == INDIGO_ERROR_NOT_FOUND);
     }
 
     /* Invalid key */

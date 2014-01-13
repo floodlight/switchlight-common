@@ -30,4 +30,12 @@
 indigo_error_t router_ip_table_init();
 void router_ip_table_finish();
 
+/**
+ * @brief Lookup the router IP for a given VLAN
+ * @param vlan
+ * @param [out] ip
+ * @return Error code
+ */
+indigo_error_t router_ip_table_lookup(uint16_t vlan, uint32_t *ip);
+
 #endif /* __ROUTER_IP_TABLE_H__ */

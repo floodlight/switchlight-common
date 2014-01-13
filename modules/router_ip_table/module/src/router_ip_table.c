@@ -25,9 +25,18 @@
 #define MAX_VLAN 4095
 #define INVALID_IP 0
 
+struct router_ip_entry {
+    uint32_t ip;
+};
+
 static indigo_core_gentable_t *router_ip_table;
 
 static const indigo_core_gentable_ops_t router_ip_ops;
+
+static struct router_ip_entry router_ips[MAX_VLAN+1];
+
+
+/* Public interface */
 
 indigo_error_t
 router_ip_table_init()
@@ -42,6 +51,22 @@ void
 router_ip_table_finish()
 {
     indigo_core_gentable_unregister(router_ip_table);
+}
+
+indigo_error_t
+router_ip_table_lookup(uint16_t vlan, uint32_t *ip)
+{
+    if (vlan > MAX_VLAN) {
+        return INDIGO_ERROR_RANGE;
+    }
+
+    struct router_ip_entry *entry = &router_ips[vlan];
+    if (entry->ip == INVALID_IP) {
+        return INDIGO_ERROR_NOT_FOUND;
+    }
+
+    *ip = entry->ip;
+    return INDIGO_ERROR_NONE;
 }
 
 
@@ -124,7 +149,10 @@ router_ip_add(void *table_priv, of_list_bsn_tlv_t *key, of_list_bsn_tlv_t *value
         return rv;
     }
 
-    *entry_priv = NULL;
+    struct router_ip_entry *entry = &router_ips[vlan];
+    entry->ip = ip;
+
+    *entry_priv = entry;
     return INDIGO_ERROR_NONE;
 }
 
@@ -133,11 +161,14 @@ router_ip_modify(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key, of_
 {
     indigo_error_t rv;
     uint32_t ip;
+    struct router_ip_entry *entry = entry_priv;
 
     rv = router_ip_parse_value(value, &ip);
     if (rv < 0) {
         return rv;
     }
+
+    entry->ip = ip;
 
     return INDIGO_ERROR_NONE;
 }
@@ -145,6 +176,8 @@ router_ip_modify(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key, of_
 static indigo_error_t
 router_ip_delete(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key)
 {
+    struct router_ip_entry *entry = entry_priv;
+    entry->ip = INVALID_IP;
     return INDIGO_ERROR_NONE;
 }
 
