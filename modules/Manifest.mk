@@ -7,6 +7,7 @@
 #
 ##############################################################################
 BASEDIR := $(dir $(lastword $(MAKEFILE_LIST)))
+arpa_BASEDIR := $(BASEDIR)arpa
 dhcpra_BASEDIR := $(BASEDIR)dhcpra
 icmpa_BASEDIR := $(BASEDIR)icmpa
 lacpa_BASEDIR := $(BASEDIR)lacpa
@@ -14,4 +15,4 @@ lldpa_BASEDIR := $(BASEDIR)lldpa
 router_ip_table_BASEDIR := $(BASEDIR)router_ip_table
 
 
-ALL_MODULES := $(ALL_MODULES) dhcpra icmpa lacpa lldpa router_ip_table
+ALL_MODULES := $(ALL_MODULES) arpa dhcpra icmpa lacpa lldpa router_ip_table
