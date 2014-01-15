@@ -60,6 +60,6 @@ typedef struct lldpa_system_s {
     lldpa_port_t  lldpa_ports[MAX_LLDPA_PORT];
 } lldpa_system_t;
 
-ind_core_listener_result_t lldpa_handle_msg (indigo_cxn_id_t cxn_id, of_object_t *msg);
-ind_core_listener_result_t lldpa_handle_pkt (of_packet_in_t *packet_in);
+indigo_core_listener_result_t lldpa_handle_msg (indigo_cxn_id_t cxn_id, of_object_t *msg);
+indigo_core_listener_result_t lldpa_handle_pkt (of_packet_in_t *packet_in);
 #endif /* __LLDPA_INT_H__ */
