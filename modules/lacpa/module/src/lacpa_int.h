@@ -198,9 +198,9 @@ void lacpa_update_controller (lacpa_port_t *port);
 void lacpa_init_port (lacpa_info_t *port, bool lacp_enabled);
 lacpa_port_t *lacpa_find_port (uint32_t port_no);
 
-ind_core_listener_result_t
+indigo_core_listener_result_t
 lacpa_packet_in_handler (of_packet_in_t *packet_in);
-ind_core_listener_result_t
+indigo_core_listener_result_t
 lacpa_controller_msg_handler (indigo_cxn_id_t cxn, of_object_t *obj);
 
 /******************************************************************************

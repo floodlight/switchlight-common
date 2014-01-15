@@ -64,7 +64,7 @@ lacp_create_send_packet_in (of_port_no_t in_port, of_octets_t *of_octets)
         return INDIGO_ERROR_UNKNOWN;
     }
 
-    if (lacpa_packet_in_handler(of_packet_in) == IND_CORE_LISTENER_RESULT_DROP) {
+    if (lacpa_packet_in_handler(of_packet_in) == INDIGO_CORE_LISTENER_RESULT_DROP) {
         printf("Listener dropped packet-in\n");
     } else {
         printf("Listener passed packet-in\n");
