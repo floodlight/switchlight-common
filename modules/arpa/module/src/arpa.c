@@ -22,6 +22,8 @@
 
 #include "arpa_log.h"
 
+static indigo_core_listener_result_t arpa_handle_pkt(of_packet_in_t *packet_in);
+
 static indigo_core_gentable_t *arp_table;
 
 static const indigo_core_gentable_ops_t arp_ops;
@@ -35,6 +37,8 @@ arpa_init()
     indigo_core_gentable_register("arp", &arp_ops, NULL, 16384, 1024,
                                   &arp_table);
 
+    indigo_core_packet_in_listener_register(arpa_handle_pkt);
+
     return INDIGO_ERROR_NONE;
 }
 
@@ -42,6 +46,7 @@ void
 arpa_finish()
 {
     indigo_core_gentable_unregister(arp_table);
+    indigo_core_packet_in_listener_unregister(arpa_handle_pkt);
 }
 
 
@@ -162,3 +167,12 @@ static const indigo_core_gentable_ops_t arp_ops = {
     .del = arp_delete,
     .get_stats = arp_get_stats,
 };
+
+
+/* packet-in listener */
+
+static indigo_core_listener_result_t
+arpa_handle_pkt(of_packet_in_t *packet_in)
+{
+    return INDIGO_CORE_LISTENER_RESULT_PASS;
+}
