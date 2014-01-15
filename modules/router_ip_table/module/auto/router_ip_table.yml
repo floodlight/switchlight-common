@@ -1,0 +1,47 @@
+###############################################################################
+#
+# router_ip_table Autogeneration Definitions.
+#
+###############################################################################
+
+cdefs: &cdefs
+- ROUTER_IP_TABLE_CONFIG_INCLUDE_LOGGING:
+    doc: "Include or exclude logging."
+    default: 1
+- ROUTER_IP_TABLE_CONFIG_LOG_OPTIONS_DEFAULT:
+    doc: "Default enabled log options."
+    default: AIM_LOG_OPTIONS_DEFAULT
+- ROUTER_IP_TABLE_CONFIG_LOG_BITS_DEFAULT:
+    doc: "Default enabled log bits."
+    default: AIM_LOG_BITS_DEFAULT
+- ROUTER_IP_TABLE_CONFIG_LOG_CUSTOM_BITS_DEFAULT:
+    doc: "Default enabled custom log bits."
+    default: 0
+- ROUTER_IP_TABLE_CONFIG_PORTING_STDLIB:
+    doc: "Default all porting macros to use the C standard libraries."
+    default: 1
+- ROUTER_IP_TABLE_CONFIG_PORTING_INCLUDE_STDLIB_HEADERS:
+    doc: "Include standard library headers for stdlib porting macros."
+    default: ROUTER_IP_TABLE_CONFIG_PORTING_STDLIB
+- ROUTER_IP_TABLE_CONFIG_INCLUDE_UCLI:
+    doc: "Include generic uCli support."
+    default: 0
+
+
+definitions:
+  cdefs:
+    ROUTER_IP_TABLE_CONFIG_HEADER:
+      defs: *cdefs
+      basename: router_ip_table_config
+
+  portingmacro:
+    ROUTER_IP_TABLE:
+      macros:
+        - malloc
+        - free
+        - memset
+        - memcpy
+        - strncpy
+        - vsnprintf
+        - snprintf
+        - strlen
