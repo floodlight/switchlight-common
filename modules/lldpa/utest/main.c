@@ -36,8 +36,8 @@
 #include <loci/loci_obj_dump.h>
 #include <PPE/ppe_types.h>
 
-extern ind_core_listener_result_t lldpa_handle_msg (indigo_cxn_id_t cxn_id, of_object_t *msg);
-extern ind_core_listener_result_t lldpa_handle_pkt (of_packet_in_t *packet_in);
+extern indigo_core_listener_result_t lldpa_handle_msg (indigo_cxn_id_t cxn_id, of_object_t *msg);
+extern indigo_core_listener_result_t lldpa_handle_pkt (of_packet_in_t *packet_in);
 
 /* Dummy packet */
 uint8_t Lldppdu_Tx[] = {10,11,12,13,250,251,252,253};
@@ -233,9 +233,9 @@ test_pkt_in(int port_no)
     of_object_dump((loci_writer_f)aim_printf, &aim_pvs_stdout, obj);
     rv = lldpa_handle_pkt (obj);
 
-    if (rv == IND_CORE_LISTENER_RESULT_PASS) {
+    if (rv == INDIGO_CORE_LISTENER_RESULT_PASS) {
         printf("\nError: NOT LLDP packet-in\n");
-    } else if (rv == IND_CORE_LISTENER_RESULT_DROP)
+    } else if (rv == INDIGO_CORE_LISTENER_RESULT_DROP)
         printf("\nIS LLDP packet-in\n");
     else
         printf("\nError: Unsupport packet-in\n");

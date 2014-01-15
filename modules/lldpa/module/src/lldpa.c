@@ -408,10 +408,10 @@ tx_reply_to_ctrl:
 }
 
 /* Register to listen to CTRL msg */
-ind_core_listener_result_t
+indigo_core_listener_result_t
 lldpa_handle_msg (indigo_cxn_id_t cxn_id, of_object_t *msg)
 {
-    ind_core_listener_result_t ret = IND_CORE_LISTENER_RESULT_PASS;
+    indigo_core_listener_result_t ret = INDIGO_CORE_LISTENER_RESULT_PASS;
 
     if(!msg)
         return ret;
@@ -421,14 +421,14 @@ lldpa_handle_msg (indigo_cxn_id_t cxn_id, of_object_t *msg)
         /* Count msg in */
         lldpa_port_sys.total_msg_in_cnt++;
         rx_request_handle(cxn_id, msg);
-        ret = IND_CORE_LISTENER_RESULT_DROP;
+        ret = INDIGO_CORE_LISTENER_RESULT_DROP;
         break;
 
     case OF_BSN_PDU_TX_REQUEST:
         /* Count msg in */
         lldpa_port_sys.total_msg_in_cnt++;
         tx_request_handle(cxn_id, msg);
-        ret = IND_CORE_LISTENER_RESULT_DROP;
+        ret = INDIGO_CORE_LISTENER_RESULT_DROP;
         break;
 
     default:
@@ -477,14 +477,14 @@ lldpa_update_rx_timeout(lldpa_port_t *port)
 }
 
 /* Register to listen to PACKETIN msg */
-ind_core_listener_result_t
+indigo_core_listener_result_t
 lldpa_handle_pkt (of_packet_in_t *packet_in)
 {
     lldpa_port_t               *port = NULL;
     of_octets_t                data;
     of_port_no_t               port_no;
     of_match_t                 match;
-    ind_core_listener_result_t ret = IND_CORE_LISTENER_RESULT_PASS;
+    indigo_core_listener_result_t ret = INDIGO_CORE_LISTENER_RESULT_PASS;
 
     if(!packet_in)
         return ret;
@@ -525,12 +525,12 @@ lldpa_handle_pkt (of_packet_in_t *packet_in)
      *    as a packet-in
      */
     if (lldpa_rx_pkt_is_expected(port, &data)) {
-        ret = IND_CORE_LISTENER_RESULT_DROP;
+        ret = INDIGO_CORE_LISTENER_RESULT_DROP;
         lldpa_update_rx_timeout(port);
     }
 
     LLDPA_DEBUG("Port %u, rx_pkt_in_cnt %l, pkt MATCH=%s",port_no,
-            port->rx_pkt_in_cnt, ret == IND_CORE_LISTENER_RESULT_DROP ? "true" : "false");
+            port->rx_pkt_in_cnt, ret == INDIGO_CORE_LISTENER_RESULT_DROP ? "true" : "false");
     return ret;
 }
 
@@ -557,8 +557,8 @@ lldpa_system_init()
             AIM_LOG_ERROR("Port %d not existing", i);
     }
 
-    ind_core_message_listener_register(lldpa_handle_msg);
-    ind_core_packet_in_listener_register(lldpa_handle_pkt);
+    indigo_core_message_listener_register(lldpa_handle_msg);
+    indigo_core_packet_in_listener_register(lldpa_handle_pkt);
 
     return 0;
 }
@@ -569,8 +569,8 @@ lldpa_system_finish()
     int i;
     lldpa_port_t *port;
 
-    ind_core_message_listener_unregister(lldpa_handle_msg);
-    ind_core_packet_in_listener_unregister(lldpa_handle_pkt);
+    indigo_core_message_listener_unregister(lldpa_handle_msg);
+    indigo_core_packet_in_listener_unregister(lldpa_handle_pkt);
 
     for (i=0; i<MAX_LLDPA_PORT;i++) {
         port = lldpa_find_port(i);

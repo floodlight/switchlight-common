@@ -79,14 +79,14 @@ lacpa_init (void)
     /*
      * Register listerners for port packet_in and Controller msg's
      */
-    if (ind_core_packet_in_listener_register((ind_core_packet_in_listener_f)
-                                             lacpa_packet_in_handler) < 0) {
+    if (indigo_core_packet_in_listener_register((indigo_core_packet_in_listener_f)
+                                                lacpa_packet_in_handler) < 0) {
         AIM_LOG_FATAL("Failed to register for port packet_in in LACPA module");
         return INDIGO_ERROR_INIT;
     }
 
-    if (ind_core_message_listener_register((ind_core_message_listener_f)
-                                           lacpa_controller_msg_handler) < 0) {
+    if (indigo_core_message_listener_register((indigo_core_message_listener_f)
+                                              lacpa_controller_msg_handler) < 0) {
         AIM_LOG_FATAL("Failed to register for Controller msg in LACPA module");
         return INDIGO_ERROR_INIT;
     }
