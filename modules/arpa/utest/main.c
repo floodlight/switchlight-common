@@ -15,8 +15,8 @@
 
 int aim_main(int argc, char* argv[])
 {
-    printf("arpa Utest Is Empty\n");
-    arpa_config_show(&aim_pvs_stdout);
+    AIM_TRUE_OR_DIE(arpa_init() == INDIGO_ERROR_NONE);
+    arpa_finish();
     return 0;
 }
 
@@ -34,5 +34,16 @@ indigo_core_gentable_register(
 
 void
 indigo_core_gentable_unregister(indigo_core_gentable_t *gentable)
+{
+}
+
+indigo_error_t
+indigo_core_packet_in_listener_register(indigo_core_packet_in_listener_f fn)
+{
+    return INDIGO_ERROR_NONE;
+}
+
+void
+indigo_core_packet_in_listener_unregister(indigo_core_packet_in_listener_f fn)
 {
 }
