@@ -94,7 +94,7 @@ router_ip_parse_key(of_list_bsn_tlv_t *key, uint16_t *vlan)
         return INDIGO_ERROR_PARAM;
     }
 
-    if (of_list_bsn_tlv_next(key, &tlv) >= 0) {
+    if (of_list_bsn_tlv_next(key, &tlv) == 0) {
         AIM_LOG_ERROR("expected end of key list, instead got %s", of_object_id_str[tlv.header.object_id]);
         return INDIGO_ERROR_PARAM;
     }
@@ -124,7 +124,7 @@ router_ip_parse_value(of_list_bsn_tlv_t *value, uint32_t *ip)
         return INDIGO_ERROR_PARAM;
     }
 
-    if (of_list_bsn_tlv_next(value, &tlv) >= 0) {
+    if (of_list_bsn_tlv_next(value, &tlv) == 0) {
         AIM_LOG_ERROR("expected end of value list, instead got %s", of_object_id_str[tlv.header.object_id]);
         return INDIGO_ERROR_PARAM;
     }
