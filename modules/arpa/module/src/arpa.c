@@ -19,10 +19,24 @@
 
 #include <arpa/arpa.h>
 #include <indigo/of_state_manager.h>
+#include <PPE/ppe.h>
 
 #include "arpa_log.h"
 
+struct arp_info {
+    of_mac_addr_t eth_src;
+    of_mac_addr_t eth_dst;
+    uint16_t vlan_vid;
+    uint8_t vlan_pcp;
+    uint16_t operation;
+    of_mac_addr_t sha;
+    uint32_t spa;
+    of_mac_addr_t tha;
+    uint32_t tpa;
+};
+
 static indigo_core_listener_result_t arpa_handle_pkt(of_packet_in_t *packet_in);
+static indigo_error_t arpa_parse_packet(of_octets_t *data, struct arp_info *info);
 
 static indigo_core_gentable_t *arp_table;
 
@@ -174,5 +188,95 @@ static const indigo_core_gentable_ops_t arp_ops = {
 static indigo_core_listener_result_t
 arpa_handle_pkt(of_packet_in_t *packet_in)
 {
+    uint8_t reason;
+    of_octets_t octets;
+    struct arp_info info;
+    indigo_error_t rv;
+
+    of_packet_in_reason_get(packet_in, &reason);
+    of_packet_in_data_get(packet_in, &octets);
+
+    if (reason != OF_PACKET_IN_REASON_BSN_ARP) {
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
+    }
+
+    rv = arpa_parse_packet(&octets, &info);
+    if (rv < 0) {
+        /* TODO ratelimit */
+        AIM_LOG_ERROR("not a valid ARP packet: %s", indigo_strerror(rv));
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
+    }
+
+    AIM_LOG_TRACE("received ARP packet: op=%d spa=%#x tpa=%#x", info.operation, info.spa, info.tpa);
+
     return INDIGO_CORE_LISTENER_RESULT_PASS;
+}
+
+static indigo_error_t
+arpa_parse_packet(of_octets_t *octets, struct arp_info *info)
+{
+    ppe_packet_t ppep;
+    uint32_t tmp;
+
+    ppe_packet_init(&ppep, octets->data, octets->bytes);
+    if (ppe_parse(&ppep) < 0) {
+        return INDIGO_ERROR_PARSE;
+    }
+
+    if (!ppe_header_get(&ppep, PPE_HEADER_ETHERNET)) {
+        return INDIGO_ERROR_PARSE;
+    }
+
+    if (!ppe_header_get(&ppep, PPE_HEADER_8021Q)) {
+        return INDIGO_ERROR_PARSE;
+    }
+
+    if (!ppe_header_get(&ppep, PPE_HEADER_ARP)) {
+        return INDIGO_ERROR_PARSE;
+    }
+
+    ppe_wide_field_get(&ppep, PPE_FIELD_ETHERNET_DST_MAC, info->eth_dst.addr);
+
+    ppe_wide_field_get(&ppep, PPE_FIELD_ETHERNET_SRC_MAC, info->eth_src.addr);
+
+    ppe_field_get(&ppep, PPE_FIELD_8021Q_VLAN, &tmp);
+    info->vlan_vid = tmp;
+
+    ppe_field_get(&ppep, PPE_FIELD_8021Q_PRI, &tmp);
+    info->vlan_pcp = tmp;
+
+    ppe_field_get(&ppep, PPE_FIELD_ARP_HTYPE, &tmp);
+    if (tmp != 1) {
+        return INDIGO_ERROR_PARSE;
+    }
+
+    ppe_field_get(&ppep, PPE_FIELD_ARP_PTYPE, &tmp);
+    if (tmp != 0x0800) {
+        return INDIGO_ERROR_PARSE;
+    }
+
+    ppe_field_get(&ppep, PPE_FIELD_ARP_HLEN, &tmp);
+    if (tmp != 6) {
+        return INDIGO_ERROR_PARSE;
+    }
+
+    ppe_field_get(&ppep, PPE_FIELD_ARP_PLEN, &tmp);
+    if (tmp != 4) {
+        return INDIGO_ERROR_PARSE;
+    }
+
+    ppe_field_get(&ppep, PPE_FIELD_ARP_OPERATION, &tmp);
+    info->operation = tmp;
+
+    ppe_wide_field_get(&ppep, PPE_FIELD_ARP_SHA, info->sha.addr);
+
+    ppe_field_get(&ppep, PPE_FIELD_ARP_SPA, &tmp);
+    info->spa = tmp;
+
+    ppe_wide_field_get(&ppep, PPE_FIELD_ARP_THA, info->tha.addr);
+
+    ppe_field_get(&ppep, PPE_FIELD_ARP_TPA, &tmp);
+    info->tpa = tmp;
+
+    return INDIGO_ERROR_NONE;
 }
