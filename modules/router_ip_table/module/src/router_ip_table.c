@@ -27,6 +27,7 @@
 
 struct router_ip_entry {
     uint32_t ip;
+    of_mac_addr_t mac;
 };
 
 static indigo_core_gentable_t *router_ip_table;
@@ -54,7 +55,7 @@ router_ip_table_finish()
 }
 
 indigo_error_t
-router_ip_table_lookup(uint16_t vlan, uint32_t *ip)
+router_ip_table_lookup(uint16_t vlan, uint32_t *ip, of_mac_addr_t *mac)
 {
     if (vlan > MAX_VLAN) {
         return INDIGO_ERROR_RANGE;
@@ -66,6 +67,7 @@ router_ip_table_lookup(uint16_t vlan, uint32_t *ip)
     }
 
     *ip = entry->ip;
+    *mac = entry->mac;
     return INDIGO_ERROR_NONE;
 }
 
@@ -103,7 +105,7 @@ router_ip_parse_key(of_list_bsn_tlv_t *key, uint16_t *vlan)
 }
 
 static indigo_error_t
-router_ip_parse_value(of_list_bsn_tlv_t *value, uint32_t *ip)
+router_ip_parse_value(of_list_bsn_tlv_t *value, uint32_t *ip, of_mac_addr_t *mac)
 {
     of_bsn_tlv_t tlv;
 
@@ -124,6 +126,18 @@ router_ip_parse_value(of_list_bsn_tlv_t *value, uint32_t *ip)
         return INDIGO_ERROR_PARAM;
     }
 
+    if (of_list_bsn_tlv_next(value, &tlv) < 0) {
+        AIM_LOG_ERROR("unexpected end of value list");
+        return INDIGO_ERROR_PARAM;
+    }
+
+    if (tlv.header.object_id == OF_BSN_TLV_MAC) {
+        of_bsn_tlv_mac_value_get(&tlv.mac, mac);
+    } else {
+        AIM_LOG_ERROR("expected mac value TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
+        return INDIGO_ERROR_PARAM;
+    }
+
     if (of_list_bsn_tlv_next(value, &tlv) == 0) {
         AIM_LOG_ERROR("expected end of value list, instead got %s", of_object_id_str[tlv.header.object_id]);
         return INDIGO_ERROR_PARAM;
@@ -138,19 +152,21 @@ router_ip_add(void *table_priv, of_list_bsn_tlv_t *key, of_list_bsn_tlv_t *value
     indigo_error_t rv;
     uint16_t vlan;
     uint32_t ip;
+    of_mac_addr_t mac;
 
     rv = router_ip_parse_key(key, &vlan);
     if (rv < 0) {
         return rv;
     }
 
-    rv = router_ip_parse_value(value, &ip);
+    rv = router_ip_parse_value(value, &ip, &mac);
     if (rv < 0) {
         return rv;
     }
 
     struct router_ip_entry *entry = &router_ips[vlan];
     entry->ip = ip;
+    entry->mac = mac;
 
     *entry_priv = entry;
     return INDIGO_ERROR_NONE;
@@ -162,13 +178,15 @@ router_ip_modify(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key, of_
     indigo_error_t rv;
     uint32_t ip;
     struct router_ip_entry *entry = entry_priv;
+    of_mac_addr_t mac;
 
-    rv = router_ip_parse_value(value, &ip);
+    rv = router_ip_parse_value(value, &ip, &mac);
     if (rv < 0) {
         return rv;
     }
 
     entry->ip = ip;
+    entry->mac = mac;
 
     return INDIGO_ERROR_NONE;
 }
