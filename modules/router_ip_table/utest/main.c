@@ -16,6 +16,9 @@
 static const indigo_core_gentable_ops_t *ops;
 static void *table_priv;
 
+static const of_mac_addr_t mac1 = { { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 } };
+static const of_mac_addr_t mac2 = { { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff } };
+
 static of_list_bsn_tlv_t *
 make_key(uint16_t vlan_vid)
 {
@@ -28,13 +31,21 @@ make_key(uint16_t vlan_vid)
 }
 
 static of_list_bsn_tlv_t *
-make_value(uint32_t ipv4)
+make_value(uint32_t ipv4, of_mac_addr_t mac)
 {
     of_list_bsn_tlv_t *list = of_list_bsn_tlv_new(OF_VERSION_1_3);
-    of_bsn_tlv_ipv4_t *tlv = of_bsn_tlv_ipv4_new(OF_VERSION_1_3);
-    of_bsn_tlv_ipv4_value_set(tlv, ipv4);
-    of_list_append(list, tlv);
-    of_object_delete(tlv);
+    {
+        of_bsn_tlv_ipv4_t *tlv = of_bsn_tlv_ipv4_new(OF_VERSION_1_3);
+        of_bsn_tlv_ipv4_value_set(tlv, ipv4);
+        of_list_append(list, tlv);
+        of_object_delete(tlv);
+    }
+    {
+        of_bsn_tlv_mac_t *tlv = of_bsn_tlv_mac_new(OF_VERSION_1_3);
+        of_bsn_tlv_mac_value_set(tlv, mac);
+        of_list_append(list, tlv);
+        of_object_delete(tlv);
+    }
     return list;
 }
 
@@ -44,6 +55,7 @@ int aim_main(int argc, char* argv[])
     void *entry_priv;
     indigo_error_t rv;
     uint32_t ip;
+    of_mac_addr_t mac;
 
     router_ip_table_init();
 
@@ -51,33 +63,35 @@ int aim_main(int argc, char* argv[])
 
     key1 = make_key(10);
     key2 = make_key(8000); /* invalid */
-    value1 = make_value(0x1234);
-    value2 = make_value(0x5678);
-    value3 = make_value(0); /* invalid */
+    value1 = make_value(0x1234, mac1);
+    value2 = make_value(0x5678, mac2);
+    value3 = make_value(0, mac1); /* invalid */
 
     /* Successful add/modify/delete */
     {
-        rv = router_ip_table_lookup(10, &ip);
+        rv = router_ip_table_lookup(10, &ip, &mac);
         ASSERT(rv == INDIGO_ERROR_NOT_FOUND);
 
         rv = ops->add(table_priv, key1, value1, &entry_priv);
         ASSERT(rv == INDIGO_ERROR_NONE);
 
-        rv = router_ip_table_lookup(10, &ip);
+        rv = router_ip_table_lookup(10, &ip, &mac);
         ASSERT(rv == INDIGO_ERROR_NONE);
         ASSERT(ip == 0x1234);
+        ASSERT(!memcmp(&mac, &mac1, sizeof(of_mac_addr_t)));
 
         rv = ops->modify(table_priv, entry_priv, key1, value2);
         ASSERT(rv == INDIGO_ERROR_NONE);
 
-        rv = router_ip_table_lookup(10, &ip);
+        rv = router_ip_table_lookup(10, &ip, &mac);
         ASSERT(rv == INDIGO_ERROR_NONE);
         ASSERT(ip == 0x5678);
+        ASSERT(!memcmp(&mac, &mac2, sizeof(of_mac_addr_t)));
 
         rv = ops->del(table_priv, entry_priv, key1);
         ASSERT(rv == INDIGO_ERROR_NONE);
 
-        rv = router_ip_table_lookup(10, &ip);
+        rv = router_ip_table_lookup(10, &ip, &mac);
         ASSERT(rv == INDIGO_ERROR_NOT_FOUND);
     }
 
