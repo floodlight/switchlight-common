@@ -30,7 +30,9 @@
 #include <lldpa/lldpa.h>
 #include "lldpa_int.h"
 
-static lldpa_port_t *lldpa_find_port(of_port_no_t port_no);
+#define LLDPA_DEBUG(fmt, ...)                       \
+            AIM_LOG_TRACE(fmt, ##__VA_ARGS__)
+
 static indigo_error_t  lldpa_pkt_data_set(lldpa_pkt_t *lpkt, of_octets_t *data);
 static void lldpa_pkt_data_free (lldpa_pkt_t *lpkt);
 static indigo_error_t lldpa_port_disable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *port);
@@ -45,12 +47,10 @@ static void tx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req);
 static void lldpdu_periodic_tx(void *cookie);
 static void lldpdu_timeout_rx(void *cookie);
 
-#define LLDPA_DEBUG(fmt, ...)                       \
-            AIM_LOG_TRACE(fmt, ##__VA_ARGS__)
-
 lldpa_system_t lldpa_port_sys;
+int            lldpa_dump_data = LLDPA_DUMP_DISABLE_ALL_PORTS;
 
-static lldpa_port_t*
+lldpa_port_t*
 lldpa_find_port(of_port_no_t port_no)
 {
     lldpa_port_t *ret = NULL;
@@ -58,6 +58,11 @@ lldpa_find_port(of_port_no_t port_no)
         ret = &lldpa_port_sys.lldpa_ports[port_no];
 
     return ret;
+}
+
+static void
+lldpa_data_display (char *str) {
+    LLDPA_DEBUG("%s", str);
 }
 
 /*
@@ -231,7 +236,7 @@ lldpdu_periodic_tx(void *cookie)
         return;
     }
 
-    LLDPA_DEBUG("Fwd pkt out");
+    LLDPA_DEBUG("Port %u: Fwd tx pkt out", port->port_no);
 
     if ((rv = indigo_fwd_packet_out(pkt_out)) == INDIGO_ERROR_NONE)
         port->tx_pkt_out_cnt++;
@@ -453,10 +458,27 @@ lldpa_rx_pkt_is_expected(lldpa_port_t *port, of_octets_t *data)
 {
     int ret = 0;
 
-    if (port->rx_pkt.data.data &&
-            (port->rx_pkt.data.bytes == data->bytes))
-        if (memcmp(port->rx_pkt.data.data, data->data, data->bytes) == 0)
-            ret = 1;
+    if (!port->rx_pkt.data.data) {
+        LLDPA_DEBUG("Port %u: MISMATCHED RX no data", port->port_no);
+        port->rx_pkt_mismatched_no_data++;
+        return ret;
+    }
+
+    if (port->rx_pkt.data.bytes != data->bytes) {
+        LLDPA_DEBUG("Port %u: MISMATCHED len exp=%u, rcv=%u",
+                    port->port_no, port->rx_pkt.data.bytes, data->bytes);
+        port->rx_pkt_mismatched_diffdata++;
+        return ret;
+    }
+        
+    if (memcmp(port->rx_pkt.data.data, data->data, data->bytes) == 0) {
+        LLDPA_DEBUG("Port %u: MATCHED\n", port->port_no);
+        ret = 1;
+        port->rx_pkt_matched++;
+    } else {
+        LLDPA_DEBUG("Port %u: MISMATCHED data\n", port->port_no);
+        port->rx_pkt_mismatched_diffdata++;
+    }
 
     return ret;
 }
@@ -517,6 +539,9 @@ lldpa_handle_pkt (of_packet_in_t *packet_in)
     }
 
     port->rx_pkt_in_cnt++;
+    if (lldpa_dump_data == LLDPA_DUMP_ENABLE_ALL_PORTS ||
+        lldpa_dump_data == port_no)
+        lldpa_data_hexdump(data.data, data.bytes, lldpa_data_display);
 
     /* At this step we will process the LLDP packet
      * 0. Port doesn't have data, won't expect any packet
@@ -527,10 +552,9 @@ lldpa_handle_pkt (of_packet_in_t *packet_in)
     if (lldpa_rx_pkt_is_expected(port, &data)) {
         ret = IND_CORE_LISTENER_RESULT_DROP;
         lldpa_update_rx_timeout(port);
+        lldpa_port_sys.total_pkt_exp_cnt++;
     }
 
-    LLDPA_DEBUG("Port %u, rx_pkt_in_cnt %l, pkt MATCH=%s",port_no,
-            port->rx_pkt_in_cnt, ret == IND_CORE_LISTENER_RESULT_DROP ? "true" : "false");
     return ret;
 }
 

@@ -38,12 +38,11 @@
 
 extern ind_core_listener_result_t lldpa_handle_msg (indigo_cxn_id_t cxn_id, of_object_t *msg);
 extern ind_core_listener_result_t lldpa_handle_pkt (of_packet_in_t *packet_in);
-
+extern int lldpa_dump_data;
 /* Dummy packet */
 uint8_t Lldppdu_Tx[] = {10,11,12,13,250,251,252,253};
 /* LLDP type packet */
 uint8_t Lldppdu_Rx[] = {1,2,3,4,5,6,1,2,3,4,5,6,0x88,0xcc,0xd,0xe,0xa,0xf,0xb,0xe,0xe,0xf};
-
 
 #ifndef HEXDUMP_COLS
 #define HEXDUMP_COLS 8
@@ -205,9 +204,8 @@ test_rx_request(int port_no)
     return rv;
 }
 
-
 int
-test_pkt_in(int port_no)
+test_pkt_in(int port_no, char *is_matched)
 {
     int rv = 0;
     of_packet_in_t *obj;
@@ -217,7 +215,7 @@ test_pkt_in(int port_no)
     };
 
     /* Timeout due to re-register the timer */
-    printf("\n\nTEST 3: PKT_IN on port:%d\nExpect: 1 PKT_IN, 1 TIMEOUT, and MATCHED\n", port_no);
+    printf("\n\nTEST 3: PKT_IN on port:%d\nExpect: 1 PKT_IN, 1 TIMEOUT, and %s\n", port_no, is_matched);
     printf("pkt_in bytes = %d\n", data.bytes);
     hexdump(data.data, data.bytes);
 
@@ -244,6 +242,48 @@ test_pkt_in(int port_no)
     return rv;
 }
 
+int
+test_pkt_in_mismatched(int port_no)
+{
+    int rv = 0;
+    of_packet_in_t *obj;
+    of_octets_t data = {
+            .data = Lldppdu_Tx,
+            .bytes = sizeof(Lldppdu_Tx)
+    };
+
+    /* Timeout due to re-register the timer */
+    printf("\n\nTEST 4: PKT_IN on port:%d\nExpect: 1 PKT_IN, 1 TIMEOUT, and MIS-MATCHED\n", port_no);
+    printf("pkt_in bytes = %d\n", data.bytes);
+    hexdump(data.data, data.bytes);
+
+    obj = of_packet_in_new(OF_VERSION_1_0);
+    AIM_TRUE_OR_DIE(obj);
+    of_packet_in_in_port_set(obj,port_no);
+
+    if(of_packet_in_data_set(obj, &data) < 0) {
+        AIM_TRUE_OR_DIE(obj);
+    }
+
+    /*Dump rx_req obj */
+    of_object_dump((loci_writer_f)aim_printf, &aim_pvs_stdout, obj);
+    rv = lldpa_handle_pkt (obj);
+
+    if (rv == IND_CORE_LISTENER_RESULT_PASS) {
+        printf("\nError: NOT LLDP packet-in\n");
+    } else if (rv == IND_CORE_LISTENER_RESULT_DROP)
+        printf("\nIS LLDP packet-in\n");
+    else
+        printf("\nError: Unsupport packet-in\n");
+
+    of_packet_in_delete(obj);
+    return rv;
+}
+
+void test_pkt_in_2(int port, char *is_matched){
+     printf("\n\nTEST 5: REUSED TEST 3: PKT_IN on port:%d\n NOT ENABLED and MIS-MATCHED\n", port);
+     test_pkt_in(port, is_matched);
+}
 int aim_main(int argc, char* argv[])
 {
     int port_test_no = 1;
@@ -251,11 +291,14 @@ int aim_main(int argc, char* argv[])
     printf("lldpa Utest Start ..\n");
     lldpa_config_show(&aim_pvs_stdout);
 
+    lldpa_dump_data = 1;
     lldpa_system_init();
 
     test_tx_request(port_test_no);
     test_rx_request(port_test_no);
-    test_pkt_in(port_test_no);
+    test_pkt_in(port_test_no, "MATCHED");
+    test_pkt_in_mismatched(port_test_no);
+    test_pkt_in_2(2, "MISMATCHED");
 
     lldpa_system_finish();
 
