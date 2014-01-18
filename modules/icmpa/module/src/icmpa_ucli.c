@@ -18,12 +18,113 @@
  ****************************************************************/
 
 #include <icmpa/icmpa_config.h>
+#include "icmpa_int.h"
 
 #if ICMPA_CONFIG_INCLUDE_UCLI == 1
 
 #include <uCli/ucli.h>
 #include <uCli/ucli_argparse.h>
 #include <uCli/ucli_handler_macros.h>
+
+static void
+icmpa_clear_portcounters__(ucli_context_t* uc, uint32_t port_no)
+{
+    if (port_no > MAX_PORTS) return;
+
+    ICMPA_MEMSET(&port_pkt_counters[port_no], 0, 
+                 sizeof(icmpa_typecode_packet_counter_t));
+}
+
+static void
+icmpa_show_portcounters__(ucli_context_t* uc, uint32_t port_no)
+{
+    icmpa_typecode_packet_counter_t zero = {0};
+
+    if (port_no > MAX_PORTS) return;
+    
+    if (memcmp(&zero, &port_pkt_counters[port_no], sizeof(zero)) == 0) return; 
+
+    ucli_printf(uc, "%d\t%"PRId64"\t%"PRId64"\t%"PRId64"\t%"PRId64"\t%"PRId64
+                "\t%"PRId64"\n", port_no, 
+                port_pkt_counters[port_no].icmp_echo_packets, 
+                port_pkt_counters[port_no].icmp_time_exceeded_packets,
+                port_pkt_counters[port_no].icmp_fragmentation_reqd_packets,
+                port_pkt_counters[port_no].icmp_network_unreachable_packets,
+                port_pkt_counters[port_no].icmp_host_unreachable_packets,
+                port_pkt_counters[port_no].icmp_port_unreachable_packets);
+}
+
+static ucli_status_t
+icmpa_ucli_ucli__show_counters__(ucli_context_t* uc)
+{
+    uint32_t port = 0;
+
+    UCLI_COMMAND_INFO(uc,
+                      "counters", -1,
+                      "$summary#Display the icmp packet counters."
+                      "$args#[Port]"); 
+
+    if (!icmpa_is_initialized()) return UCLI_STATUS_E_ERROR;
+
+    if (uc->pargs->count != 1) {
+        ucli_printf(uc, "*************DUMPING SYSTEM COUNTERS*************\n");
+        ucli_printf(uc, "TOTAL PACKETS RECV'D       : %" PRId64 "\n",
+                    pkt_counters.icmp_total_in_packets);
+        ucli_printf(uc, "TOTAL PACKETS SENT         : %" PRId64 "\n",
+                    pkt_counters.icmp_total_out_packets);
+        ucli_printf(uc, "*************END DUMPING INFO********************\n");
+    }
+
+    ucli_printf(uc, 
+                "PORT    OF port number\n"
+                "echo    Echo Requests\n"
+                "ttl     TTL Excedded\n"
+                "frag    Fragmentation Needed\n"
+                "net     Network Unreachable\n"
+                "host    Host Unreachable\n"
+                "port    Port Unreachable\n"); 
+
+    ucli_printf(uc, "PORT\techo\tttl\tfrag\tnet\thost\tport\n");
+ 
+    if (uc->pargs->count == 1) {
+        UCLI_ARGPARSE_OR_RETURN(uc, "i", &port);
+        icmpa_show_portcounters__(uc, port);
+    } else {
+        
+        for (port = 0; port <= MAX_PORTS; port++) {
+            icmpa_show_portcounters__(uc, port);
+        }
+    }
+
+    return UCLI_STATUS_OK;
+}
+
+static ucli_status_t
+icmpa_ucli_ucli__clear_counters__(ucli_context_t* uc)
+{
+    uint32_t port = 0;
+
+    UCLI_COMMAND_INFO(uc,
+                      "clear", 0,
+                      "$summary#Clear the icmp packet counters."
+                      "$args#[Port]");
+ 
+    if (!icmpa_is_initialized()) return UCLI_STATUS_E_ERROR;
+
+    if (uc->pargs->count == 1) {
+        UCLI_ARGPARSE_OR_RETURN(uc, "i", &port);
+        icmpa_clear_portcounters__(uc, port);
+    } else {
+        pkt_counters.icmp_total_in_packets = 0;
+        pkt_counters.icmp_total_out_packets = 0;
+
+        for (port = 0; port <= MAX_PORTS; port++) {
+            icmpa_clear_portcounters__(uc, port);
+        }
+    }    
+    
+    return UCLI_STATUS_OK;
+}
 
 static ucli_status_t
 icmpa_ucli_ucli__config__(ucli_context_t* uc)
@@ -38,8 +139,10 @@ icmpa_ucli_ucli__config__(ucli_context_t* uc)
  * source file.
  *
  *****************************************************************************/
-static ucli_command_handler_f icmpa_ucli_ucli_handlers__[] =
+static ucli_command_handler_f icmpa_ucli_ucli_handlers__[] = 
 {
+    icmpa_ucli_ucli__show_counters__,
+    icmpa_ucli_ucli__clear_counters__,
     icmpa_ucli_ucli__config__,
     NULL
 };

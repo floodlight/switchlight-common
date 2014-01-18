@@ -39,8 +39,10 @@ cdefs: &cdefs
     default: ICMPA_CONFIG_PORTING_STDLIB
 - ICMPA_CONFIG_INCLUDE_UCLI:
     doc: "Include generic uCli support."
-    default: 0
+    default: 1 
 
+icmpa_log_types: &icmpa_log_types
+- packet
 
 definitions:
   cdefs:
@@ -59,3 +61,17 @@ definitions:
         - vsnprintf
         - snprintf
         - strlen
+        - memmove
+
+  enum: &enums
+    icmpa_log_flag:
+      members: *icmpa_log_types
+
+  aim_custom_log_macro:
+    icmpa:
+      flags: *icmpa_log_types
+      prefix: ICMPA_LOG_FLAG_
+
+  xenum:
+    LACPA_ENUMERATION_ENTRY:
+      members: *enums
