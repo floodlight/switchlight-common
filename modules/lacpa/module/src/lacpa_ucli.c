@@ -25,6 +25,52 @@
 #include <uCli/ucli_argparse.h>
 #include <uCli/ucli_handler_macros.h>
 
+static void
+lacpa_clear_counters__(ucli_context_t* uc, uint32_t port_no)
+{
+    lacpa_port_t  *port = NULL;
+
+    /*
+     * Find any port corresponding to the info received
+     */
+    port = lacpa_find_port(port_no);
+    if (!port) return;
+
+    if (!port->lacp_enabled) return;
+
+    port->debug_info.lacp_port_in_packets = 0; 
+    port->debug_info.lacp_port_out_packets = 0;    
+}
+
+static ucli_status_t
+lacpa_ucli_ucli__clear_lacp_counters__(ucli_context_t* uc)
+{
+    uint32_t port = 0;
+
+    UCLI_COMMAND_INFO(uc,
+                      "clear", -1,
+                      "$summary#Clear the lacp system packet counters."
+                      "$args#[Port]");
+
+    if (!lacpa_is_initialized()) return UCLI_STATUS_E_ERROR;
+
+    if (uc->pargs->count == 1) {
+        UCLI_ARGPARSE_OR_RETURN(uc, "i", &port);
+        lacpa_clear_counters__(uc, port);
+    } else {
+
+        lacpa_system.debug_info.lacp_total_in_packets = 0;
+        lacpa_system.debug_info.lacp_system_in_packets = 0;
+        lacpa_system.debug_info.lacp_system_out_packets = 0;
+    
+        for (port = 0; port <= PHY_PORT_COUNT; port++) {
+            lacpa_clear_counters__(uc, port);
+        }
+    }
+
+    return UCLI_STATUS_OK; 
+}
+
 static ucli_status_t
 lacpa_ucli_ucli__show_lacp_counters__(ucli_context_t* uc)
 {
@@ -216,6 +262,7 @@ lacpa_ucli_ucli__config__(ucli_context_t* uc)
  *****************************************************************************/
 static ucli_command_handler_f lacpa_ucli_ucli_handlers__[] = 
 {
+    lacpa_ucli_ucli__clear_lacp_counters__,
     lacpa_ucli_ucli__show_lacp_counters__,
     lacpa_ucli_ucli__show_lacp_portstate__,
     lacpa_ucli_ucli__show_lacp_portstats__,
