@@ -45,7 +45,8 @@ typedef struct lldpa_port_s {
     /* Internal Port Statistics */
     uint64_t      rx_pkt_in_cnt;
     uint64_t      rx_pkt_mismatched_no_data;
-    uint64_t      rx_pkt_mismatched_diffdata;
+    uint64_t      rx_pkt_mismatched_len;
+    uint64_t      rx_pkt_mismatched_data;
     uint64_t      rx_pkt_matched;
     uint64_t      tx_pkt_out_cnt;
     uint64_t      timeout_pkt_cnt;
@@ -56,15 +57,16 @@ typedef struct lldpa_port_s {
 
 } lldpa_port_t;
 
-#define MAX_LLDPA_PORT 64
+/* Port 0..96 */
+#define MAX_LLDPA_PORT 96
 typedef struct lldpa_system_s {
-    uint32_t      lldpa_total_phy_ports;
+    uint32_t      lldpa_total_of_ports;
 
     /* Internal statistic for listener interfaces*/
     uint64_t      total_pkt_in_cnt;
     uint64_t      total_msg_in_cnt;
     uint64_t      total_pkt_exp_cnt;
-    lldpa_port_t  lldpa_ports[MAX_LLDPA_PORT];
+    lldpa_port_t  lldpa_ports[MAX_LLDPA_PORT+1];
 } lldpa_system_t;
 
 indigo_core_listener_result_t lldpa_handle_msg (indigo_cxn_id_t cxn_id, of_object_t *msg);

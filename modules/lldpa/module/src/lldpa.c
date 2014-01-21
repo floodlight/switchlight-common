@@ -54,7 +54,7 @@ lldpa_port_t*
 lldpa_find_port(of_port_no_t port_no)
 {
     lldpa_port_t *ret = NULL;
-    if ((port_no >= 0) && (port_no < MAX_LLDPA_PORT))
+    if ((port_no >= 0) && (port_no < lldpa_port_sys.lldpa_total_of_ports))
         ret = &lldpa_port_sys.lldpa_ports[port_no];
 
     return ret;
@@ -473,7 +473,7 @@ lldpa_rx_pkt_is_expected(lldpa_port_t *port, of_octets_t *data)
     if (port->rx_pkt.data.bytes != data->bytes) {
         LLDPA_DEBUG("Port %u: MISMATCHED len exp=%u, rcv=%u",
                     port->port_no, port->rx_pkt.data.bytes, data->bytes);
-        port->rx_pkt_mismatched_diffdata++;
+        port->rx_pkt_mismatched_len++;
         return ret;
     }
         
@@ -483,7 +483,7 @@ lldpa_rx_pkt_is_expected(lldpa_port_t *port, of_octets_t *data)
         port->rx_pkt_matched++;
     } else {
         LLDPA_DEBUG("Port %u: MISMATCHED data\n", port->port_no);
-        port->rx_pkt_mismatched_diffdata++;
+        port->rx_pkt_mismatched_data++;
     }
 
     return ret;
@@ -578,8 +578,9 @@ lldpa_system_init()
 
     AIM_LOG_INFO("init");
 
-    lldpa_port_sys.lldpa_total_phy_ports = MAX_LLDPA_PORT;
-    for (i=0; i<MAX_LLDPA_PORT;i++) {
+    lldpa_port_sys.lldpa_total_of_ports = sizeof(lldpa_port_sys.lldpa_ports) / 
+                                              sizeof(lldpa_port_sys.lldpa_ports[0]);
+    for (i=0; i < lldpa_port_sys.lldpa_total_of_ports; i++) {
         port = lldpa_find_port(i);
         if (port)
             port->port_no = i;
@@ -602,7 +603,7 @@ lldpa_system_finish()
     indigo_core_message_listener_unregister(lldpa_handle_msg);
     indigo_core_packet_in_listener_unregister(lldpa_handle_pkt);
 
-    for (i=0; i<MAX_LLDPA_PORT;i++) {
+    for (i=0; i < lldpa_port_sys.lldpa_total_of_ports; i++) {
         port = lldpa_find_port(i);
         if (port)
             lldpa_disable_tx_rx(port);
