@@ -32,16 +32,17 @@
  * Check if the packet has 802.1q header and extract the vlan id 
  */
 static bool
-icmpa_get_vlan_id (ppe_packet_t *ppep, uint32_t *vlan_id)
+icmpa_get_vlan_id (ppe_packet_t *ppep, uint32_t *vlan_id, uint32_t *vlan_pcp)
 {
     ppe_header_t format;
 
-    if (!ppep || !vlan_id) return false;
+    if (!ppep || !vlan_id || !vlan_pcp) return false;
 
     ppe_packet_format_get(ppep, &format);
     if (format != PPE_HEADER_8021Q) return false;
 
     ppe_field_get(ppep, PPE_FIELD_8021Q_VLAN, vlan_id);
+    ppe_field_get(ppep, PPE_FIELD_8021Q_PRI, vlan_pcp);
 
     return true;
 }
@@ -53,7 +54,7 @@ icmpa_get_vlan_id (ppe_packet_t *ppep, uint32_t *vlan_id)
  */
 static bool
 icmpa_build_pdu (ppe_packet_t *ppep_rx, of_octets_t *octets, uint32_t vlan_id,
-                 uint32_t ip_total_len, uint32_t router_ip, 
+                 uint32_t vlan_pcp, uint32_t ip_total_len, uint32_t router_ip, 
                  uint32_t type, uint32_t code, uint32_t hdr_data, 
                  uint8_t *icmp_data, uint32_t icmp_data_len)
 {
@@ -92,6 +93,7 @@ icmpa_build_pdu (ppe_packet_t *ppep_rx, of_octets_t *octets, uint32_t vlan_id,
     ppe_wide_field_set(&ppep_tx, PPE_FIELD_ETHERNET_SRC_MAC, dest_mac);
     ppe_wide_field_set(&ppep_tx, PPE_FIELD_ETHERNET_DST_MAC, src_mac);
     ppe_field_set(&ppep_tx, PPE_FIELD_8021Q_VLAN, vlan_id);
+    ppe_field_set(&ppep_tx, PPE_FIELD_8021Q_PRI, vlan_pcp);
 
     /*
      * Src IP = Router IP
@@ -134,10 +136,9 @@ icmpa_reply (of_octets_t *octets_in, of_port_no_t port_no)
     uint32_t                   ip_total_len, ip_hdr_size;
     uint32_t                   icmp_data_len;
     uint8_t                    data[ICMP_PKT_BUF_SIZE];
-    uint32_t                   vlan_id;
+    uint32_t                   vlan_id, vlan_pcp;
     uint32_t                   router_ip, dest_ip;
     of_mac_addr_t              router_mac;
-
 
     if (!octets_in) return false;
 
@@ -168,7 +169,7 @@ icmpa_reply (of_octets_t *octets_in, of_port_no_t port_no)
     /*
      * We should never receive an untagged frame
      */
-    if (!icmpa_get_vlan_id(&ppep, &vlan_id)) {
+    if (!icmpa_get_vlan_id(&ppep, &vlan_id, &vlan_pcp)) {
         AIM_LOG_ERROR("ICMPA: Received Untagged Packet_in");
         return false;    
     } 
@@ -190,7 +191,7 @@ icmpa_reply (of_octets_t *octets_in, of_port_no_t port_no)
 
     AIM_LOG_TRACE("Processing ICMP ECHO Request");
     if (AIM_LOG_CUSTOM_ENABLED(ICMPA_LOG_FLAG_PACKET)) {
-        ICMPA_LOG_PACKET("DUMPING INCMOING ICMP PACKET");
+        ICMPA_LOG_PACKET("DUMPING INCOMING ICMP PACKET");
         ppe_packet_dump(&ppep, aim_log_pvs_get(&AIM_LOG_STRUCT));
     }
 
@@ -211,8 +212,8 @@ icmpa_reply (of_octets_t *octets_in, of_port_no_t port_no)
     }
 
     icmp_data_len = ip_total_len - ip_hdr_size - ICMP_HEADER_SIZE;
-    if (!icmpa_build_pdu(&ppep, &octets_out, vlan_id, ip_total_len, router_ip, 
-        ICMP_ECHO_REPLY, 0, hdr_data, 
+    if (!icmpa_build_pdu(&ppep, &octets_out, vlan_id, vlan_pcp, ip_total_len,
+        router_ip, ICMP_ECHO_REPLY, 0, hdr_data, 
         ppe_fieldp_get(&ppep, PPE_FIELD_ICMP_PAYLOAD), icmp_data_len)) {
         AIM_LOG_ERROR("ICMPA: icmpa_build_pdu failed");
         return false;
@@ -233,7 +234,8 @@ icmpa_reply (of_octets_t *octets_in, of_port_no_t port_no)
  * 1. TTL Expired
  * 2. Fragmentation Required
  * 3. Network Unreachable
- * 4. Port Unreachable
+ * 4. Host Unreachable
+ * 5. Port Unreachable
  *
  * RFC 1122: 3.2.2 MUST send at least the IP header and 8 bytes of header.
  */
@@ -246,7 +248,7 @@ icmpa_send (of_octets_t *octets_in, of_port_no_t port_no, uint32_t type,
     uint8_t                    *ip_hdr = NULL; 
     uint32_t                   ip_total_len;
     uint8_t                    data[ICMP_PKT_BUF_SIZE];    
-    uint32_t                   vlan_id;
+    uint32_t                   vlan_id, vlan_pcp;
     uint32_t                   router_ip;
     of_mac_addr_t              router_mac;
 
@@ -270,7 +272,7 @@ icmpa_send (of_octets_t *octets_in, of_port_no_t port_no, uint32_t type,
     /*
      * We should never receive an untagged frame
      */
-    if (!icmpa_get_vlan_id(&ppep, &vlan_id)) {
+    if (!icmpa_get_vlan_id(&ppep, &vlan_id, &vlan_pcp)) {
         AIM_LOG_ERROR("ICMPA: Received Untagged Packet_in");
         return false;
     }
@@ -294,8 +296,8 @@ icmpa_send (of_octets_t *octets_in, of_port_no_t port_no, uint32_t type,
         return false;
     } 
 
-    if (!icmpa_build_pdu(&ppep, &octets_out, vlan_id, IP_TOTAL_LEN, router_ip, 
-        type, code, 0, ip_hdr, ICMP_DATA_LEN)) {
+    if (!icmpa_build_pdu(&ppep, &octets_out, vlan_id, vlan_pcp, IP_TOTAL_LEN, 
+        router_ip, type, code, 0, ip_hdr, ICMP_DATA_LEN)) {
         AIM_LOG_ERROR("ICMPA: icmpa_build_pdu failed");
         return false;
     }        
