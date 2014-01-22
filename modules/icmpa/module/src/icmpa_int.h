@@ -44,12 +44,11 @@
  ---------------------------------------------------------------------------
 */
  
-#define ICMP_PKT_BUF_SIZE   102 
-#define ICMP_PKT_SIZE       74  //18 + 20 + 8 + 28
+#define ICMP_PKT_BUF_SIZE   74 //18 + 20 + 8 + 28 
 #define ICMP_HEADER_SIZE    8   
 #define ICMP_DATA_LEN       28   
 #define IP_HEADER_SIZE      20   
-#define IP_TOTAL_LEN        56  //20 + 8 + 28 
+#define IP_TOTAL_LEN        56 //20 + 8 + 28 
 
 #define ETHERTYPE_DOT1Q     0x8100
 

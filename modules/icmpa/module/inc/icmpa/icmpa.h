@@ -64,5 +64,6 @@ extern aim_map_si_t icmpa_log_flag_desc_map[];
 
 indigo_error_t icmpa_init (void);
 bool icmpa_is_initialized (void);
+void icmpa_finish (void);
 
 #endif /* __ICMPA__H__ */

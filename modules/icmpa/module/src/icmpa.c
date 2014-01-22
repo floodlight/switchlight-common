@@ -135,14 +135,12 @@ icmpa_reply (of_octets_t *octets_in, of_port_no_t port_no)
     uint32_t                   hdr_data;
     uint32_t                   ip_total_len, ip_hdr_size;
     uint32_t                   icmp_data_len;
-    uint8_t                    data[ICMP_PKT_BUF_SIZE];
     uint32_t                   vlan_id, vlan_pcp;
     uint32_t                   router_ip, dest_ip;
     of_mac_addr_t              router_mac;
 
     if (!octets_in) return false;
 
-    ICMPA_MEMSET(data, 0, ICMP_PKT_BUF_SIZE); 
     ppe_packet_init(&ppep, octets_in->data, octets_in->bytes);
     if (ppe_parse(&ppep) < 0) {
         AIM_LOG_RL_ERROR(&icmp_pktin_log_limiter, os_time_monotonic(),
@@ -198,8 +196,6 @@ icmpa_reply (of_octets_t *octets_in, of_port_no_t port_no)
     /*
      * Build the ICMP packet
      */
-    octets_out.data = data;
-    octets_out.bytes = octets_in->bytes;  
     ppe_field_get(&ppep, PPE_FIELD_IP4_HEADER_SIZE, &ip_hdr_size);
     ppe_field_get(&ppep, PPE_FIELD_IP4_TOTAL_LENGTH, &ip_total_len);
     ppe_field_get(&ppep, PPE_FIELD_ICMP_HEADER_DATA, &hdr_data);
@@ -210,21 +206,34 @@ icmpa_reply (of_octets_t *octets_in, of_port_no_t port_no)
                       "than 20 Bytes", ip_hdr_size);
         return false;
     }
+    
+    octets_out.data = (uint8_t *) ICMPA_MALLOC(octets_in->bytes);
+    if (octets_out.data == NULL) {
+        AIM_LOG_ERROR("ICMPA: Failed to allocate memory for echo response");
+        return false;
+    }
 
+    ICMPA_MEMSET(octets_out.data, 0, octets_in->bytes);
+    octets_out.bytes = octets_in->bytes;
     icmp_data_len = ip_total_len - ip_hdr_size - ICMP_HEADER_SIZE;
     if (!icmpa_build_pdu(&ppep, &octets_out, vlan_id, vlan_pcp, ip_total_len,
         router_ip, ICMP_ECHO_REPLY, 0, hdr_data, 
         ppe_fieldp_get(&ppep, PPE_FIELD_ICMP_PAYLOAD), icmp_data_len)) {
         AIM_LOG_ERROR("ICMPA: icmpa_build_pdu failed");
-        return false;
+        goto free_and_return;
     }
 
     if (icmpa_send_packet_out(&octets_out, port_no) < 0) {
         AIM_LOG_ERROR("ICMPA: Send packet_out failed for port: %d", port_no);
-        return false;
+        goto free_and_return;
     }
 
+    ICMPA_FREE(octets_out.data);
     return true;
+
+free_and_return:
+    ICMPA_FREE(octets_out.data);
+    return false;
 }
 
 /*
@@ -288,7 +297,7 @@ icmpa_send (of_octets_t *octets_in, of_port_no_t port_no, uint32_t type,
      * Build the ICMP packet
      */
     octets_out.data = data;
-    octets_out.bytes = ICMP_PKT_SIZE;
+    octets_out.bytes = ICMP_PKT_BUF_SIZE;
     ppe_field_get(&ppep, PPE_FIELD_IP4_TOTAL_LENGTH, &ip_total_len);
     if (ip_total_len < ICMP_DATA_LEN) {
         AIM_LOG_ERROR("ICMPA: IP Total len: %d is less than required 28 Bytes",

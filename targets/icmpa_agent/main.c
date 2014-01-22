@@ -83,6 +83,11 @@ indigo_core_packet_in_listener_register (indigo_core_packet_in_listener_f fn)
     return INDIGO_ERROR_NONE;
 }
 
+void
+indigo_core_packet_in_listener_unregister(indigo_core_packet_in_listener_f fn)
+{
+}
+
 indigo_error_t
 icmpa_create_send_packet_in (of_octets_t *of_octets, uint8_t reason,
                              of_port_no_t in_port)
@@ -267,6 +272,7 @@ int main (int argc, char* argv[])
     of_object_delete(key);
     of_object_delete(value);
     router_ip_table_finish();
+    icmpa_finish();
 
     return 0;
 }

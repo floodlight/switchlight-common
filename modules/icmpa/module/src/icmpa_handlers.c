@@ -230,3 +230,29 @@ icmpa_init (void)
     icmp_initialized = true;
     return INDIGO_ERROR_NONE;
 }
+
+/*
+ * icmpa_finish
+ *
+ * API to deinit the ICMP Agent
+ * This will result in ICMP Agent being diabled in the system.
+ */
+void
+icmpa_finish (void)
+{
+    if (!icmpa_is_initialized()) return;
+
+    AIM_LOG_TRACE("Deiniting the ICMP Agent...");
+
+    pkt_counters.icmp_total_in_packets = 0;
+    pkt_counters.icmp_total_out_packets = 0;
+    ICMPA_MEMSET(&port_pkt_counters[0], 0,
+                 sizeof(icmpa_typecode_packet_counter_t) * (MAX_PORTS+1));
+
+    /*
+     * Unregister listerner for packet_in
+     */
+    indigo_core_packet_in_listener_unregister(icmpa_packet_in_handler);
+
+    icmp_initialized = false;
+}
