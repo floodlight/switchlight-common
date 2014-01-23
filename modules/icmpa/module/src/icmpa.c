@@ -27,6 +27,32 @@
 #include "icmpa_int.h"
 
 /*
+ * isMulticastAddress
+ *
+ * Returns true if a given IPv4 address is a Multicast IP; 
+ * else returns false 
+ */
+bool
+isMulticastAddress (uint32_t ip)
+{
+    return ((ip & 0xF0000000) == 0xE0000000);
+}
+
+/*
+ * isValidIP
+ *
+ * Returns false if a given IPv4 address is not Zero/Multicast; 
+ * else returns true
+ */
+bool
+isValidIP (uint32_t ip)
+{
+    if ((ip == 0) || isMulticastAddress(ip)) return false;
+
+    return true;
+}
+
+/*
  * icmpa_get_vlan_id
  *
  * Check if the packet has 802.1q header and extract the vlan id 
@@ -127,34 +153,20 @@ icmpa_build_pdu (ppe_packet_t *ppep_rx, of_octets_t *octets, uint32_t vlan_id,
  * Currently we are only handling ICMP ECHO Requests. 
  */
 bool
-icmpa_reply (of_octets_t *octets_in, of_port_no_t port_no)
+icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
 {
     of_octets_t                octets_out;
-    ppe_packet_t               ppep;   
     uint32_t                   icmp_type; 
     uint32_t                   hdr_data;
     uint32_t                   ip_total_len, ip_hdr_size;
     uint32_t                   icmp_data_len;
     uint32_t                   vlan_id, vlan_pcp;
-    uint32_t                   router_ip, dest_ip;
+    uint32_t                   router_ip, src_ip, dest_ip;
     of_mac_addr_t              router_mac;
 
-    if (!octets_in) return false;
+    if (!ppep) return false;
 
-    ppe_packet_init(&ppep, octets_in->data, octets_in->bytes);
-    if (ppe_parse(&ppep) < 0) {
-        AIM_LOG_RL_ERROR(&icmp_pktin_log_limiter, os_time_monotonic(),
-                         "ICMPA: Packet_in parsing failed.");
-        return false;
-    }
-     
-    if (!ppe_header_get(&ppep, PPE_HEADER_ICMP)) {
-        AIM_LOG_RL_TRACE(&icmp_pktin_log_limiter, os_time_monotonic(),
-                         "Not an ICMP Packet");
-        return false;
-    }  
-
-    ppe_field_get(&ppep, PPE_FIELD_ICMP_TYPE, &icmp_type); 
+    ppe_field_get(ppep, PPE_FIELD_ICMP_TYPE, &icmp_type); 
  
     /*
      * Check to make sure this is an ICMP ECHO Request
@@ -167,8 +179,9 @@ icmpa_reply (of_octets_t *octets_in, of_port_no_t port_no)
     /*
      * We should never receive an untagged frame
      */
-    if (!icmpa_get_vlan_id(&ppep, &vlan_id, &vlan_pcp)) {
+    if (!icmpa_get_vlan_id(ppep, &vlan_id, &vlan_pcp)) {
         AIM_LOG_ERROR("ICMPA: Received Untagged Packet_in");
+        ++pkt_counters.icmp_internal_errors;
         return false;    
     } 
 
@@ -177,48 +190,61 @@ icmpa_reply (of_octets_t *octets_in, of_port_no_t port_no)
      */
     if (router_ip_table_lookup(vlan_id, &router_ip, &router_mac) < 0) {
         AIM_LOG_ERROR("ICMPA: Router IP lookup failed for vlan: %d", vlan_id);
+        ++pkt_counters.icmp_internal_errors;
         return false;
     }
 
-    ppe_field_get(&ppep, PPE_FIELD_IP4_DST_ADDR, &dest_ip); 
+    ppe_field_get(ppep, PPE_FIELD_IP4_DST_ADDR, &dest_ip); 
     if (router_ip != dest_ip) {
-        AIM_LOG_ERROR("ICMPA: Echo request dest_ip: 0x%.8x is not router IP: "
+        AIM_LOG_TRACE("ICMPA: Echo request dest_ip: 0x%.8x is not router IP: "
                       "0x%.8x", dest_ip, router_ip);
         return false;
     } 
 
-    AIM_LOG_TRACE("Processing ICMP ECHO Request");
+    /*
+     * MUST NOT reply to a multicast IP address.
+     */
+    ppe_field_get(ppep, PPE_FIELD_IP4_SRC_ADDR, &src_ip);
+    if (!isValidIP(src_ip)) {
+        AIM_LOG_ERROR("ICMPA: Echo request src_ip: 0x%.8x not valid", src_ip);
+        ++pkt_counters.icmp_internal_errors;
+        return false;
+    }
+
+    AIM_LOG_TRACE("ICMP ECHO Request received on port: %d", port_no);
     if (AIM_LOG_CUSTOM_ENABLED(ICMPA_LOG_FLAG_PACKET)) {
         ICMPA_LOG_PACKET("DUMPING INCOMING ICMP PACKET");
-        ppe_packet_dump(&ppep, aim_log_pvs_get(&AIM_LOG_STRUCT));
+        ppe_packet_dump(ppep, aim_log_pvs_get(&AIM_LOG_STRUCT));
     }
 
     /*
      * Build the ICMP packet
      */
-    ppe_field_get(&ppep, PPE_FIELD_IP4_HEADER_SIZE, &ip_hdr_size);
-    ppe_field_get(&ppep, PPE_FIELD_IP4_TOTAL_LENGTH, &ip_total_len);
-    ppe_field_get(&ppep, PPE_FIELD_ICMP_HEADER_DATA, &hdr_data);
+    ppe_field_get(ppep, PPE_FIELD_IP4_HEADER_SIZE, &ip_hdr_size);
+    ppe_field_get(ppep, PPE_FIELD_IP4_TOTAL_LENGTH, &ip_total_len);
+    ppe_field_get(ppep, PPE_FIELD_ICMP_HEADER_DATA, &hdr_data);
 
     ip_hdr_size *= 4;
     if (ip_hdr_size > IP_HEADER_SIZE) {
         AIM_LOG_ERROR("ICMPA: IP Options set as ip header size: %d is more "
                       "than 20 Bytes", ip_hdr_size);
+        ++pkt_counters.icmp_internal_errors;
         return false;
     }
     
-    octets_out.data = (uint8_t *) ICMPA_MALLOC(octets_in->bytes);
+    octets_out.data = (uint8_t *) ICMPA_MALLOC(ppep->size);
     if (octets_out.data == NULL) {
         AIM_LOG_ERROR("ICMPA: Failed to allocate memory for echo response");
+        ++pkt_counters.icmp_internal_errors;
         return false;
     }
 
-    ICMPA_MEMSET(octets_out.data, 0, octets_in->bytes);
-    octets_out.bytes = octets_in->bytes;
+    ICMPA_MEMSET(octets_out.data, 0, ppep->size);
+    octets_out.bytes = ppep->size;
     icmp_data_len = ip_total_len - ip_hdr_size - ICMP_HEADER_SIZE;
-    if (!icmpa_build_pdu(&ppep, &octets_out, vlan_id, vlan_pcp, ip_total_len,
+    if (!icmpa_build_pdu(ppep, &octets_out, vlan_id, vlan_pcp, ip_total_len,
         router_ip, ICMP_ECHO_REPLY, 0, hdr_data, 
-        ppe_fieldp_get(&ppep, PPE_FIELD_ICMP_PAYLOAD), icmp_data_len)) {
+        ppe_fieldp_get(ppep, PPE_FIELD_ICMP_PAYLOAD), icmp_data_len)) {
         AIM_LOG_ERROR("ICMPA: icmpa_build_pdu failed");
         goto free_and_return;
     }
@@ -232,6 +258,7 @@ icmpa_reply (of_octets_t *octets_in, of_port_no_t port_no)
     return true;
 
 free_and_return:
+    ++pkt_counters.icmp_internal_errors;
     ICMPA_FREE(octets_out.data);
     return false;
 }
@@ -249,47 +276,55 @@ free_and_return:
  * RFC 1122: 3.2.2 MUST send at least the IP header and 8 bytes of header.
  */
 bool 
-icmpa_send (of_octets_t *octets_in, of_port_no_t port_no, uint32_t type, 
+icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type, 
             uint32_t code)
 {
     of_octets_t                octets_out;
-    ppe_packet_t               ppep;
     uint8_t                    *ip_hdr = NULL; 
     uint32_t                   ip_total_len;
     uint8_t                    data[ICMP_PKT_BUF_SIZE];    
     uint32_t                   vlan_id, vlan_pcp;
     uint32_t                   router_ip;
     of_mac_addr_t              router_mac;
+    uint32_t                   src_ip;
 
-    if (!octets_in) return false;
+    if (!ppep) return false;
 
     ICMPA_MEMSET(data, 0, ICMP_PKT_BUF_SIZE);   
-    ppe_packet_init(&ppep, octets_in->data, octets_in->bytes);
-    if (ppe_parse(&ppep) < 0) {
-        AIM_LOG_RL_ERROR(&icmp_pktin_log_limiter, os_time_monotonic(),
-                         "ICMPA: Packet_in parsing failed.");
-        return false;
-    }
 
-    ip_hdr = ppe_header_get(&ppep, PPE_HEADER_IP4);
+    ip_hdr = ppe_header_get(ppep, PPE_HEADER_IP4);
     if (!ip_hdr) {
         AIM_LOG_RL_TRACE(&icmp_pktin_log_limiter, os_time_monotonic(),
                          "Not an IP Packet");
+        ++pkt_counters.icmp_internal_errors;
         return false;
     }
    
     /*
      * We should never receive an untagged frame
      */
-    if (!icmpa_get_vlan_id(&ppep, &vlan_id, &vlan_pcp)) {
+    if (!icmpa_get_vlan_id(ppep, &vlan_id, &vlan_pcp)) {
         AIM_LOG_ERROR("ICMPA: Received Untagged Packet_in");
+        ++pkt_counters.icmp_internal_errors;
         return false;
     }
 
     if (router_ip_table_lookup(vlan_id, &router_ip, &router_mac) < 0) {
         AIM_LOG_ERROR("ICMPA: Router IP lookup failed for vlan: %d", vlan_id);
+        ++pkt_counters.icmp_internal_errors;
         return false;
     } 
+
+    /*
+     * MUST NOT send to a multicast IP address.
+     */
+    ppe_field_get(ppep, PPE_FIELD_IP4_SRC_ADDR, &src_ip);
+    if (!isValidIP(src_ip)) {
+        AIM_LOG_ERROR("ICMPA: src_ip: 0x%.8x in original ip packet not valid",
+                      src_ip);
+        ++pkt_counters.icmp_internal_errors;
+        return false;
+    }
 
     AIM_LOG_TRACE("Send ICMP message with type: %d, code: %d", type, code); 
 
@@ -298,21 +333,24 @@ icmpa_send (of_octets_t *octets_in, of_port_no_t port_no, uint32_t type,
      */
     octets_out.data = data;
     octets_out.bytes = ICMP_PKT_BUF_SIZE;
-    ppe_field_get(&ppep, PPE_FIELD_IP4_TOTAL_LENGTH, &ip_total_len);
+    ppe_field_get(ppep, PPE_FIELD_IP4_TOTAL_LENGTH, &ip_total_len);
     if (ip_total_len < ICMP_DATA_LEN) {
         AIM_LOG_ERROR("ICMPA: IP Total len: %d is less than required 28 Bytes",
                       ip_total_len);
+        ++pkt_counters.icmp_internal_errors;
         return false;
     } 
 
-    if (!icmpa_build_pdu(&ppep, &octets_out, vlan_id, vlan_pcp, IP_TOTAL_LEN, 
+    if (!icmpa_build_pdu(ppep, &octets_out, vlan_id, vlan_pcp, IP_TOTAL_LEN, 
         router_ip, type, code, 0, ip_hdr, ICMP_DATA_LEN)) {
         AIM_LOG_ERROR("ICMPA: icmpa_build_pdu failed");
+        ++pkt_counters.icmp_internal_errors;
         return false;
     }        
 
     if (icmpa_send_packet_out(&octets_out, port_no) < 0) {
         AIM_LOG_ERROR("ICMPA: Send packet_out failed for port: %d", port_no);
+        ++pkt_counters.icmp_internal_errors;
         return false;
     }
 

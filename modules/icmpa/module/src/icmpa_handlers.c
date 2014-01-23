@@ -93,6 +93,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
     of_octets_t                octets;
     of_port_no_t               port_no;
     of_match_t                 match;
+    ppe_packet_t               ppep;
     uint8_t                    reason;
     indigo_core_listener_result_t result = INDIGO_CORE_LISTENER_RESULT_PASS;
     uint32_t                   type, code;
@@ -111,6 +112,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
     } else {
         if (of_packet_in_match_get(packet_in, &match) < 0) {
             AIM_LOG_ERROR("ICMPA: match get failed");
+            ++pkt_counters.icmp_internal_errors;
             return INDIGO_CORE_LISTENER_RESULT_PASS;
         }
         port_no = match.fields.in_port;
@@ -118,26 +120,40 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
 
     if (port_no > MAX_PORTS) {
         AIM_LOG_ERROR("ICMPA: Port No: %d Out of Range %d", port_no, MAX_PORTS);
+        ++pkt_counters.icmp_internal_errors;
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
+    ppe_packet_init(&ppep, octets.data, octets.bytes);
+    if (ppe_parse(&ppep) < 0) {
+        AIM_LOG_RL_ERROR(&icmp_pktin_log_limiter, os_time_monotonic(),
+                         "ICMPA: Packet_in parsing failed.");
+        ++pkt_counters.icmp_internal_errors;
+        return false;
+    }
+
     /*
-     * Identify if the reason is valid for ICMP Agent to parse the packet
+     * Identify if this is an Echo Request, destined to one of VRouter
+     */
+    if (ppe_header_get(&ppep, PPE_HEADER_ICMP)) {
+        if (icmpa_reply(&ppep, port_no)) {
+            result = INDIGO_CORE_LISTENER_RESULT_DROP;
+            ++port_pkt_counters[port_no].icmp_echo_packets;
+        }
+       
+        return result; 
+    }  
+  
+    /*
+     * Identify if the reason is valid for ICMP Agent to consume the packet
      */
     switch (reason) {
-    case OF_PACKET_IN_REASON_BSN_ICMP_ECHO_REQUEST:
-        AIM_LOG_TRACE("ICMP ECHO Request received on port: %d", port_no);
-        if (icmpa_reply(&octets, port_no)) {
-            result = INDIGO_CORE_LISTENER_RESULT_DROP; 
-            ++port_pkt_counters[port_no].icmp_echo_packets;
-        }   
-        break;
     case OF_PACKET_IN_REASON_BSN_DEST_NETWORK_UNREACHABLE:
         AIM_LOG_TRACE("ICMP Dest Network Unreachable received on port: %d",
                       port_no);
         type = ICMP_DEST_UNREACHABLE;
         code = 0;
-        if (icmpa_send(&octets, port_no, type, code)) {
+        if (icmpa_send(&ppep, port_no, type, code)) {
             result = INDIGO_CORE_LISTENER_RESULT_DROP;
             ++port_pkt_counters[port_no].icmp_network_unreachable_packets;
         }
@@ -147,7 +163,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
                       port_no);
         type = ICMP_DEST_UNREACHABLE;
         code = 1;
-        if (icmpa_send(&octets, port_no, type, code)) {
+        if (icmpa_send(&ppep, port_no, type, code)) {
             result = INDIGO_CORE_LISTENER_RESULT_DROP;
             ++port_pkt_counters[port_no].icmp_host_unreachable_packets;
         }
@@ -157,7 +173,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
                       port_no);
         type = ICMP_DEST_UNREACHABLE;
         code = 3;
-        if (icmpa_send(&octets, port_no, type, code)) {
+        if (icmpa_send(&ppep, port_no, type, code)) {
             result = INDIGO_CORE_LISTENER_RESULT_DROP;
             ++port_pkt_counters[port_no].icmp_port_unreachable_packets;
         }
@@ -166,7 +182,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
         AIM_LOG_TRACE("ICMP Fragmentation Reqd received on port: %d", port_no);
         type = ICMP_DEST_UNREACHABLE;
         code = 4; 
-        if (icmpa_send(&octets, port_no, type, code)) {
+        if (icmpa_send(&ppep, port_no, type, code)) {
             result = INDIGO_CORE_LISTENER_RESULT_DROP;
             ++port_pkt_counters[port_no].icmp_fragmentation_reqd_packets;
         }
@@ -175,7 +191,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
         AIM_LOG_TRACE("ICMP TTL Expired received on port: %d", port_no);
         type = ICMP_TIME_EXCEEDED;
         code = 0;
-        if (icmpa_send(&octets, port_no, type, code)) {
+        if (icmpa_send(&ppep, port_no, type, code)) {
             result = INDIGO_CORE_LISTENER_RESULT_DROP;
             ++port_pkt_counters[port_no].icmp_time_exceeded_packets;    
         }
@@ -183,7 +199,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
     default:
         break;    
     } 
-        
+
     return result;
 }
 
@@ -214,6 +230,7 @@ icmpa_init (void)
 
     pkt_counters.icmp_total_in_packets = 0;
     pkt_counters.icmp_total_out_packets = 0;
+    pkt_counters.icmp_internal_errors = 0;
     ICMPA_MEMSET(&port_pkt_counters[0], 0, 
                  sizeof(icmpa_typecode_packet_counter_t) * (MAX_PORTS+1));
     aim_ratelimiter_init(&icmp_pktin_log_limiter, 1000*1000, 5, NULL);
@@ -246,6 +263,7 @@ icmpa_finish (void)
 
     pkt_counters.icmp_total_in_packets = 0;
     pkt_counters.icmp_total_out_packets = 0;
+    pkt_counters.icmp_internal_errors = 0;
     ICMPA_MEMSET(&port_pkt_counters[0], 0,
                  sizeof(icmpa_typecode_packet_counter_t) * (MAX_PORTS+1));
 

@@ -67,6 +67,7 @@ extern aim_ratelimiter_t icmp_pktin_log_limiter;
 typedef struct icmpa_packet_counter_s { /* icmpa_packet_counter */
     uint64_t         icmp_total_in_packets;
     uint64_t         icmp_total_out_packets;    
+    uint64_t         icmp_internal_errors;
 } icmpa_packet_counter_t;
 
 typedef struct icmpa_typecode_packet_counter_s { /* icmpa_typecode_packet_counter */
@@ -87,8 +88,8 @@ extern icmpa_typecode_packet_counter_t port_pkt_counters[MAX_PORTS+1];
  *
  *****************************************************************************/
 
-bool icmpa_reply (of_octets_t *octets_in, of_port_no_t port_no);
-bool icmpa_send (of_octets_t *octets_in, of_port_no_t port_no, 
+bool icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no);
+bool icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, 
                  uint32_t type, uint32_t code);
 indigo_error_t    
 icmpa_send_packet_out (of_octets_t *octets, of_port_no_t port_no);
