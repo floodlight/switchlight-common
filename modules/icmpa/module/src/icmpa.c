@@ -27,6 +27,18 @@
 #include "icmpa_int.h"
 
 /*
+ * isBroadcastAddress
+ *
+ * Returns true if a given IPv4 address is a Broadcast IP;
+ * else returns false 
+ */
+bool
+isBroadcastAddress (uint32_t ip)
+{
+    return (ip == 0xffffffff);    
+}
+
+/*
  * isMulticastAddress
  *
  * Returns true if a given IPv4 address is a Multicast IP; 
@@ -41,15 +53,17 @@ isMulticastAddress (uint32_t ip)
 /*
  * isValidIP
  *
- * Returns false if a given IPv4 address is not Zero/Multicast; 
+ * Returns false if a given IPv4 address is not Zero/Multicast/Broadcast; 
  * else returns true
  */
 bool
 isValidIP (uint32_t ip)
 {
-    if ((ip == 0) || isMulticastAddress(ip)) return false;
-
-    return true;
+    if ((ip == 0) || isMulticastAddress(ip) || isBroadcastAddress(ip)) {
+        return false;
+    } else {
+        return true;
+    }
 }
 
 /*
@@ -202,7 +216,7 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
     } 
 
     /*
-     * MUST NOT reply to a multicast IP address.
+     * MUST NOT reply to a multicast/broadcast IP address.
      */
     ppe_field_get(ppep, PPE_FIELD_IP4_SRC_ADDR, &src_ip);
     if (!isValidIP(src_ip)) {
@@ -316,7 +330,7 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
     } 
 
     /*
-     * MUST NOT send to a multicast IP address.
+     * MUST NOT send to a multicast/broadcast IP address.
      */
     ppe_field_get(ppep, PPE_FIELD_IP4_SRC_ADDR, &src_ip);
     if (!isValidIP(src_ip)) {
