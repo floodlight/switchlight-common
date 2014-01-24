@@ -224,7 +224,7 @@ lacpa_update_ntt (lacpa_port_t *port, lacpa_pdu_t *pdu, bool *ntt)
 
     if (LACPA_IS_STATE_LACP_ACTIVITY(pdu->partner.state) !=
         LACPA_IS_STATE_LACP_ACTIVITY(port->actor.state)) {
-        port->debug_info.ntt_reason = LACPA_TRANSMIT_LCAP_ACTIVITY_MISMATCH;
+        port->debug_info.ntt_reason = LACPA_TRANSMIT_ACTIVITY_MISMATCH;
         goto transmit;
     }
 
@@ -490,7 +490,7 @@ lacpa_transmit (lacpa_port_t *port)
                        slow_protocols_address);
 
     /*
-     * Build the rest of the LCAP packet
+     * Build the rest of the LACP packet
      */
     if (!lacpa_build_pdu(&ppep, port)) {
         AIM_LOG_ERROR("Packet sending failed for port: %d", 

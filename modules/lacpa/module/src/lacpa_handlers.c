@@ -175,7 +175,6 @@ lacpa_packet_in_handler (of_packet_in_t *packet_in)
     }
 
     if (!ppe_header_get(&ppep, PPE_HEADER_LACP)) {
-        AIM_LOG_TRACE("Not a LCAP Packet");
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
