@@ -20,6 +20,7 @@
 #include <arpa/arpa.h>
 #include <indigo/of_state_manager.h>
 #include <PPE/ppe.h>
+#include <router_ip_table/router_ip_table.h>
 
 #include "arpa_log.h"
 
@@ -210,7 +211,38 @@ arpa_handle_pkt(of_packet_in_t *packet_in)
 
     AIM_LOG_TRACE("received ARP packet: op=%d spa=%#x tpa=%#x", info.operation, info.spa, info.tpa);
 
-    return INDIGO_CORE_LISTENER_RESULT_PASS;
+    if (info.operation != 1) {
+        AIM_LOG_TRACE("Ignoring ARP reply");
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
+    }
+
+    uint32_t router_ip;
+    of_mac_addr_t router_mac;
+    if (router_ip_table_lookup(info.vlan_vid, &router_ip, &router_mac) < 0) {
+        AIM_LOG_TRACE("no router configured on vlan %u", info.vlan_vid);
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
+    }
+
+    if (router_ip != info.tpa) {
+        AIM_LOG_TRACE("not destined for our router IP");
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
+    }
+
+    AIM_LOG_TRACE("handling ARP request for router IP");
+
+    /* Swap src and dst addresses */
+    struct arp_info reply_info = info;
+    memcpy(reply_info.eth_dst.addr, info.eth_src.addr, sizeof(reply_info.eth_dst));
+    memcpy(reply_info.eth_src.addr, router_mac.addr, sizeof(reply_info.eth_src));
+    reply_info.tpa = info.spa;
+    memcpy(reply_info.tha.addr, info.sha.addr, sizeof(reply_info.tha));
+    reply_info.spa = router_ip;
+    memcpy(reply_info.sha.addr, router_mac.addr, sizeof(reply_info.tha));
+    reply_info.operation = 2;
+
+    arpa_send_packet(&reply_info);
+
+    return INDIGO_CORE_LISTENER_RESULT_DROP;
 }
 
 static indigo_error_t
