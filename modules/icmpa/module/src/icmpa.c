@@ -177,6 +177,7 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
     uint32_t                   vlan_id, vlan_pcp;
     uint32_t                   router_ip, src_ip, dest_ip;
     of_mac_addr_t              router_mac;
+    indigo_error_t             rv;
 
     if (!ppep) return false;
 
@@ -263,9 +264,14 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
         goto free_and_return;
     }
 
-    if (icmpa_send_packet_out(&octets_out, port_no) < 0) {
-        AIM_LOG_ERROR("ICMPA: Send packet_out failed for port: %d", port_no);
+    rv = icmpa_send_packet_out(&octets_out);
+    if (rv < 0) {
+        AIM_LOG_ERROR("ICMPA: Send packet_out failed for port: %d, reason: %s",
+                      port_no, indigo_strerror(rv));
         goto free_and_return;
+    } else {
+        ++pkt_counters.icmp_total_out_packets;
+        AIM_LOG_TRACE("Successfully sent packet out the port: %d", port_no); 
     }
 
     ICMPA_FREE(octets_out.data);
@@ -301,6 +307,7 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
     uint32_t                   router_ip;
     of_mac_addr_t              router_mac;
     uint32_t                   src_ip;
+    indigo_error_t             rv;
 
     if (!ppep) return false;
 
@@ -362,10 +369,15 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
         return false;
     }        
 
-    if (icmpa_send_packet_out(&octets_out, port_no) < 0) {
-        AIM_LOG_ERROR("ICMPA: Send packet_out failed for port: %d", port_no);
+    rv = icmpa_send_packet_out(&octets_out);
+    if (rv < 0) {
+        AIM_LOG_ERROR("ICMPA: Send packet_out failed for port: %d, reason: %s",
+                      port_no, indigo_strerror(rv));
         ++pkt_counters.icmp_internal_errors;
         return false;
+    } else {
+        ++pkt_counters.icmp_total_out_packets;
+        AIM_LOG_TRACE("Successfully sent packet out the port: %d", port_no);
     }
 
     return true;
