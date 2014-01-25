@@ -243,5 +243,6 @@ extern aim_map_si_t lacpa_transmit_desc_map[];
  *****************************************************************************/
 indigo_error_t lacpa_init (void);
 bool lacpa_is_initialized (void);
+void lacpa_finish(void);
 
 #endif /* __LACP__H__ */

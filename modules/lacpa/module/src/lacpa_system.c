@@ -95,6 +95,27 @@ lacpa_init (void)
 }
 
 /*
+ * lacpa_finish
+ *
+ * API to deinit the LACP System
+ */
+void
+lacpa_finish (void)
+{
+
+    indigo_core_packet_in_listener_unregister(lacpa_packet_in_handler);
+    indigo_core_message_listener_unregister(lacpa_controller_msg_handler);
+
+    lacpa_system.lacp_active_port_count = 0;
+    lacpa_system.debug_info.lacp_total_in_packets = 0;
+    lacpa_system.debug_info.lacp_system_in_packets = 0;
+    lacpa_system.debug_info.lacp_system_out_packets = 0;
+
+    LACPA_FREE(lacpa_system.ports);
+    lacp_system_initialized = false;
+}
+
+/*
  * lacpa_find_port
  *
  * Returns port pointer in the system for valid port_no else
