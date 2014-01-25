@@ -47,3 +47,9 @@ void
 indigo_core_packet_in_listener_unregister(indigo_core_packet_in_listener_f fn)
 {
 }
+
+indigo_error_t
+indigo_fwd_packet_out(of_packet_out_t *obj)
+{
+	return INDIGO_ERROR_NONE;
+}

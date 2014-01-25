@@ -37,6 +37,7 @@ struct arp_info {
 
 static indigo_core_listener_result_t arpa_handle_pkt(of_packet_in_t *packet_in);
 static indigo_error_t arpa_parse_packet(of_octets_t *data, struct arp_info *info);
+static void arpa_send_packet(struct arp_info *info);
 
 static indigo_core_gentable_t *arp_table;
 
@@ -279,4 +280,99 @@ arpa_parse_packet(of_octets_t *octets, struct arp_info *info)
     info->tpa = tmp;
 
     return INDIGO_ERROR_NONE;
+}
+
+static void
+arpa_send_packet(struct arp_info *info)
+{
+    ppe_packet_t ppep;
+    uint8_t data[60];
+    memset(data, 0, sizeof(data));
+    ppe_packet_init(&ppep, data, sizeof(data));
+
+    /* Set ethertypes before parsing */
+    data[12] = 0x81;
+    data[13] = 0x00;
+    data[16] = 0x08;
+    data[17] = 0x06;
+
+    if (ppe_parse(&ppep) < 0) {
+        AIM_DIE("arpa_send_packet parsing failed");
+    }
+
+    if (ppe_wide_field_set(&ppep, PPE_FIELD_ETHERNET_DST_MAC, info->eth_dst.addr) < 0) {
+        AIM_DIE("Failed to set PPE_FIELD_ETHERNET_DST_MAC");
+    }
+
+    if (ppe_wide_field_set(&ppep, PPE_FIELD_ETHERNET_SRC_MAC, info->eth_src.addr) < 0) {
+        AIM_DIE("Failed to set PPE_FIELD_ETHERNET_SRC_MAC");
+    }
+
+    if (ppe_field_set(&ppep, PPE_FIELD_8021Q_VLAN, info->vlan_vid) < 0) {
+        AIM_DIE("Failed to set PPE_FIELD_8021Q_VLAN");
+    }
+
+    if (ppe_field_set(&ppep, PPE_FIELD_8021Q_PRI, info->vlan_pcp) < 0) {
+        AIM_DIE("Failed to set PPE_FIELD_8021Q_PRI");
+    }
+
+    if (ppe_field_set(&ppep, PPE_FIELD_ARP_OPERATION, info->operation) < 0) {
+        AIM_DIE("Failed to set PPE_FIELD_ARP_OPERATION");
+    }
+
+    if (ppe_field_set(&ppep, PPE_FIELD_ARP_HTYPE, 1) < 0) {
+        AIM_DIE("Failed to set PPE_FIELD_ARP_HTYPE");
+    }
+
+    if (ppe_field_set(&ppep, PPE_FIELD_ARP_PTYPE, 0x0800) < 0) {
+        AIM_DIE("Failed to set PPE_FIELD_ARP_PTYPE");
+    }
+
+    if (ppe_field_set(&ppep, PPE_FIELD_ARP_HLEN, 6) < 0) {
+        AIM_DIE("Failed to set PPE_FIELD_ARP_HLEN");
+    }
+
+    if (ppe_field_set(&ppep, PPE_FIELD_ARP_PLEN, 4) < 0) {
+        AIM_DIE("Failed to set PPE_FIELD_ARP_PLEN");
+    }
+
+    if (ppe_wide_field_set(&ppep, PPE_FIELD_ARP_SHA, info->sha.addr) < 0) {
+        AIM_DIE("Failed to set PPE_FIELD_ARP_SHA");
+    }
+
+    if (ppe_wide_field_set(&ppep, PPE_FIELD_ARP_THA, info->tha.addr) < 0) {
+        AIM_DIE("Failed to set PPE_FIELD_ARP_THA");
+    }
+
+    if (ppe_field_set(&ppep, PPE_FIELD_ARP_SPA, info->spa) < 0) {
+        AIM_DIE("Failed to set PPE_FIELD_ARP_SPA");
+    }
+
+    if (ppe_field_set(&ppep, PPE_FIELD_ARP_TPA, info->tpa) < 0) {
+        AIM_DIE("Failed to set PPE_FIELD_ARP_TPA");
+    }
+
+    of_packet_out_t *obj = of_packet_out_new(OF_VERSION_1_3);
+    of_packet_out_buffer_id_set(obj, -1);
+    of_packet_out_in_port_set(obj, OF_PORT_DEST_LOCAL);
+
+    of_list_action_t *list = of_list_action_new(obj->version);
+    of_action_output_t *action = of_action_output_new(list->version);
+    of_action_output_port_set(action, OF_PORT_DEST_USE_TABLE);
+    of_list_append(list, action);
+    of_object_delete(action);
+    AIM_TRUE_OR_DIE(of_packet_out_actions_set(obj, list) == 0);
+    of_object_delete(list);
+
+    of_octets_t octets = { data, sizeof(data) };
+    if (of_packet_out_data_set(obj, &octets) < 0) {
+        AIM_DIE("Failed to set data on ARP reply");
+    }
+
+    indigo_error_t rv = indigo_fwd_packet_out(obj);
+    if (rv < 0) {
+        AIM_LOG_ERROR("Failed to inject ARP reply: %s", indigo_strerror(rv));
+    }
+
+    of_packet_out_delete(obj);
 }
