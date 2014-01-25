@@ -21,6 +21,7 @@
 #include <indigo/of_state_manager.h>
 #include <PPE/ppe.h>
 #include <router_ip_table/router_ip_table.h>
+#include <OS/os.h>
 
 #include "arpa_log.h"
 
@@ -44,6 +45,8 @@ static indigo_core_gentable_t *arp_table;
 
 static const indigo_core_gentable_ops_t arp_ops;
 
+static aim_ratelimiter_t arpa_pktin_log_limiter;
+
 
 /* Public interface */
 
@@ -54,6 +57,8 @@ arpa_init()
                                   &arp_table);
 
     indigo_core_packet_in_listener_register(arpa_handle_pkt);
+
+    aim_ratelimiter_init(&arpa_pktin_log_limiter, 1000*1000, 5, NULL);
 
     return INDIGO_ERROR_NONE;
 }
@@ -204,8 +209,8 @@ arpa_handle_pkt(of_packet_in_t *packet_in)
 
     rv = arpa_parse_packet(&octets, &info);
     if (rv < 0) {
-        /* TODO ratelimit */
-        AIM_LOG_ERROR("not a valid ARP packet: %s", indigo_strerror(rv));
+        AIM_LOG_RL_ERROR(&arpa_pktin_log_limiter, os_time_monotonic(),
+                         "not a valid ARP packet: %s", indigo_strerror(rv));
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
