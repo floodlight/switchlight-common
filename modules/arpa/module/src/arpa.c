@@ -237,7 +237,7 @@ arpa_handle_pkt(of_packet_in_t *packet_in)
 
     /* Swap src and dst addresses */
     struct arp_info reply_info = info;
-    memcpy(reply_info.eth_dst.addr, info.eth_src.addr, sizeof(reply_info.eth_dst));
+    memcpy(reply_info.eth_dst.addr, info.sha.addr, sizeof(reply_info.eth_dst));
     memcpy(reply_info.eth_src.addr, router_mac.addr, sizeof(reply_info.eth_src));
     reply_info.tpa = info.spa;
     memcpy(reply_info.tha.addr, info.sha.addr, sizeof(reply_info.tha));
