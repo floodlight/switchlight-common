@@ -22,6 +22,8 @@
 #include <PPE/ppe.h>
 #include <router_ip_table/router_ip_table.h>
 #include <OS/os.h>
+#include <BigHash/bighash.h>
+#include <AIM/aim_list.h>
 
 #include "arpa_log.h"
 
@@ -47,9 +49,16 @@ struct arp_entry_value {
 };
 
 struct arp_entry {
+    bighash_entry_t hash_entry;
     struct arp_entry_key key;
     struct arp_entry_value value;
 };
+
+#define TEMPLATE_NAME arp_entries_hashtable
+#define TEMPLATE_OBJ_TYPE struct arp_entry
+#define TEMPLATE_KEY_FIELD key
+#define TEMPLATE_ENTRY_FIELD hash_entry
+#include <BigHash/bighash_template.h>
 
 static indigo_core_listener_result_t arpa_handle_pkt(of_packet_in_t *packet_in);
 static indigo_error_t arpa_parse_packet(of_octets_t *data, struct arp_info *info);
@@ -61,12 +70,16 @@ static const indigo_core_gentable_ops_t arp_ops;
 
 static aim_ratelimiter_t arpa_pktin_log_limiter;
 
+static bighash_table_t *arp_entries;
+
 
 /* Public interface */
 
 indigo_error_t
 arpa_init()
 {
+    arp_entries = bighash_table_create(1024);
+
     indigo_core_gentable_register("arp", &arp_ops, NULL, 16384, 1024,
                                   &arp_table);
 
@@ -82,6 +95,7 @@ arpa_finish()
 {
     indigo_core_gentable_unregister(arp_table);
     indigo_core_packet_in_listener_unregister(arpa_handle_pkt);
+    bighash_table_destroy(arp_entries, NULL);
 }
 
 
@@ -91,6 +105,8 @@ static indigo_error_t
 arp_parse_key(of_list_bsn_tlv_t *tlvs, struct arp_entry_key *key)
 {
     of_bsn_tlv_t tlv;
+
+    memset(key, 0, sizeof(*key));
 
     if (of_list_bsn_tlv_first(tlvs, &tlv) < 0) {
         AIM_LOG_ERROR("empty key list");
@@ -171,6 +187,8 @@ arp_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs, of_list_bsn_tlv_t *value_
     entry->key = key;
     entry->value = value;
 
+    arp_entries_hashtable_insert(arp_entries, entry);
+
     *entry_priv = entry;
     return INDIGO_ERROR_NONE;
 }
@@ -196,6 +214,7 @@ static indigo_error_t
 arp_delete(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key_tlvs)
 {
     struct arp_entry *entry = entry_priv;
+    bighash_remove(arp_entries, &entry->hash_entry);
     aim_free(entry);
     return INDIGO_ERROR_NONE;
 }
