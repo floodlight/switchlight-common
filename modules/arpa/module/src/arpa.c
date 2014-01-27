@@ -225,12 +225,12 @@ arpa_handle_pkt(of_packet_in_t *packet_in)
     of_mac_addr_t router_mac;
     if (router_ip_table_lookup(info.vlan_vid, &router_ip, &router_mac) < 0) {
         AIM_LOG_TRACE("no router configured on vlan %u", info.vlan_vid);
-        return INDIGO_CORE_LISTENER_RESULT_PASS;
+        return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
     if (router_ip != info.tpa) {
         AIM_LOG_TRACE("not destined for our router IP");
-        return INDIGO_CORE_LISTENER_RESULT_PASS;
+        return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
     AIM_LOG_TRACE("handling ARP request for router IP");
