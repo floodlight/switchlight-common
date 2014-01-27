@@ -46,6 +46,11 @@ struct arp_entry_value {
     of_mac_addr_t mac;
 };
 
+struct arp_entry {
+    struct arp_entry_key key;
+    struct arp_entry_value value;
+};
+
 static indigo_core_listener_result_t arpa_handle_pkt(of_packet_in_t *packet_in);
 static indigo_error_t arpa_parse_packet(of_octets_t *data, struct arp_info *info);
 static void arpa_send_packet(struct arp_info *info);
@@ -150,6 +155,7 @@ arp_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs, of_list_bsn_tlv_t *value_
     indigo_error_t rv;
     struct arp_entry_key key;
     struct arp_entry_value value;
+    struct arp_entry *entry;
 
     rv = arp_parse_key(key_tlvs, &key);
     if (rv < 0) {
@@ -161,7 +167,11 @@ arp_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs, of_list_bsn_tlv_t *value_
         return rv;
     }
 
-    *entry_priv = NULL;
+    entry = aim_zmalloc(sizeof(*entry));
+    entry->key = key;
+    entry->value = value;
+
+    *entry_priv = entry;
     return INDIGO_ERROR_NONE;
 }
 
@@ -170,11 +180,14 @@ arp_modify(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key_tlvs, of_l
 {
     indigo_error_t rv;
     struct arp_entry_value value;
+    struct arp_entry *entry = entry_priv;
 
     rv = arp_parse_value(value_tlvs, &value);
     if (rv < 0) {
         return rv;
     }
+
+    entry->value = value;
 
     return INDIGO_ERROR_NONE;
 }
@@ -182,6 +195,8 @@ arp_modify(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key_tlvs, of_l
 static indigo_error_t
 arp_delete(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key_tlvs)
 {
+    struct arp_entry *entry = entry_priv;
+    aim_free(entry);
     return INDIGO_ERROR_NONE;
 }
 
