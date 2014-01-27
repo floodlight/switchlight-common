@@ -63,6 +63,7 @@ struct arp_entry {
 static indigo_core_listener_result_t arpa_handle_pkt(of_packet_in_t *packet_in);
 static indigo_error_t arpa_parse_packet(of_octets_t *data, struct arp_info *info);
 static void arpa_send_packet(struct arp_info *info);
+static bool arpa_check_source(struct arp_info *info);
 
 static indigo_core_gentable_t *arp_table;
 
@@ -232,6 +233,19 @@ static const indigo_core_gentable_ops_t arp_ops = {
 };
 
 
+/* Hashtable lookup */
+
+static struct arp_entry *
+arpa_lookup(uint16_t vlan_vid, uint32_t ipv4)
+{
+    struct arp_entry_key key;
+    memset(&key, 0, sizeof(key));
+    key.vlan_vid = vlan_vid;
+    key.ipv4 = ipv4;
+    return arp_entries_hashtable_first(arp_entries, &key);
+}
+
+
 /* packet-in listener */
 
 static indigo_core_listener_result_t
@@ -257,6 +271,10 @@ arpa_handle_pkt(of_packet_in_t *packet_in)
     }
 
     AIM_LOG_TRACE("received ARP packet: op=%d spa=%#x tpa=%#x", info.operation, info.spa, info.tpa);
+
+    if (!arpa_check_source(&info)) {
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
+    }
 
     if (info.operation != 1) {
         AIM_LOG_TRACE("Ignoring ARP reply");
@@ -452,4 +470,24 @@ arpa_send_packet(struct arp_info *info)
     }
 
     of_packet_out_delete(obj);
+}
+
+static bool
+arpa_check_source(struct arp_info *info)
+{
+    struct arp_entry *entry = arpa_lookup(info->vlan_vid, info->spa);
+    if (entry == NULL) {
+        AIM_LOG_TRACE("Source not found in ARP table");
+        return false;
+    }
+
+    if (memcmp(info->sha.addr, entry->value.mac.addr, OF_MAC_ADDR_BYTES)) {
+        AIM_LOG_TRACE("Source MAC does not match");
+        /* TODO update entry mismatch counter */
+        return false;
+    }
+
+    /* TODO update entry hit counter and last-used time */
+
+    return true;
 }
