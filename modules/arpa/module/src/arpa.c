@@ -235,7 +235,7 @@ arpa_handle_pkt(of_packet_in_t *packet_in)
 
     AIM_LOG_TRACE("handling ARP request for router IP");
 
-    /* Swap src and dst addresses */
+    /* Send an ARP reply to the SHA of the request, from the router */
     struct arp_info reply_info = info;
     memcpy(reply_info.eth_dst.addr, info.sha.addr, sizeof(reply_info.eth_dst));
     memcpy(reply_info.eth_src.addr, router_mac.addr, sizeof(reply_info.eth_src));
