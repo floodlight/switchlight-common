@@ -261,10 +261,6 @@ arpa_parse_packet(of_octets_t *octets, struct arp_info *info)
         return INDIGO_ERROR_PARSE;
     }
 
-    if (!ppe_header_get(&ppep, PPE_HEADER_ETHERNET)) {
-        return INDIGO_ERROR_PARSE;
-    }
-
     if (!ppe_header_get(&ppep, PPE_HEADER_8021Q)) {
         return INDIGO_ERROR_PARSE;
     }
