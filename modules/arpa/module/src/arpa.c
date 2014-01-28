@@ -337,11 +337,13 @@ arpa_send_packet(struct arp_info *info)
         AIM_DIE("arpa_send_packet parsing failed");
     }
 
-    if (ppe_wide_field_set(&ppep, PPE_FIELD_ETHERNET_DST_MAC, info->eth_dst.addr) < 0) {
+    if (ppe_wide_field_set(&ppep, PPE_FIELD_ETHERNET_DST_MAC,
+                           info->eth_dst.addr) < 0) {
         AIM_DIE("Failed to set PPE_FIELD_ETHERNET_DST_MAC");
     }
 
-    if (ppe_wide_field_set(&ppep, PPE_FIELD_ETHERNET_SRC_MAC, info->eth_src.addr) < 0) {
+    if (ppe_wide_field_set(&ppep, PPE_FIELD_ETHERNET_SRC_MAC,
+                           info->eth_src.addr) < 0) {
         AIM_DIE("Failed to set PPE_FIELD_ETHERNET_SRC_MAC");
     }
 
