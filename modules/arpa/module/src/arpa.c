@@ -24,6 +24,7 @@
 #include <OS/os.h>
 #include <BigHash/bighash.h>
 #include <AIM/aim_list.h>
+#include <indigo/time.h>
 
 #include "arpa_log.h"
 
@@ -48,10 +49,18 @@ struct arp_entry_value {
     of_mac_addr_t mac;
 };
 
+struct arp_entry_stats {
+    indigo_time_t active_time;
+    uint64_t request_packets;
+    uint64_t reply_packets;
+    uint64_t miss_packets;
+};
+
 struct arp_entry {
     bighash_entry_t hash_entry;
     struct arp_entry_key key;
     struct arp_entry_value value;
+    struct arp_entry_stats stats;
 };
 
 #define TEMPLATE_NAME arp_entries_hashtable
@@ -187,6 +196,7 @@ arp_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs, of_list_bsn_tlv_t *value_
     entry = aim_zmalloc(sizeof(*entry));
     entry->key = key;
     entry->value = value;
+    entry->stats.active_time = INDIGO_CURRENT_TIME;
 
     arp_entries_hashtable_insert(arp_entries, entry);
 
@@ -223,6 +233,40 @@ arp_delete(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key_tlvs)
 static void
 arp_get_stats(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key, of_list_bsn_tlv_t *stats)
 {
+    struct arp_entry *entry = entry_priv;
+
+    /* idle_time */
+    {
+        uint64_t idle_time = INDIGO_CURRENT_TIME - entry->stats.active_time;
+        of_bsn_tlv_idle_time_t tlv;
+        of_bsn_tlv_idle_time_init(&tlv, stats->version, -1, 1);
+        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_bsn_tlv_idle_time_value_set(&tlv, idle_time);
+    }
+
+    /* request_packets */
+    {
+        of_bsn_tlv_request_packets_t tlv;
+        of_bsn_tlv_request_packets_init(&tlv, stats->version, -1, 1);
+        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_bsn_tlv_request_packets_value_set(&tlv, entry->stats.request_packets);
+    }
+
+    /* reply_packets */
+    {
+        of_bsn_tlv_reply_packets_t tlv;
+        of_bsn_tlv_reply_packets_init(&tlv, stats->version, -1, 1);
+        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_bsn_tlv_reply_packets_value_set(&tlv, entry->stats.reply_packets);
+    }
+
+    /* miss_packets */
+    {
+        of_bsn_tlv_miss_packets_t tlv;
+        of_bsn_tlv_miss_packets_init(&tlv, stats->version, -1, 1);
+        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_bsn_tlv_miss_packets_value_set(&tlv, entry->stats.miss_packets);
+    }
 }
 
 static const indigo_core_gentable_ops_t arp_ops = {
@@ -483,11 +527,17 @@ arpa_check_source(struct arp_info *info)
 
     if (memcmp(info->sha.addr, entry->value.mac.addr, OF_MAC_ADDR_BYTES)) {
         AIM_LOG_TRACE("Source MAC does not match");
-        /* TODO update entry mismatch counter */
+        entry->stats.miss_packets++;
         return false;
     }
 
-    /* TODO update entry hit counter and last-used time */
+    entry->stats.active_time = INDIGO_CURRENT_TIME;
+
+    if (info->operation == 1) {
+        entry->stats.request_packets++;
+    } else if (info->operation == 2) {
+        entry->stats.reply_packets++;
+    }
 
     return true;
 }
