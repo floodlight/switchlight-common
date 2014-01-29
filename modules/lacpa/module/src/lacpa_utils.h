@@ -22,6 +22,19 @@
 #include "lacpa_int.h"
 #include <PPE/ppe.h>
 
+/* 
+ * lacpa_clear_system_counters
+ */
+static inline void
+lacpa_clear_system_counters (void)
+{
+    lacpa_system.debug_info.lacp_total_in_packets = 0;
+    lacpa_system.debug_info.lacp_system_in_packets = 0;
+    lacpa_system.debug_info.lacp_system_out_packets = 0;
+    lacpa_system.debug_info.lacp_controller_set_requests = 0;
+    lacpa_system.debug_info.lacp_controller_stats_requests = 0;
+}
+
 /*
  * lacpa_copy_info
  */

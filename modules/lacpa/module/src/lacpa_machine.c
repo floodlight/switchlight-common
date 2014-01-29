@@ -138,6 +138,8 @@ lacpa_dump_port (lacpa_port_t *port)
                         port->debug_info.lacp_port_in_packets);
     LACPA_LOG_PORTSTATS("LACP PACKET OUT       : %" PRId64, 
                         port->debug_info.lacp_port_out_packets);
+    LACPA_LOG_PORTSTATS("CONVERGENCE NOTIF     : %" PRId64,
+                        port->debug_info.lacp_convergence_notif);
     LACPA_LOG_PORTSTATS("*************END DUMPING INFO**************\n");
 }
 
@@ -435,6 +437,7 @@ lacpa_init_port (lacpa_info_t *info, bool lacp_enabled)
 
     port->debug_info.lacp_port_in_packets = 0;
     port->debug_info.lacp_port_out_packets = 0;
+    port->debug_info.lacp_convergence_notif = 0;
     port->churn_detection_running = false;
     lacpa_machine(port, NULL, event);
 }
