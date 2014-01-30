@@ -22,6 +22,9 @@
 #include <PPE/ppe.h>
 #include <router_ip_table/router_ip_table.h>
 #include <OS/os.h>
+#include <BigHash/bighash.h>
+#include <AIM/aim_list.h>
+#include <indigo/time.h>
 
 #include "arpa_log.h"
 
@@ -37,9 +40,42 @@ struct arp_info {
     uint32_t tpa;
 };
 
+struct arp_entry_key {
+    uint16_t vlan_vid;
+    uint32_t ipv4;
+};
+
+struct arp_entry_value {
+    of_mac_addr_t mac;
+    uint32_t unicast_query_timeout;
+    uint32_t broadcast_query_timeout;
+    uint32_t idle_timeout;
+};
+
+struct arp_entry_stats {
+    indigo_time_t active_time;
+    uint64_t request_packets;
+    uint64_t reply_packets;
+    uint64_t miss_packets;
+};
+
+struct arp_entry {
+    bighash_entry_t hash_entry;
+    struct arp_entry_key key;
+    struct arp_entry_value value;
+    struct arp_entry_stats stats;
+};
+
+#define TEMPLATE_NAME arp_entries_hashtable
+#define TEMPLATE_OBJ_TYPE struct arp_entry
+#define TEMPLATE_KEY_FIELD key
+#define TEMPLATE_ENTRY_FIELD hash_entry
+#include <BigHash/bighash_template.h>
+
 static indigo_core_listener_result_t arpa_handle_pkt(of_packet_in_t *packet_in);
 static indigo_error_t arpa_parse_packet(of_octets_t *data, struct arp_info *info);
 static void arpa_send_packet(struct arp_info *info);
+static bool arpa_check_source(struct arp_info *info);
 
 static indigo_core_gentable_t *arp_table;
 
@@ -47,12 +83,16 @@ static const indigo_core_gentable_ops_t arp_ops;
 
 static aim_ratelimiter_t arpa_pktin_log_limiter;
 
+static bighash_table_t *arp_entries;
+
 
 /* Public interface */
 
 indigo_error_t
 arpa_init()
 {
+    arp_entries = bighash_table_create(1024);
+
     indigo_core_gentable_register("arp", &arp_ops, NULL, 16384, 1024,
                                   &arp_table);
 
@@ -68,41 +108,44 @@ arpa_finish()
 {
     indigo_core_gentable_unregister(arp_table);
     indigo_core_packet_in_listener_unregister(arpa_handle_pkt);
+    bighash_table_destroy(arp_entries, NULL);
 }
 
 
 /* arp table operations */
 
 static indigo_error_t
-arp_parse_key(of_list_bsn_tlv_t *key, uint16_t *vlan, uint32_t *ip)
+arp_parse_key(of_list_bsn_tlv_t *tlvs, struct arp_entry_key *key)
 {
     of_bsn_tlv_t tlv;
 
-    if (of_list_bsn_tlv_first(key, &tlv) < 0) {
+    memset(key, 0, sizeof(*key));
+
+    if (of_list_bsn_tlv_first(tlvs, &tlv) < 0) {
         AIM_LOG_ERROR("empty key list");
         return INDIGO_ERROR_PARAM;
     }
 
     if (tlv.header.object_id == OF_BSN_TLV_VLAN_VID) {
-        of_bsn_tlv_vlan_vid_value_get(&tlv.vlan_vid, vlan);
+        of_bsn_tlv_vlan_vid_value_get(&tlv.vlan_vid, &key->vlan_vid);
     } else {
         AIM_LOG_ERROR("expected vlan key TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
-    if (of_list_bsn_tlv_next(key, &tlv) < 0) {
+    if (of_list_bsn_tlv_next(tlvs, &tlv) < 0) {
         AIM_LOG_ERROR("unexpected end of key list");
         return INDIGO_ERROR_PARAM;
     }
 
     if (tlv.header.object_id == OF_BSN_TLV_IPV4) {
-        of_bsn_tlv_ipv4_value_get(&tlv.ipv4, ip);
+        of_bsn_tlv_ipv4_value_get(&tlv.ipv4, &key->ipv4);
     } else {
         AIM_LOG_ERROR("expected ipv4 key TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
-    if (of_list_bsn_tlv_next(key, &tlv) == 0) {
+    if (of_list_bsn_tlv_next(tlvs, &tlv) == 0) {
         AIM_LOG_ERROR("expected end of key list, instead got %s", of_object_id_str[tlv.header.object_id]);
         return INDIGO_ERROR_PARAM;
     }
@@ -111,75 +154,142 @@ arp_parse_key(of_list_bsn_tlv_t *key, uint16_t *vlan, uint32_t *ip)
 }
 
 static indigo_error_t
-arp_parse_value(of_list_bsn_tlv_t *value, of_mac_addr_t *mac)
+arp_parse_value(of_list_bsn_tlv_t *tlvs, struct arp_entry_value *value)
 {
     of_bsn_tlv_t tlv;
 
-    if (of_list_bsn_tlv_first(value, &tlv) < 0) {
+    value->unicast_query_timeout = 0;
+    value->broadcast_query_timeout = 0;
+    value->idle_timeout = 0;
+
+    if (of_list_bsn_tlv_first(tlvs, &tlv) < 0) {
         AIM_LOG_ERROR("empty value list");
         return INDIGO_ERROR_PARAM;
     }
 
     if (tlv.header.object_id == OF_BSN_TLV_MAC) {
-        of_bsn_tlv_mac_value_get(&tlv.mac, mac);
+        of_bsn_tlv_mac_value_get(&tlv.mac, &value->mac);
     } else {
         AIM_LOG_ERROR("expected mac value TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
-    if (of_list_bsn_tlv_next(value, &tlv) == 0) {
-        AIM_LOG_ERROR("expected end of value list, instead got %s", of_object_id_str[tlv.header.object_id]);
-        return INDIGO_ERROR_PARAM;
+    /* Parse optional TLVs */
+    while (of_list_bsn_tlv_next(tlvs, &tlv) == 0) {
+        switch (tlv.header.object_id) {
+        case OF_BSN_TLV_UNICAST_QUERY_TIMEOUT:
+            of_bsn_tlv_unicast_query_timeout_value_get(&tlv.unicast_query_timeout,
+                                                       &value->unicast_query_timeout);
+            break;
+        case OF_BSN_TLV_BROADCAST_QUERY_TIMEOUT:
+            of_bsn_tlv_broadcast_query_timeout_value_get(&tlv.broadcast_query_timeout,
+                                                         &value->broadcast_query_timeout);
+            break;
+        case OF_BSN_TLV_IDLE_TIMEOUT:
+            of_bsn_tlv_idle_timeout_value_get(&tlv.idle_timeout,
+                                              &value->idle_timeout);
+            break;
+        default:
+            AIM_LOG_ERROR("unexpected value TLV %s", of_object_id_str[tlv.header.object_id]);
+            return INDIGO_ERROR_PARAM;
+        }
     }
 
     return INDIGO_ERROR_NONE;
 }
 
 static indigo_error_t
-arp_add(void *table_priv, of_list_bsn_tlv_t *key, of_list_bsn_tlv_t *value, void **entry_priv)
+arp_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs, of_list_bsn_tlv_t *value_tlvs, void **entry_priv)
 {
     indigo_error_t rv;
-    uint16_t vlan;
-    uint32_t ip;
-    of_mac_addr_t mac;
+    struct arp_entry_key key;
+    struct arp_entry_value value;
+    struct arp_entry *entry;
 
-    rv = arp_parse_key(key, &vlan, &ip);
+    rv = arp_parse_key(key_tlvs, &key);
     if (rv < 0) {
         return rv;
     }
 
-    rv = arp_parse_value(value, &mac);
+    rv = arp_parse_value(value_tlvs, &value);
     if (rv < 0) {
         return rv;
     }
 
-    *entry_priv = NULL;
+    entry = aim_zmalloc(sizeof(*entry));
+    entry->key = key;
+    entry->value = value;
+    entry->stats.active_time = INDIGO_CURRENT_TIME;
+
+    arp_entries_hashtable_insert(arp_entries, entry);
+
+    *entry_priv = entry;
     return INDIGO_ERROR_NONE;
 }
 
 static indigo_error_t
-arp_modify(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key, of_list_bsn_tlv_t *value)
+arp_modify(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key_tlvs, of_list_bsn_tlv_t *value_tlvs)
 {
     indigo_error_t rv;
-    of_mac_addr_t mac;
+    struct arp_entry_value value;
+    struct arp_entry *entry = entry_priv;
 
-    rv = arp_parse_value(value, &mac);
+    rv = arp_parse_value(value_tlvs, &value);
     if (rv < 0) {
         return rv;
     }
+
+    entry->value = value;
 
     return INDIGO_ERROR_NONE;
 }
 
 static indigo_error_t
-arp_delete(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key)
+arp_delete(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key_tlvs)
 {
+    struct arp_entry *entry = entry_priv;
+    bighash_remove(arp_entries, &entry->hash_entry);
+    aim_free(entry);
     return INDIGO_ERROR_NONE;
 }
 
 static void
 arp_get_stats(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key, of_list_bsn_tlv_t *stats)
 {
+    struct arp_entry *entry = entry_priv;
+
+    /* idle_time */
+    {
+        uint64_t idle_time = INDIGO_CURRENT_TIME - entry->stats.active_time;
+        of_bsn_tlv_idle_time_t tlv;
+        of_bsn_tlv_idle_time_init(&tlv, stats->version, -1, 1);
+        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_bsn_tlv_idle_time_value_set(&tlv, idle_time);
+    }
+
+    /* request_packets */
+    {
+        of_bsn_tlv_request_packets_t tlv;
+        of_bsn_tlv_request_packets_init(&tlv, stats->version, -1, 1);
+        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_bsn_tlv_request_packets_value_set(&tlv, entry->stats.request_packets);
+    }
+
+    /* reply_packets */
+    {
+        of_bsn_tlv_reply_packets_t tlv;
+        of_bsn_tlv_reply_packets_init(&tlv, stats->version, -1, 1);
+        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_bsn_tlv_reply_packets_value_set(&tlv, entry->stats.reply_packets);
+    }
+
+    /* miss_packets */
+    {
+        of_bsn_tlv_miss_packets_t tlv;
+        of_bsn_tlv_miss_packets_init(&tlv, stats->version, -1, 1);
+        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_bsn_tlv_miss_packets_value_set(&tlv, entry->stats.miss_packets);
+    }
 }
 
 static const indigo_core_gentable_ops_t arp_ops = {
@@ -188,6 +298,19 @@ static const indigo_core_gentable_ops_t arp_ops = {
     .del = arp_delete,
     .get_stats = arp_get_stats,
 };
+
+
+/* Hashtable lookup */
+
+static struct arp_entry *
+arpa_lookup(uint16_t vlan_vid, uint32_t ipv4)
+{
+    struct arp_entry_key key;
+    memset(&key, 0, sizeof(key));
+    key.vlan_vid = vlan_vid;
+    key.ipv4 = ipv4;
+    return arp_entries_hashtable_first(arp_entries, &key);
+}
 
 
 /* packet-in listener */
@@ -216,9 +339,13 @@ arpa_handle_pkt(of_packet_in_t *packet_in)
 
     AIM_LOG_TRACE("received ARP packet: op=%d spa=%#x tpa=%#x", info.operation, info.spa, info.tpa);
 
+    if (!arpa_check_source(&info)) {
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
+    }
+
     if (info.operation != 1) {
         AIM_LOG_TRACE("Ignoring ARP reply");
-        return INDIGO_CORE_LISTENER_RESULT_PASS;
+        return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
     uint32_t router_ip;
@@ -410,4 +537,30 @@ arpa_send_packet(struct arp_info *info)
     }
 
     of_packet_out_delete(obj);
+}
+
+static bool
+arpa_check_source(struct arp_info *info)
+{
+    struct arp_entry *entry = arpa_lookup(info->vlan_vid, info->spa);
+    if (entry == NULL) {
+        AIM_LOG_TRACE("Source not found in ARP table");
+        return false;
+    }
+
+    if (memcmp(info->sha.addr, entry->value.mac.addr, OF_MAC_ADDR_BYTES)) {
+        AIM_LOG_TRACE("Source MAC does not match");
+        entry->stats.miss_packets++;
+        return false;
+    }
+
+    entry->stats.active_time = INDIGO_CURRENT_TIME;
+
+    if (info->operation == 1) {
+        entry->stats.request_packets++;
+    } else if (info->operation == 2) {
+        entry->stats.reply_packets++;
+    }
+
+    return true;
 }
