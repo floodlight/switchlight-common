@@ -47,6 +47,9 @@ struct arp_entry_key {
 
 struct arp_entry_value {
     of_mac_addr_t mac;
+    uint32_t unicast_query_timeout;
+    uint32_t broadcast_query_timeout;
+    uint32_t idle_timeout;
 };
 
 struct arp_entry_stats {
@@ -155,6 +158,10 @@ arp_parse_value(of_list_bsn_tlv_t *tlvs, struct arp_entry_value *value)
 {
     of_bsn_tlv_t tlv;
 
+    value->unicast_query_timeout = 0;
+    value->broadcast_query_timeout = 0;
+    value->idle_timeout = 0;
+
     if (of_list_bsn_tlv_first(tlvs, &tlv) < 0) {
         AIM_LOG_ERROR("empty value list");
         return INDIGO_ERROR_PARAM;
@@ -167,9 +174,25 @@ arp_parse_value(of_list_bsn_tlv_t *tlvs, struct arp_entry_value *value)
         return INDIGO_ERROR_PARAM;
     }
 
-    if (of_list_bsn_tlv_next(tlvs, &tlv) == 0) {
-        AIM_LOG_ERROR("expected end of value list, instead got %s", of_object_id_str[tlv.header.object_id]);
-        return INDIGO_ERROR_PARAM;
+    /* Parse optional TLVs */
+    while (of_list_bsn_tlv_next(tlvs, &tlv) == 0) {
+        switch (tlv.header.object_id) {
+        case OF_BSN_TLV_UNICAST_QUERY_TIMEOUT:
+            of_bsn_tlv_unicast_query_timeout_value_get(&tlv.unicast_query_timeout,
+                                                       &value->unicast_query_timeout);
+            break;
+        case OF_BSN_TLV_BROADCAST_QUERY_TIMEOUT:
+            of_bsn_tlv_broadcast_query_timeout_value_get(&tlv.broadcast_query_timeout,
+                                                         &value->broadcast_query_timeout);
+            break;
+        case OF_BSN_TLV_IDLE_TIMEOUT:
+            of_bsn_tlv_idle_timeout_value_get(&tlv.idle_timeout,
+                                              &value->idle_timeout);
+            break;
+        default:
+            AIM_LOG_ERROR("unexpected value TLV %s", of_object_id_str[tlv.header.object_id]);
+            return INDIGO_ERROR_PARAM;
+        }
     }
 
     return INDIGO_ERROR_NONE;
