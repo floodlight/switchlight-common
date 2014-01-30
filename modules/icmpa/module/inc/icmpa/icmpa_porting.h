@@ -119,6 +119,16 @@
     #endif
 #endif
 
+#ifndef ICMPA_MEMMOVE
+    #if defined(GLOBAL_MEMMOVE)
+        #define ICMPA_MEMMOVE GLOBAL_MEMMOVE
+    #elif ICMPA_CONFIG_PORTING_STDLIB == 1
+        #define ICMPA_MEMMOVE memmove
+    #else
+        #error The macro ICMPA_MEMMOVE is required but cannot be defined.
+    #endif
+#endif
+
 /* <auto.end.portingmacro(ALL).define> */
 
 

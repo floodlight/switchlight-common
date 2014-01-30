@@ -26,7 +26,7 @@
 AIM_LOG_STRUCT_DEFINE(
                       ICMPA_CONFIG_LOG_OPTIONS_DEFAULT,
                       ICMPA_CONFIG_LOG_BITS_DEFAULT,
-                      NULL, /* Custom log map */
+                      icmpa_log_flag_map, /* Custom log map */
                       ICMPA_CONFIG_LOG_CUSTOM_BITS_DEFAULT
                      );
 

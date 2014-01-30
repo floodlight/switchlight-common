@@ -22,7 +22,11 @@
 /* <--auto.start.xmacro(ALL).define> */
 /* <auto.end.xmacro(ALL).define> */
 
-/* <--auto.start.xenum(ALL).define> */
+/* <auto.start.xenum(ALL).define> */
+#ifdef LACPA_ENUMERATION_ENTRY
+LACPA_ENUMERATION_ENTRY(icmpa_log_flag, "")
+#undef LACPA_ENUMERATION_ENTRY
+#endif
 /* <auto.end.xenum(ALL).define> */
 
 

@@ -16,20 +16,38 @@
 # License.
 #
 ################################################################
+include ../../init.mk
 
-include ../../../init.mk
-MODULE := icmpa_utest
-TEST_MODULE := icmpa
-DEPENDMODULES := AIM PPE IOF loci indigo OS SocketManager cjson \
-                 BigList Configuration murmur OFConnectionManager BigHash \
-                 router_ip_table uCli 
+ALLOW_DECLARATION_AFTER_STATEMENT = 1
+
+MODULE := icmp_agent
+include $(BUILDER)/standardinit.mk
+
+LIBRARY := icmp_agent_main
+$(LIBRARY)_SUBDIR := $(dir $(lastword $(MAKEFILE_LIST)))
+include $(BUILDER)/lib.mk
+
+DEPENDMODULES := icmpa AIM PPE IOF VPI BigList OS loci indigo SocketManager \
+				 cjson Configuration murmur OFConnectionManager \
+                 uCli BigHash router_ip_table 
+include $(BUILDER)/dependmodules.mk
+
+BINARY := icmp-agent
+
+$(BINARY)_LIBRARIES := $(LIBRARY_TARGETS)
+include $(BUILDER)/bin.mk
+
+include $(BUILDER)/targets.mk
 
 GLOBAL_CFLAGS += -DINDIGO_LINUX_LOGGING
 GLOBAL_CFLAGS += -DINDIGO_LINUX_TIME
 GLOBAL_CFLAGS += -DINDIGO_FAULT_ON_ASSERT
 GLOBAL_CFLAGS += -DINDIGO_MEM_STDLIB
-GLOBAL_CFLAGS += -DAIM_CONFIG_INCLUDE_MODULES_INIT=1
-GLOBAL_CFLAGS += -DAIM_CONFIG_INCLUDE_MAIN=1
-include $(BUILDER)/build-unit-test.mk
+GLOBAL_CFLAGS += -g
+GLOBAL_CFLAGS += -O3
+GLOBAL_CFLAGS += -I$(icmpa_BASEDIR)/module/src
+GLOBAL_LINK_LIBS += -lrt -lpcap -lm
 
-GLOBAL_LINK_LIBS += -lm -lncurses -rdynamic
+ifdef USE_CALLGRIND
+GLOBAL_CFLAGS += -DUSE_CALLGRIND
+endif
