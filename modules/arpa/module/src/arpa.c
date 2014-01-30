@@ -25,8 +25,16 @@
 #include <BigHash/bighash.h>
 #include <AIM/aim_list.h>
 #include <indigo/time.h>
+#include <SocketManager/socketmanager.h>
 
 #include "arpa_log.h"
+
+enum arp_timer_state {
+    ARP_TIMER_STATE_NONE, /* no timeouts configured */
+    ARP_TIMER_STATE_UNICAST_QUERY,
+    ARP_TIMER_STATE_BROADCAST_QUERY,
+    ARP_TIMER_STATE_IDLE_TIMEOUT,
+};
 
 struct arp_info {
     of_mac_addr_t eth_src;
@@ -64,6 +72,30 @@ struct arp_entry {
     struct arp_entry_key key;
     struct arp_entry_value value;
     struct arp_entry_stats stats;
+
+    /*
+     * Which timer will fire next?
+     *
+     * initial state: unicast if timeouts configured, else none
+     *
+     * On current timer expiring:
+     *   unicast -> broadcast
+     *   broadcast -> idle_timeout
+     *   idle_timeout -> idle_timeout
+     *
+     * On ARP packet hitting this entry:
+     *   none -> none
+     *   * -> unicast
+     */
+    enum arp_timer_state timer_state;
+
+    /*
+     * When will the next timer expire?
+     *
+     * Updated along with stats.active_time when an ARP packet
+     * hits this entry and timeouts are configured.
+     */
+    indigo_time_t deadline;
 };
 
 #define TEMPLATE_NAME arp_entries_hashtable
@@ -76,6 +108,10 @@ static indigo_core_listener_result_t arpa_handle_pkt(of_packet_in_t *packet_in);
 static indigo_error_t arpa_parse_packet(of_octets_t *data, struct arp_info *info);
 static void arpa_send_packet(struct arp_info *info);
 static bool arpa_check_source(struct arp_info *info);
+static void arpa_set_timer_state(struct arp_entry *entry, enum arp_timer_state state);
+static void arpa_timer(void *cookie);
+static void arpa_send_idle_notification(struct arp_entry *entry);
+static void arpa_send_query(struct arp_entry *entry, bool broadcast);
 
 static indigo_core_gentable_t *arp_table;
 
@@ -91,6 +127,8 @@ static bighash_table_t *arp_entries;
 indigo_error_t
 arpa_init()
 {
+    indigo_error_t rv;
+
     arp_entries = bighash_table_create(1024);
 
     indigo_core_gentable_register("arp", &arp_ops, NULL, 16384, 1024,
@@ -100,12 +138,17 @@ arpa_init()
 
     aim_ratelimiter_init(&arpa_pktin_log_limiter, 1000*1000, 5, NULL);
 
+    if ((rv = ind_soc_timer_event_register(arpa_timer, NULL, 1000)) < 0) {
+        AIM_DIE("Failed to register ARP agent timer: %s", indigo_strerror(rv));
+    }
+
     return INDIGO_ERROR_NONE;
 }
 
 void
 arpa_finish()
 {
+    ind_soc_timer_event_unregister(arpa_timer, NULL);
     indigo_core_gentable_unregister(arp_table);
     indigo_core_packet_in_listener_unregister(arpa_handle_pkt);
     bighash_table_destroy(arp_entries, NULL);
@@ -238,6 +281,12 @@ arp_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs, of_list_bsn_tlv_t *value_
     entry->value = value;
     entry->stats.active_time = INDIGO_CURRENT_TIME;
 
+    if (entry->value.unicast_query_timeout > 0) {
+        arpa_set_timer_state(entry, ARP_TIMER_STATE_UNICAST_QUERY);
+    } else {
+        arpa_set_timer_state(entry, ARP_TIMER_STATE_NONE);
+    }
+
     arp_entries_hashtable_insert(arp_entries, entry);
 
     *entry_priv = entry;
@@ -257,6 +306,13 @@ arp_modify(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key_tlvs, of_l
     }
 
     entry->value = value;
+    entry->stats.active_time = INDIGO_CURRENT_TIME;
+
+    if (entry->value.unicast_query_timeout > 0) {
+        arpa_set_timer_state(entry, ARP_TIMER_STATE_UNICAST_QUERY);
+    } else {
+        arpa_set_timer_state(entry, ARP_TIMER_STATE_NONE);
+    }
 
     return INDIGO_ERROR_NONE;
 }
@@ -573,6 +629,10 @@ arpa_check_source(struct arp_info *info)
 
     entry->stats.active_time = INDIGO_CURRENT_TIME;
 
+    if (entry->timer_state != ARP_TIMER_STATE_NONE) {
+        arpa_set_timer_state(entry, ARP_TIMER_STATE_UNICAST_QUERY);
+    }
+
     if (info->operation == 1) {
         entry->stats.request_packets++;
     } else if (info->operation == 2) {
@@ -580,4 +640,64 @@ arpa_check_source(struct arp_info *info)
     }
 
     return true;
+}
+
+static void
+arpa_set_timer_state(struct arp_entry *entry, enum arp_timer_state state)
+{
+    entry->timer_state = state;
+
+    switch (state) {
+    case ARP_TIMER_STATE_NONE:
+        entry->deadline = 0;
+        break;
+    case ARP_TIMER_STATE_UNICAST_QUERY:
+        entry->deadline = entry->stats.active_time + entry->value.unicast_query_timeout;
+        break;
+    case ARP_TIMER_STATE_BROADCAST_QUERY:
+        entry->deadline = entry->stats.active_time + entry->value.broadcast_query_timeout;
+        break;
+    case ARP_TIMER_STATE_IDLE_TIMEOUT:
+        entry->deadline = entry->stats.active_time + entry->value.idle_timeout;
+        break;
+    }
+}
+
+static void
+arpa_timer(void *cookie)
+{
+    bighash_iter_t iter;
+    bighash_entry_t *cur;
+    indigo_time_t now = INDIGO_CURRENT_TIME;
+
+    for (cur = bighash_iter_start(arp_entries, &iter);
+         cur != NULL;
+         cur = bighash_iter_next(&iter)) {
+        struct arp_entry *entry = container_of(cur, hash_entry, struct arp_entry);
+
+        if (entry->timer_state != ARP_TIMER_STATE_NONE && now >= entry->deadline) {
+            if (entry->timer_state == ARP_TIMER_STATE_UNICAST_QUERY) {
+                arpa_send_query(entry, false);
+                arpa_set_timer_state(entry, ARP_TIMER_STATE_BROADCAST_QUERY);
+            } else if (entry->timer_state == ARP_TIMER_STATE_BROADCAST_QUERY) {
+                arpa_send_query(entry, true);
+                arpa_set_timer_state(entry, ARP_TIMER_STATE_IDLE_TIMEOUT);
+            } else if (entry->timer_state == ARP_TIMER_STATE_IDLE_TIMEOUT) {
+                arpa_send_idle_notification(entry);
+                entry->deadline = now + entry->value.idle_timeout;
+            }
+        }
+    }
+}
+
+static void
+arpa_send_query(struct arp_entry *entry, bool broadcast)
+{
+    AIM_LOG_INFO("Sending %s query for VLAN %u IP %08x", broadcast ? "broadcast" : "unicast", entry->key.vlan_vid, entry->key.ipv4);
+}
+
+static void
+arpa_send_idle_notification(struct arp_entry *entry)
+{
+    AIM_LOG_INFO("Sending idle notification for VLAN %u IP %08x", entry->key.vlan_vid, entry->key.ipv4);
 }
