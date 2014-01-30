@@ -694,6 +694,32 @@ static void
 arpa_send_query(struct arp_entry *entry, bool broadcast)
 {
     AIM_LOG_INFO("Sending %s query for VLAN %u IP %08x", broadcast ? "broadcast" : "unicast", entry->key.vlan_vid, entry->key.ipv4);
+
+    /* Lookup the router for this VLAN */
+    uint32_t router_ip;
+    of_mac_addr_t router_mac;
+    if (router_ip_table_lookup(entry->key.vlan_vid, &router_ip, &router_mac) < 0) {
+        AIM_LOG_TRACE("no router configured on vlan %u", entry->key.vlan_vid);
+        return;
+    }
+
+    /* Send an ARP request to the host, from the router */
+    struct arp_info info;
+    if (broadcast) {
+        memcpy(info.eth_dst.addr, of_mac_addr_all_ones.addr, sizeof(info.eth_dst));
+    } else {
+        memcpy(info.eth_dst.addr, entry->value.mac.addr, sizeof(info.eth_dst));
+    }
+    memcpy(info.eth_src.addr, router_mac.addr, sizeof(info.eth_src));
+    info.vlan_vid = entry->key.vlan_vid;
+    info.vlan_pcp = 0;
+    info.operation = 1;
+    memcpy(info.sha.addr, router_mac.addr, sizeof(info.tha));
+    info.spa = router_ip;
+    memset(info.tha.addr, 0, sizeof(info.tha));
+    info.tpa = entry->key.ipv4;
+
+    arpa_send_packet(&info);
 }
 
 static void
