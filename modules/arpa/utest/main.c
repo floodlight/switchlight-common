@@ -53,3 +53,16 @@ indigo_fwd_packet_out(of_packet_out_t *obj)
 {
 	return INDIGO_ERROR_NONE;
 }
+
+indigo_error_t
+indigo_cxn_get_async_version(of_version_t *version)
+{
+    *version = OF_VERSION_1_3;
+    return INDIGO_ERROR_NONE;
+}
+
+void
+indigo_cxn_send_async_message(of_object_t *obj)
+{
+    of_object_delete(obj);
+}

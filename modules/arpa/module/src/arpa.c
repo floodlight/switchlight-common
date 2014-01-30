@@ -726,4 +726,18 @@ static void
 arpa_send_idle_notification(struct arp_entry *entry)
 {
     AIM_LOG_INFO("Sending idle notification for VLAN %u IP %08x", entry->key.vlan_vid, entry->key.ipv4);
+
+    of_version_t version;
+    if (indigo_cxn_get_async_version(&version) < 0) {
+        /* No controller connected */
+        return;
+    } else if (version < OF_VERSION_1_3) {
+        /* ARP idle notification requires OF 1.3+ */
+        return;
+    }
+
+    of_object_t *msg = of_bsn_arp_idle_new(version);
+    of_bsn_arp_idle_vlan_vid_set(msg, entry->key.vlan_vid);
+    of_bsn_arp_idle_ipv4_addr_set(msg, entry->key.ipv4);
+    indigo_cxn_send_async_message(msg);
 }
