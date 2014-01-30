@@ -195,6 +195,23 @@ arp_parse_value(of_list_bsn_tlv_t *tlvs, struct arp_entry_value *value)
         }
     }
 
+    if (value->unicast_query_timeout != 0 ||
+            value->broadcast_query_timeout != 0 ||
+            value->idle_timeout != 0) {
+        if (value->unicast_query_timeout == 0 ||
+                value->broadcast_query_timeout == 0 ||
+                value->idle_timeout == 0) {
+            AIM_LOG_ERROR("all timeouts must be specified if any are");
+            return INDIGO_ERROR_PARAM;
+        }
+
+        if (value->broadcast_query_timeout <= value->unicast_query_timeout ||
+                value->idle_timeout <= value->broadcast_query_timeout) {
+            AIM_LOG_ERROR("timeouts must be monotonically increasing");
+            return INDIGO_ERROR_PARAM;
+        }
+    }
+
     return INDIGO_ERROR_NONE;
 }
 
