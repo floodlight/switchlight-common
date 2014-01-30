@@ -345,7 +345,7 @@ arpa_handle_pkt(of_packet_in_t *packet_in)
 
     if (info.operation != 1) {
         AIM_LOG_TRACE("Ignoring ARP reply");
-        return INDIGO_CORE_LISTENER_RESULT_PASS;
+        return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
     uint32_t router_ip;
