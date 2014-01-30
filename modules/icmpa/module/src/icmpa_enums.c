@@ -18,7 +18,59 @@
  ****************************************************************/
 
 #include <icmpa/icmpa_config.h>
+#include <icmpa/icmpa.h>
 
-/* <--auto.start.enum(ALL).source> */
+/* <auto.start.enum(ALL).source> */
+aim_map_si_t icmpa_log_flag_map[] =
+{
+    { "packet", ICMPA_LOG_FLAG_PACKET },
+    { NULL, 0 }
+};
+
+aim_map_si_t icmpa_log_flag_desc_map[] =
+{
+    { "None", ICMPA_LOG_FLAG_PACKET },
+    { NULL, 0 }
+};
+
+const char*
+icmpa_log_flag_name(icmpa_log_flag_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, icmpa_log_flag_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'icmpa_log_flag'";
+    }
+}
+
+int
+icmpa_log_flag_value(const char* str, icmpa_log_flag_t* e, int substr)
+{
+    int i;
+    AIM_REFERENCE(substr);
+    if(aim_map_si_s(&i, str, icmpa_log_flag_map, 0)) {
+        /* Enum Found */
+        *e = i;
+        return 0;
+    }
+    else {
+        return -1;
+    }
+}
+
+const char*
+icmpa_log_flag_desc(icmpa_log_flag_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, icmpa_log_flag_desc_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'icmpa_log_flag'";
+    }
+}
+
 /* <auto.end.enum(ALL).source> */
 
