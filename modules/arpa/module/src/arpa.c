@@ -693,7 +693,7 @@ arpa_timer(void *cookie)
 static void
 arpa_send_query(struct arp_entry *entry, bool broadcast)
 {
-    AIM_LOG_INFO("Sending %s query for VLAN %u IP %08x", broadcast ? "broadcast" : "unicast", entry->key.vlan_vid, entry->key.ipv4);
+    AIM_LOG_VERBOSE("Sending %s query for VLAN %u IP %08x", broadcast ? "broadcast" : "unicast", entry->key.vlan_vid, entry->key.ipv4);
 
     /* Lookup the router for this VLAN */
     uint32_t router_ip;
@@ -725,7 +725,7 @@ arpa_send_query(struct arp_entry *entry, bool broadcast)
 static void
 arpa_send_idle_notification(struct arp_entry *entry)
 {
-    AIM_LOG_INFO("Sending idle notification for VLAN %u IP %08x", entry->key.vlan_vid, entry->key.ipv4);
+    AIM_LOG_VERBOSE("Sending idle notification for VLAN %u IP %08x", entry->key.vlan_vid, entry->key.ipv4);
 
     of_version_t version;
     if (indigo_cxn_get_async_version(&version) < 0) {
