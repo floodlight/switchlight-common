@@ -158,6 +158,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
             ++port_pkt_counters[port_no].icmp_network_unreachable_packets;
         }
         break;
+    case OF_PACKET_IN_REASON_BSN_NO_ROUTE:
     case OF_PACKET_IN_REASON_BSN_DEST_HOST_UNREACHABLE:
         AIM_LOG_TRACE("ICMP Dest Host Unreachable received on port: %d", 
                       port_no);
