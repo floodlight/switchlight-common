@@ -642,9 +642,26 @@ arpa_check_source(struct arp_info *info)
     return true;
 }
 
+static const char *
+arpa_timer_state_to_string(enum arp_timer_state state)
+{
+    switch (state) {
+    case ARP_TIMER_STATE_NONE: return "none";
+    case ARP_TIMER_STATE_UNICAST_QUERY: return "unicast_query";
+    case ARP_TIMER_STATE_BROADCAST_QUERY: return "broadcast_query";
+    case ARP_TIMER_STATE_IDLE_TIMEOUT: return "idle_timeout";
+    default: AIM_DIE("unexpected timer state %u", state);
+    }
+}
+
 static void
 arpa_set_timer_state(struct arp_entry *entry, enum arp_timer_state state)
 {
+    AIM_LOG_TRACE("VLAN=%u IP=%x timer state %s -> %s",
+                  entry->key.vlan_vid, entry->key.ipv4,
+                  arpa_timer_state_to_string(entry->timer_state),
+                  arpa_timer_state_to_string(state));
+
     entry->timer_state = state;
 
     switch (state) {
