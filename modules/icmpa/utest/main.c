@@ -39,6 +39,7 @@ uint8_t ip_packet[PACKET_BUF_SIZE] = {0x00, 0x50, 0x56, 0xe0, 0x14, 0x49, 0x00, 
 static const indigo_core_gentable_ops_t *ops;
 static void *table_priv;
 static const of_mac_addr_t mac = { { 0x00, 0x50, 0x56, 0xe0, 0x14, 0x49 } };
+of_port_no_t port_no;
 
 void
 indigo_core_gentable_register(
@@ -96,18 +97,9 @@ icmpa_verify_packet (of_octets_t *octets, uint32_t reason)
 indigo_error_t
 indigo_fwd_packet_out (of_packet_out_t *of_packet_out)
 {
-    of_port_no_t     port_no;
     of_octets_t      of_octets;
-    of_list_action_t action;
-    of_action_t      act;
-    int              rv;
 
     if (!of_packet_out) return INDIGO_ERROR_NONE;
-
-    of_packet_out_actions_bind(of_packet_out, &action);
-    OF_LIST_ACTION_ITER(&action, &act, rv) {
-        of_action_output_port_get(&act.output, &port_no);
-    }
 
     of_packet_out_data_get(of_packet_out, &of_octets);
 
@@ -122,6 +114,8 @@ indigo_fwd_packet_out (of_packet_out_t *of_packet_out)
         icmpa_verify_packet(&of_octets, ICMP_DEST_UNREACHABLE);
     } else if (port_no == 30) {
         icmpa_verify_packet(&of_octets, ICMP_TIME_EXCEEDED);
+    } else {
+        return INDIGO_ERROR_PARAM;
     }
 
     return INDIGO_ERROR_NONE;
@@ -217,17 +211,22 @@ int aim_main (int argc, char* argv[])
 
     octets.data = echo_request; 
     octets.bytes = PACKET_BUF_SIZE;
+    port_no = 10;
     icmpa_create_send_packet_in(&octets, 
-                                OF_PACKET_IN_REASON_BSN_ICMP_ECHO_REQUEST, 10);
-    octets.data = ip_packet; 
+                                OF_PACKET_IN_REASON_BSN_ICMP_ECHO_REQUEST, 
+                                port_no);
+    octets.data = ip_packet;
+    port_no = 20; 
     icmpa_create_send_packet_in(&octets, 
-                                OF_PACKET_IN_REASON_BSN_NO_ROUTE, 20);
-    icmpa_create_send_packet_in(&octets, OF_PACKET_IN_REASON_INVALID_TTL, 30);
+                                OF_PACKET_IN_REASON_BSN_NO_ROUTE, port_no);
+    port_no = 30;
+    icmpa_create_send_packet_in(&octets, OF_PACKET_IN_REASON_INVALID_TTL, 
+                                port_no);
 
     /*
      * Unhandled ICMP reason, to test if the packet is passed
      */
-    icmpa_create_send_packet_in(&octets, 139, 30);
+    icmpa_create_send_packet_in(&octets, 139, port_no);
 
     ops->del(table_priv, entry_priv, key);
     of_object_delete(key);

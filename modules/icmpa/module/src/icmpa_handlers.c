@@ -38,7 +38,7 @@ icmpa_typecode_packet_counter_t port_pkt_counters[MAX_PORTS+1];
  * Send the ICMP message out
  */
 indigo_error_t
-icmpa_send_packet_out (of_octets_t *octets, of_port_no_t port_no)
+icmpa_send_packet_out (of_octets_t *octets)
 {
     of_packet_out_t    *obj;
     of_list_action_t   *list;
@@ -56,7 +56,9 @@ icmpa_send_packet_out (of_octets_t *octets, of_port_no_t port_no)
     action = of_action_output_new(OF_VERSION_1_3);
     AIM_TRUE_OR_DIE(action != NULL);
 
-    of_action_output_port_set(action, port_no);
+    of_packet_out_buffer_id_set(obj, -1);
+    of_packet_out_in_port_set(obj, OF_PORT_DEST_LOCAL);
+    of_action_output_port_set(action, OF_PORT_DEST_USE_TABLE);
     of_list_append(list, action);
     of_object_delete(action);
     rv = of_packet_out_actions_set(obj, list);
@@ -70,14 +72,6 @@ icmpa_send_packet_out (of_octets_t *octets, of_port_no_t port_no)
     }
 
     rv = indigo_fwd_packet_out(obj);
-    if (rv < 0) {
-        AIM_LOG_ERROR("ICMPA: Failed to send packet out the port: %d, "
-                      "reason: %s", port_no, indigo_strerror(rv));
-    } else {
-        ++pkt_counters.icmp_total_out_packets; 
-        AIM_LOG_TRACE("Successfully sent packet out the port: %d", port_no);
-    }
-
     of_packet_out_delete(obj);
     return rv;
 }

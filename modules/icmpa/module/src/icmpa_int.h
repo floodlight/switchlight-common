@@ -91,8 +91,7 @@ extern icmpa_typecode_packet_counter_t port_pkt_counters[MAX_PORTS+1];
 bool icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no);
 bool icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, 
                  uint32_t type, uint32_t code);
-indigo_error_t    
-icmpa_send_packet_out (of_octets_t *octets, of_port_no_t port_no);
+indigo_error_t icmpa_send_packet_out (of_octets_t *octets);
 
 indigo_core_listener_result_t
 icmpa_packet_in_handler (of_packet_in_t *packet_in);

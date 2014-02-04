@@ -158,20 +158,11 @@ icmpa_create_send_packet_in (of_octets_t *of_octets, uint8_t reason,
 indigo_error_t
 indigo_fwd_packet_out (of_packet_out_t *of_packet_out)
 {
-    of_port_no_t     port_no;
     of_octets_t      of_octets;
-    of_list_action_t action;
-    of_action_t      act;
-    int              rv;
     ppe_packet_t     ppep;
     ppe_header_t     format;
 
     if (!of_packet_out) return INDIGO_ERROR_PARAM;
-
-    of_packet_out_actions_bind(of_packet_out, &action);
-    OF_LIST_ACTION_ITER(&action, &act, rv) {
-        of_action_output_port_get(&act.output, &port_no);
-    }
 
     of_packet_out_data_get(of_packet_out, &of_octets);
 
