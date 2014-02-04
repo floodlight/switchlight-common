@@ -221,7 +221,7 @@ int aim_main (int argc, char* argv[])
                                 OF_PACKET_IN_REASON_BSN_ICMP_ECHO_REQUEST, 10);
     octets.data = ip_packet; 
     icmpa_create_send_packet_in(&octets, 
-                                OF_PACKET_IN_REASON_BSN_DEST_NETWORK_UNREACHABLE, 20);
+                                OF_PACKET_IN_REASON_BSN_NO_ROUTE, 20);
     icmpa_create_send_packet_in(&octets, OF_PACKET_IN_REASON_INVALID_TTL, 30);
 
     /*
