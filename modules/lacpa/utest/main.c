@@ -174,6 +174,8 @@ aim_main(int argc, char* argv[])
 
     assert(port1->is_converged == true);
     assert(port2->is_converged == true);
+   
+    lacpa_finish(); 
     return 0;
 }
 

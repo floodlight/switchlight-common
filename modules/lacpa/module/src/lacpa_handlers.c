@@ -199,7 +199,7 @@ lacpa_packet_in_handler (of_packet_in_t *packet_in)
  
     if (!port->lacp_enabled) {
         AIM_LOG_TRACE("LACPDU-Rx-FAILED - Agent is Disabled on port: %d",
-                      port->actor.port_no);
+                      port_no);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
@@ -211,7 +211,7 @@ lacpa_packet_in_handler (of_packet_in_t *packet_in)
      * Retrieve the information from the LACP packet
      */
     if (!lacpa_parse_pdu(&ppep, &pdu)) {
-        AIM_LOG_ERROR("Packet parsing failed on port: %d", port->actor.port_no);
+        AIM_LOG_ERROR("Packet parsing failed on port: %d", port_no);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
