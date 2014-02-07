@@ -101,6 +101,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
 
     /*
      * Check if the packet-in reasons 
+     * FIXME: Temporary fix, need to think of long term solution
      */
     if (reason == OF_PACKET_IN_REASON_BSN_BAD_VLAN || 
         reason == OF_PACKET_IN_REASON_BSN_STATION_MOVE ||
