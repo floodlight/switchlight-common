@@ -1,6 +1,6 @@
 /****************************************************************
  *
- *        Copyright 2013, Big Switch Networks, Inc.
+ *        Copyright 2014, Big Switch Networks, Inc.
  *
  * Licensed under the Eclipse Public License, Version 1.0 (the
  * "License"); you may not use this file except in compliance
@@ -45,11 +45,11 @@ typedef struct opt_info {
 } opt_info_t;
 
 typedef struct {
-    uint32_t      internalVID;
-    uint32_t      virtualRouterIP;
-    uint32_t      dhcpServerIP;
-    of_mac_addr_t virtualRouterMAC;
-    opt_info_t    optID;
+    uint32_t      internal_vlan_id;
+    uint32_t      vrouter_ip;
+    uint32_t      dhcp_server_ip;
+    of_mac_addr_t vrouter_mac;
+    opt_info_t    opt_id;
 } dhc_relay_t;
 
 #define VLAN_MAX 4095
