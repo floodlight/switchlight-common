@@ -37,11 +37,6 @@ static int dhcpr_vlan_entry_count;
 /* This is aux tables for other lookup purpose only */
 BIGHASH_DEFINE_STATIC(dhcpr_circuit_table, 256); /* Circuit to vlan */
 BIGHASH_DEFINE_STATIC(dhcpr_vrouter_ip_table, 256); /* Virtual router ip to vlan */
-typedef struct dhcpr_entry_s {
-    bighash_entry_t vrouter_hash_entry;
-    bighash_entry_t circuit_hash_entry;
-    dhc_relay_t     *dhcpr_entry;
-} dhcpr_entry_t;
 
 #define DHCPR_TABLE_DEBUG(fmt, ...)                       \
             AIM_LOG_TRACE(fmt, ##__VA_ARGS__)
@@ -70,6 +65,14 @@ dhcpr_free_circuit_id(of_octets_t *circuit_id)
     }
 }
 
+static void
+dhcpr_free_dhc_relay(dhc_relay_t *de)
+{
+    AIM_TRUE_OR_DIE(de);
+    dhcpr_free_circuit_id(&de->opt_id.circuit_id);
+    aim_free(de);
+}
+
 static bool
 is_valid_vlan_value (uint32_t vlan)
 {
@@ -92,13 +95,13 @@ is_key_equal(of_octets_t *k1, of_octets_t *k2)
     return memcmp(k1->data, k2->data, k1->bytes) == 0;
 }
 
-static dhcpr_entry_t *
+static dhc_relay_t *
 find_hash_entry_by_octet_id(bighash_table_t *table, of_octets_t *id)
 {
     bighash_entry_t *e;
     for (e = bighash_first(table, hash_octet_key(id)); e; e = bighash_next(e)) {
-        dhcpr_entry_t *te = container_of(e, circuit_hash_entry, dhcpr_entry_t);
-        if (is_key_equal(&te->dhcpr_entry->opt_id.circuit_id, id))
+        dhc_relay_t *te = container_of(e, circuit_hash_entry, dhc_relay_t);
+        if (is_key_equal(&te->opt_id.circuit_id, id))
             return te;
     }
     return NULL;
@@ -110,13 +113,13 @@ hash_ip_key(uint32_t ip)
     return murmur_hash(&ip, sizeof(ip), 0);
 }
 
-static dhcpr_entry_t *
+static dhc_relay_t *
 find_hash_entry_by_virtual_router_ip(bighash_table_t *table,  uint32_t vr_ip)
 {
     bighash_entry_t *e;
     for (e = bighash_first(table, hash_ip_key(vr_ip)); e; e = bighash_next(e)) {
-        dhcpr_entry_t *te = container_of(e, vrouter_hash_entry, dhcpr_entry_t);
-        if (te->dhcpr_entry->vrouter_ip == vr_ip)
+        dhc_relay_t *te = container_of(e, vrouter_hash_entry, dhc_relay_t);
+        if (te->vrouter_ip == vr_ip)
             return te;
     }
     return NULL;
@@ -261,7 +264,6 @@ dhcpr_table_parse_value(of_list_bsn_tlv_t *value, uint32_t *vr_ip, of_mac_addr_t
 static indigo_error_t
 dhcpr_add_entry_to_internal_tables(dhc_relay_t *entry)
 {
-    dhcpr_entry_t *de = NULL;
 
     if(dhcpr_vlan_table[entry->internal_vlan_id]) {
         AIM_LOG_ERROR("Error vlan entry = %u exists", entry->internal_vlan_id);
@@ -277,11 +279,6 @@ dhcpr_add_entry_to_internal_tables(dhc_relay_t *entry)
         return INDIGO_ERROR_EXISTS;
     }
 
-    /* Prepare gateway hash entry */
-    de = aim_zmalloc(sizeof(*de));
-    de->dhcpr_entry = entry;
-
-
     /* Circuit exist, then check and prepare a circuit hash entry */
     if(entry->opt_id.circuit_id.data) {
         /*
@@ -289,15 +286,14 @@ dhcpr_add_entry_to_internal_tables(dhc_relay_t *entry)
          * Vlan and circuit_id is a mapping 1:1
          */
         if(find_hash_entry_by_octet_id(&dhcpr_circuit_table, &entry->opt_id.circuit_id)) {
-            aim_free(de);
             AIM_LOG_ERROR("Circuit id exists for vlan=%u", entry->internal_vlan_id);
             return INDIGO_ERROR_EXISTS;
         }
 
-        bighash_insert(&dhcpr_circuit_table, &de->circuit_hash_entry, hash_octet_key(&entry->opt_id.circuit_id));
+        bighash_insert(&dhcpr_circuit_table, &entry->circuit_hash_entry, hash_octet_key(&entry->opt_id.circuit_id));
     }
 
-    bighash_insert(&dhcpr_vrouter_ip_table, &de->vrouter_hash_entry, hash_ip_key(entry->vrouter_ip));
+    bighash_insert(&dhcpr_vrouter_ip_table, &entry->vrouter_hash_entry, hash_ip_key(entry->vrouter_ip));
 
     dhcpr_vlan_table[entry->internal_vlan_id] = entry;
     dhcpr_vlan_entry_count++;
@@ -327,17 +323,17 @@ dhcpr_table_add(void *table_priv, of_list_bsn_tlv_t *key, of_list_bsn_tlv_t *val
         return rv;
     }
 
-    /* From this point, must free circuit_id whenever return error */
-
     entry = aim_zmalloc(sizeof(dhc_relay_t));
 
     /* Set key */
-    entry->internal_vlan_id      = vlan;
+    entry->internal_vlan_id = vlan;
 
     /* Set value */
-    entry->vrouter_ip  = vr_ip;
+    entry->vrouter_ip = vr_ip;
     entry->vrouter_mac = vr_mac;
-    entry->dhcp_server_ip  = dhcp_server_ip;
+    entry->dhcp_server_ip = dhcp_server_ip;
+
+    /* Circuit id assigned to the entry */
     entry->opt_id.circuit_id.bytes = circuit_id.bytes;
     entry->opt_id.circuit_id.data = circuit_id.data;
 
@@ -345,8 +341,8 @@ dhcpr_table_add(void *table_priv, of_list_bsn_tlv_t *key, of_list_bsn_tlv_t *val
     if (rv == INDIGO_ERROR_NONE) {
         *entry_priv = entry;
     } else {
-        dhcpr_free_circuit_id(&circuit_id);
-        aim_free(entry);
+        /* Free entry and all internal data */
+        dhcpr_free_dhc_relay(entry);
     }
 
     return rv;
@@ -362,64 +358,51 @@ dhcpr_table_modify(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key, o
     of_octets_t    circuit_id;
     /* We already find the entry and it is here */
     dhc_relay_t    *entry = entry_priv;
-    dhcpr_entry_t  *de = NULL;
-    bool           skip_update_circuit_hash_entry = false;
+    dhc_relay_t    *de;
 
     rv = dhcpr_table_parse_value(value, &vr_ip, &vr_mac, &dhcp_server_ip, &circuit_id);
     if (rv < 0) {
         return rv;
     }
-
     /* From this point, must free circuit_id whenever return error */
 
-    de = find_hash_entry_by_virtual_router_ip(&dhcpr_vrouter_ip_table, entry->vrouter_ip);
-    AIM_TRUE_OR_DIE(de && de->dhcpr_entry == entry);
-
     /* Legality check - make sure hash is not corrupted */
+    de = find_hash_entry_by_virtual_router_ip(&dhcpr_vrouter_ip_table, entry->vrouter_ip);
+    AIM_TRUE_OR_DIE(de && de == entry);
     if (entry->opt_id.circuit_id.bytes) {
-        /* Reuse circuit entry */
-        dhcpr_entry_t *temp_entry =  find_hash_entry_by_octet_id(&dhcpr_circuit_table, &entry->opt_id.circuit_id);
-        AIM_TRUE_OR_DIE(temp_entry && (temp_entry == de));
+        de =  find_hash_entry_by_octet_id(&dhcpr_circuit_table, &entry->opt_id.circuit_id);
+        AIM_TRUE_OR_DIE(de && (de == entry));
     }
 
-    /* If 2 circuits identical: skip circuit update */
+    /* 1. Validate and update circuit if necessary */
     if ((entry->opt_id.circuit_id.bytes == circuit_id.bytes) &&
                 (memcmp(entry->opt_id.circuit_id.data, circuit_id.data, circuit_id.bytes) == 0)) {
-            skip_update_circuit_hash_entry = true;
+
+        /* 2 circuits identical: do not update circuit hash table
+         * Free new circuit
+         * */
+        dhcpr_free_circuit_id(&circuit_id);
     } else {
-        /* Validate new circuit */
+        /* 2 circuits different, we need update circuit id */
+
+        /* Validate the new circuit and return error before making any change */
         if(circuit_id.bytes) {
-            dhcpr_entry_t *temp_entry;
-            if((temp_entry = find_hash_entry_by_octet_id(&dhcpr_circuit_table, &circuit_id))) {
+            if((de = find_hash_entry_by_octet_id(&dhcpr_circuit_table, &circuit_id))) {
                 AIM_LOG_ERROR("CIRCUIT_ID: len=%d packet=%{data}",
                                 circuit_id.bytes,
                                 circuit_id.data, circuit_id.bytes);
                 AIM_LOG_ERROR("Vlan %u: new circuit id exists for vlan=%u",
-                                entry->internal_vlan_id, temp_entry->dhcpr_entry->internal_vlan_id);
-                rv = INDIGO_ERROR_EXISTS;
-                goto free_circuit_id_and_return;
+                                entry->internal_vlan_id, de->internal_vlan_id);
+
+                dhcpr_free_circuit_id(&circuit_id);
+                return INDIGO_ERROR_EXISTS;
             }
         }
-    }
 
-    /* 1. Update gateway hash table if value is different */
-    if (entry->vrouter_ip != vr_ip) {
-        bighash_remove(&dhcpr_vrouter_ip_table, &de->vrouter_hash_entry);
-        entry->vrouter_ip  = vr_ip;
-        bighash_insert(&dhcpr_vrouter_ip_table, &de->vrouter_hash_entry, hash_ip_key(entry->vrouter_ip));
-    }
-
-    /* 2. and 3. Update vr_mac and server_ip */
-    entry->vrouter_mac = vr_mac;
-    entry->dhcp_server_ip     = dhcp_server_ip;
-
-    /* 4. Update circuit hash if necessary */
-    if(!skip_update_circuit_hash_entry) {
-
-        /* Remove if old circuit exists */
+        /* Remove old circuit if existing */
         if (entry->opt_id.circuit_id.bytes) {
 
-            bighash_remove(&dhcpr_circuit_table, &de->circuit_hash_entry);
+            bighash_remove(&dhcpr_circuit_table, &entry->circuit_hash_entry);
 
             /* Free old circuit */
             dhcpr_free_circuit_id(&entry->opt_id.circuit_id);
@@ -431,42 +414,46 @@ dhcpr_table_modify(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key, o
 
         /* Insert new circuit != 0 */
         if(circuit_id.bytes) {
-            bighash_insert(&dhcpr_circuit_table, &de->circuit_hash_entry, hash_octet_key(&entry->opt_id.circuit_id));
+            bighash_insert(&dhcpr_circuit_table, &entry->circuit_hash_entry, hash_octet_key(&entry->opt_id.circuit_id));
         }
     }
 
+    /* 2. Update gateway hash table if value is different */
+    if (entry->vrouter_ip != vr_ip) {
+        bighash_remove(&dhcpr_vrouter_ip_table, &entry->vrouter_hash_entry);
+        entry->vrouter_ip = vr_ip;
+        bighash_insert(&dhcpr_vrouter_ip_table, &entry->vrouter_hash_entry, hash_ip_key(entry->vrouter_ip));
+    }
+
+    /* 3. and 4. Update vr_mac and server_ip */
+    entry->vrouter_mac = vr_mac;
+    entry->dhcp_server_ip = dhcp_server_ip;
+
     return INDIGO_ERROR_NONE;
-
-
-free_circuit_id_and_return:
-    dhcpr_free_circuit_id(&circuit_id);
-    return rv;
 }
 
 static indigo_error_t
 dhcpr_table_delete(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key)
 {
     dhc_relay_t   *entry = entry_priv;
-    dhcpr_entry_t *de    = NULL;
+    dhc_relay_t   *de;
 
+    /* Legality check */
     de = find_hash_entry_by_virtual_router_ip (&dhcpr_vrouter_ip_table, entry->vrouter_ip);
-    AIM_TRUE_OR_DIE(de && de->dhcpr_entry == entry);
-    bighash_remove(&dhcpr_vrouter_ip_table, &de->vrouter_hash_entry);
+    AIM_TRUE_OR_DIE(de && de == entry);
+    bighash_remove(&dhcpr_vrouter_ip_table, &entry->vrouter_hash_entry);
 
     if(entry->opt_id.circuit_id.bytes) {
-        dhcpr_entry_t *temp =  find_hash_entry_by_octet_id(&dhcpr_circuit_table, &entry->opt_id.circuit_id);
-        AIM_TRUE_OR_DIE(temp && temp == de);
-        bighash_remove(&dhcpr_circuit_table, &temp->circuit_hash_entry);
+        de = find_hash_entry_by_octet_id(&dhcpr_circuit_table, &entry->opt_id.circuit_id);
+        AIM_TRUE_OR_DIE(de && de == entry);
+        bighash_remove(&dhcpr_circuit_table, &entry->circuit_hash_entry);
     }
-
-    aim_free(de);
 
     AIM_TRUE_OR_DIE(entry == dhcpr_vlan_table[entry->internal_vlan_id]);
     dhcpr_vlan_table[entry->internal_vlan_id] = NULL;
     dhcpr_vlan_entry_count--;
 
-    dhcpr_free_circuit_id(&entry->opt_id.circuit_id);
-    aim_free(entry);
+    dhcpr_free_dhc_relay(entry);
 
     return INDIGO_ERROR_NONE;
 }
@@ -487,28 +474,28 @@ static const indigo_core_gentable_ops_t dhcpr_table_ops = {
 void
 dhcpr_circuit_id_to_vlan(uint32_t *vlan, uint8_t *cir_id, int cir_id_len)
 {
-    dhcpr_entry_t *ce = NULL;
+    dhc_relay_t *de = NULL;
     of_octets_t   circuit_id;
 
     *vlan = INVALID_VLAN;
     circuit_id.data = cir_id;
     circuit_id.bytes = cir_id_len;
 
-    ce =  find_hash_entry_by_octet_id(&dhcpr_circuit_table, &circuit_id);
-    if (ce)
-        *vlan = ce->dhcpr_entry->internal_vlan_id;
+    de = find_hash_entry_by_octet_id(&dhcpr_circuit_table, &circuit_id);
+    if (de)
+        *vlan = de->internal_vlan_id;
 }
 
 /* Set vlan to INVALID if can't find */
 void
 dhcpr_virtual_router_ip_to_vlan(uint32_t *vlan, uint32_t vr_ip)
 {
-    dhcpr_entry_t *ge = NULL;
+    dhc_relay_t *de = NULL;
 
     *vlan = INVALID_VLAN;
-    ge =  find_hash_entry_by_virtual_router_ip(&dhcpr_vrouter_ip_table, vr_ip);
-    if (ge)
-        *vlan = ge->dhcpr_entry->internal_vlan_id;
+    de = find_hash_entry_by_virtual_router_ip(&dhcpr_vrouter_ip_table, vr_ip);
+    if (de)
+        *vlan = de->internal_vlan_id;
 
 }
 

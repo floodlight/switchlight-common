@@ -25,7 +25,7 @@
 #define __DHCPRA_INT_H__
 
 #include <dhcpra/dhcpra_config.h>
-
+#include <BigHash/bighash.h>
 #include <loci/loci.h>
 
 #define AIM_LOG_MODULE_NAME dhcpra
@@ -45,6 +45,8 @@ typedef struct opt_info {
 } opt_info_t;
 
 typedef struct {
+    bighash_entry_t vrouter_hash_entry;
+    bighash_entry_t circuit_hash_entry;
     uint32_t      internal_vlan_id;
     uint32_t      vrouter_ip;
     uint32_t      dhcp_server_ip;
