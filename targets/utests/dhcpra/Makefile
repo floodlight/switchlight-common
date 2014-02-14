@@ -20,7 +20,14 @@
 include ../../../init.mk
 MODULE := dhcpra_utest
 TEST_MODULE := dhcpra
-DEPENDMODULES := AIM
+DEPENDMODULES := AIM PPE IOF loci indigo OS SocketManager cjson \
+                 BigList Configuration murmur OFConnectionManager BigHash uCli
+
 GLOBAL_CFLAGS += -DAIM_CONFIG_INCLUDE_MODULES_INIT=1
 GLOBAL_CFLAGS += -DAIM_CONFIG_INCLUDE_MAIN=1
+GLOBAL_CFLAGS += -DINDIGO_LINUX_LOGGING
+GLOBAL_CFLAGS += -DINDIGO_LINUX_TIME
+GLOBAL_CFLAGS += -DINDIGO_FAULT_ON_ASSERT
+GLOBAL_CFLAGS += -DINDIGO_MEM_STDLIB
+GLOBAL_LINK_LIBS += -lm -rdynamic
 include $(BUILDER)/build-unit-test.mk
