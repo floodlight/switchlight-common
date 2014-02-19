@@ -56,7 +56,7 @@ lacpa_init (void)
 
     if (lacpa_is_initialized()) return INDIGO_ERROR_NONE;
 
-    AIM_LOG_TRACE("Initing the LACP System...");
+    AIM_LOG_INFO("init");
 
     ports_size = sizeof(lacpa_port_t) * (PHY_PORT_COUNT+1);
     lacpa_system.lacp_active_port_count = 0;
