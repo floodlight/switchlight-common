@@ -121,6 +121,7 @@ lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets)
     of_list_append(list, action);
     of_object_delete(action);
     rv = of_packet_out_actions_set(obj, list);
+    AIM_ASSERT(rv == 0);
     of_object_delete(list);
 
     if (of_packet_out_data_set(obj, octets) < 0) {
