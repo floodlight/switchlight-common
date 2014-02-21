@@ -61,7 +61,7 @@ indigo_core_gentable_register(
 void
 indigo_core_gentable_unregister (indigo_core_gentable_t *gentable)
 {
-    ASSERT(gentable == (void *)1);
+    AIM_ASSERT(gentable == (void *)1);
 }
 
 indigo_error_t
