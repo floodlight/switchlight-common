@@ -99,7 +99,7 @@ indigo_cxn_get_async_version (of_version_t *version)
 indigo_error_t
 indigo_fwd_packet_out(of_packet_out_t *of_packet_out)
 {
-    of_port_no_t     port_no;
+    of_port_no_t     port_no = 0;
     of_octets_t      of_octets;
     of_list_action_t action;
     of_action_t      act;
