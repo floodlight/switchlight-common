@@ -62,6 +62,7 @@ icmpa_send_packet_out (of_octets_t *octets)
     of_list_append(list, action);
     of_object_delete(action);
     rv = of_packet_out_actions_set(obj, list);
+    AIM_ASSERT(rv == 0);
     of_object_delete(list);
 
     rv = of_packet_out_data_set(obj, octets);
@@ -221,7 +222,7 @@ icmpa_init (void)
 {
     if (icmpa_is_initialized()) return INDIGO_ERROR_NONE;
 
-    AIM_LOG_TRACE("Initing the ICMP Agent...");
+    AIM_LOG_INFO("init");
 
     pkt_counters.icmp_total_in_packets = 0;
     pkt_counters.icmp_total_out_packets = 0;
@@ -253,8 +254,6 @@ void
 icmpa_finish (void)
 {
     if (!icmpa_is_initialized()) return;
-
-    AIM_LOG_TRACE("Deiniting the ICMP Agent...");
 
     pkt_counters.icmp_total_in_packets = 0;
     pkt_counters.icmp_total_out_packets = 0;

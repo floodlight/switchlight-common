@@ -228,6 +228,7 @@ lldpdu_periodic_tx(void *cookie)
     of_object_delete(action);
 
     rv = of_packet_out_actions_set(pkt_out, list);
+    AIM_ASSERT(rv == 0);
     of_object_delete(list);
 
     if ((rv = of_packet_out_data_set(pkt_out, &port->tx_pkt.data)) != OF_ERROR_NONE) {

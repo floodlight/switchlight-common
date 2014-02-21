@@ -90,6 +90,7 @@ lacpa_update_controller (lacpa_port_t *port)
      * Send convergence status to the controller 
      */
     indigo_cxn_send_async_message(obj);
+    ++port->debug_info.lacp_convergence_notif;     
 }
 
 /*
@@ -120,6 +121,7 @@ lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets)
     of_list_append(list, action);
     of_object_delete(action);
     rv = of_packet_out_actions_set(obj, list);
+    AIM_ASSERT(rv == 0);
     of_object_delete(list);
 
     if (of_packet_out_data_set(obj, octets) < 0) {
@@ -396,11 +398,13 @@ lacpa_controller_msg_handler (indigo_cxn_id_t cxn, of_object_t *obj)
      */
     switch (obj->object_id) {
     case OF_BSN_SET_LACP_REQUEST:
+        ++lacpa_system.debug_info.lacp_controller_set_requests;
         lacpa_set_port_param_handle(cxn, (of_bsn_set_lacp_request_t *)obj);
         result = INDIGO_CORE_LISTENER_RESULT_DROP;
         break;
 
     case OF_BSN_LACP_STATS_REQUEST:
+        ++lacpa_system.debug_info.lacp_controller_stats_requests;
         lacpa_get_port_stats_handle(cxn, (of_bsn_lacp_stats_request_t *)obj);
         result = INDIGO_CORE_LISTENER_RESULT_DROP;
         break;

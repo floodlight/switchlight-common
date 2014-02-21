@@ -147,6 +147,7 @@ typedef struct lacpa_port_debug_s { /* lacpa_port_debug */
     lacpa_transmit_t ntt_reason;
     uint64_t         lacp_port_in_packets;
     uint64_t         lacp_port_out_packets;
+    uint64_t         lacp_convergence_notif;
 } lacpa_port_debug_t;
 
 typedef struct lacpa_port_s { /* lacpa_port */
@@ -167,6 +168,8 @@ typedef struct lacpa_system_debug_s { /* lacpa_system_debug */
     uint64_t          lacp_total_in_packets;
     uint64_t          lacp_system_in_packets;
     uint64_t          lacp_system_out_packets;
+    uint64_t          lacp_controller_set_requests;
+    uint64_t          lacp_controller_stats_requests;
 } lacpa_system_debug_t;
 
 typedef struct lacpa_system_s { /* lacpa_system */

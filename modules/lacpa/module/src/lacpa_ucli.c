@@ -18,6 +18,7 @@
  ****************************************************************/
 #include <lacpa/lacpa_config.h>
 #include "lacpa_int.h"
+#include "lacpa_utils.h"
 
 #if LACPA_CONFIG_INCLUDE_UCLI == 1
 
@@ -26,7 +27,7 @@
 #include <uCli/ucli_handler_macros.h>
 
 static void
-lacpa_clear_counters__(ucli_context_t* uc, uint32_t port_no)
+lacpa_clear_port_counters__(ucli_context_t* uc, uint32_t port_no)
 {
     lacpa_port_t  *port = NULL;
 
@@ -40,6 +41,7 @@ lacpa_clear_counters__(ucli_context_t* uc, uint32_t port_no)
 
     port->debug_info.lacp_port_in_packets = 0; 
     port->debug_info.lacp_port_out_packets = 0;    
+    port->debug_info.lacp_convergence_notif = 0;
 }
 
 static ucli_status_t
@@ -56,15 +58,12 @@ lacpa_ucli_ucli__clear_lacp_counters__(ucli_context_t* uc)
 
     if (uc->pargs->count == 1) {
         UCLI_ARGPARSE_OR_RETURN(uc, "i", &port);
-        lacpa_clear_counters__(uc, port);
+        lacpa_clear_port_counters__(uc, port);
     } else {
-
-        lacpa_system.debug_info.lacp_total_in_packets = 0;
-        lacpa_system.debug_info.lacp_system_in_packets = 0;
-        lacpa_system.debug_info.lacp_system_out_packets = 0;
-    
+        lacpa_clear_system_counters();
+     
         for (port = 0; port <= PHY_PORT_COUNT; port++) {
-            lacpa_clear_counters__(uc, port);
+            lacpa_clear_port_counters__(uc, port);
         }
     }
 
@@ -87,6 +86,10 @@ lacpa_ucli_ucli__show_lacp_counters__(ucli_context_t* uc)
                 lacpa_system.debug_info.lacp_system_in_packets);
     ucli_printf(uc, "LACPDU's SENT           : %" PRId64 "\n",
                 lacpa_system.debug_info.lacp_system_out_packets);
+    ucli_printf(uc, "SET REQUESTS RECV'D     : %" PRId64 "\n",
+                lacpa_system.debug_info.lacp_controller_set_requests);
+    ucli_printf(uc, "STATS REQUESTS RECV'D   : %" PRId64 "\n",
+                lacpa_system.debug_info.lacp_controller_stats_requests);             
     ucli_printf(uc, "*************END DUMPING INFO********************\n");
  
     return UCLI_STATUS_OK;
@@ -219,6 +222,8 @@ lacpa_show_portstats__(ucli_context_t* uc, uint32_t port_no)
                 port->debug_info.lacp_port_in_packets);
     ucli_printf(uc, "LACP PACKET OUT       : %" PRId64 "\n",
                 port->debug_info.lacp_port_out_packets);
+    ucli_printf(uc, "CONVERGENCE NOTIF     : %" PRId64 "\n",
+                port->debug_info.lacp_convergence_notif);
     ucli_printf(uc, "\n*************END DUMPING INFO**************\n");     
 }
 

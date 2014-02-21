@@ -20,7 +20,7 @@
 #ifndef DHCPRA_H_
 #define DHCPRA_H_
 
-
+/* Init dhcp relay table and agent */ 
 int dhcpra_system_init();
 
 #endif /* DHCPRA_H_ */

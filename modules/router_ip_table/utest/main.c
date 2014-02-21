@@ -59,7 +59,7 @@ int aim_main(int argc, char* argv[])
 
     router_ip_table_init();
 
-    ASSERT(ops != NULL);
+    AIM_ASSERT(ops != NULL);
 
     key1 = make_key(10);
     key2 = make_key(8000); /* invalid */
@@ -70,41 +70,41 @@ int aim_main(int argc, char* argv[])
     /* Successful add/modify/delete */
     {
         rv = router_ip_table_lookup(10, &ip, &mac);
-        ASSERT(rv == INDIGO_ERROR_NOT_FOUND);
+        AIM_ASSERT(rv == INDIGO_ERROR_NOT_FOUND);
 
         rv = ops->add(table_priv, key1, value1, &entry_priv);
-        ASSERT(rv == INDIGO_ERROR_NONE);
+        AIM_ASSERT(rv == INDIGO_ERROR_NONE);
 
         rv = router_ip_table_lookup(10, &ip, &mac);
-        ASSERT(rv == INDIGO_ERROR_NONE);
-        ASSERT(ip == 0x1234);
-        ASSERT(!memcmp(&mac, &mac1, sizeof(of_mac_addr_t)));
+        AIM_ASSERT(rv == INDIGO_ERROR_NONE);
+        AIM_ASSERT(ip == 0x1234);
+        AIM_ASSERT(!memcmp(&mac, &mac1, sizeof(of_mac_addr_t)));
 
         rv = ops->modify(table_priv, entry_priv, key1, value2);
-        ASSERT(rv == INDIGO_ERROR_NONE);
+        AIM_ASSERT(rv == INDIGO_ERROR_NONE);
 
         rv = router_ip_table_lookup(10, &ip, &mac);
-        ASSERT(rv == INDIGO_ERROR_NONE);
-        ASSERT(ip == 0x5678);
-        ASSERT(!memcmp(&mac, &mac2, sizeof(of_mac_addr_t)));
+        AIM_ASSERT(rv == INDIGO_ERROR_NONE);
+        AIM_ASSERT(ip == 0x5678);
+        AIM_ASSERT(!memcmp(&mac, &mac2, sizeof(of_mac_addr_t)));
 
         rv = ops->del(table_priv, entry_priv, key1);
-        ASSERT(rv == INDIGO_ERROR_NONE);
+        AIM_ASSERT(rv == INDIGO_ERROR_NONE);
 
         rv = router_ip_table_lookup(10, &ip, &mac);
-        ASSERT(rv == INDIGO_ERROR_NOT_FOUND);
+        AIM_ASSERT(rv == INDIGO_ERROR_NOT_FOUND);
     }
 
     /* Invalid key */
     {
         rv = ops->add(table_priv, key2, value1, &entry_priv);
-        ASSERT(rv == INDIGO_ERROR_PARAM);
+        AIM_ASSERT(rv == INDIGO_ERROR_PARAM);
     }
 
     /* Invalid value */
     {
         rv = ops->add(table_priv, key1, value3, &entry_priv);
-        ASSERT(rv == INDIGO_ERROR_PARAM);
+        AIM_ASSERT(rv == INDIGO_ERROR_PARAM);
     }
 
     of_object_delete(key1);
@@ -138,5 +138,5 @@ indigo_core_gentable_register(
 void
 indigo_core_gentable_unregister(indigo_core_gentable_t *gentable)
 {
-    ASSERT(gentable == (void *)1);
+    AIM_ASSERT(gentable == (void *)1);
 }

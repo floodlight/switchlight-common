@@ -26,6 +26,8 @@
 #include <uCli/ucli_argparse.h>
 #include <uCli/ucli_handler_macros.h>
 
+static bool print_once = true;
+
 static void
 icmpa_clear_portcounters__(ucli_context_t* uc, uint32_t port_no)
 {
@@ -43,6 +45,20 @@ icmpa_show_portcounters__(ucli_context_t* uc, uint32_t port_no)
     if (port_no > MAX_PORTS) return;
     
     if (memcmp(&zero, &port_pkt_counters[port_no], sizeof(zero)) == 0) return; 
+
+    if (print_once == true) {
+        ucli_printf(uc,
+                    "PORT    OF port number\n"
+                    "echo    Echo Requests\n"
+                    "ttl     TTL Excedded\n"
+                    "frag    Fragmentation Needed\n"
+                    "net     Network Unreachable\n"
+                    "host    Host Unreachable\n"
+                    "port    Port Unreachable\n");
+
+        ucli_printf(uc, "PORT\techo\tttl\tfrag\tnet\thost\tport\n");
+        print_once = false;
+    }
 
     ucli_printf(uc, "%d\t%"PRId64"\t%"PRId64"\t%"PRId64"\t%"PRId64"\t%"PRId64
                 "\t%"PRId64"\n", port_no, 
@@ -77,17 +93,6 @@ icmpa_ucli_ucli__show_counters__(ucli_context_t* uc)
         ucli_printf(uc, "*************END DUMPING INFO********************\n");
     }
 
-    ucli_printf(uc, 
-                "PORT    OF port number\n"
-                "echo    Echo Requests\n"
-                "ttl     TTL Excedded\n"
-                "frag    Fragmentation Needed\n"
-                "net     Network Unreachable\n"
-                "host    Host Unreachable\n"
-                "port    Port Unreachable\n"); 
-
-    ucli_printf(uc, "PORT\techo\tttl\tfrag\tnet\thost\tport\n");
- 
     if (uc->pargs->count == 1) {
         UCLI_ARGPARSE_OR_RETURN(uc, "i", &port);
         icmpa_show_portcounters__(uc, port);
@@ -98,6 +103,7 @@ icmpa_ucli_ucli__show_counters__(ucli_context_t* uc)
         }
     }
 
+    print_once = true;
     return UCLI_STATUS_OK;
 }
 
@@ -107,7 +113,7 @@ icmpa_ucli_ucli__clear_counters__(ucli_context_t* uc)
     uint32_t port = 0;
 
     UCLI_COMMAND_INFO(uc,
-                      "clear", 0,
+                      "clear", -1,
                       "$summary#Clear the icmp packet counters."
                       "$args#[Port]");
  

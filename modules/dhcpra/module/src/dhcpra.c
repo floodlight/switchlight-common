@@ -17,6 +17,7 @@
  *
  ****************************************************************/
 
+<<<<<<< HEAD
 /*
  * Client -> Server: DHCP Discover opcode 1 
  * Server -> Client: DHCP Offer    opcode 2
@@ -612,6 +613,14 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
 
 /************************
  * LLDAP INIT and FINISH
+=======
+#include <dhcpra/dhcpra.h>
+#include "dhcpra_int.h"
+#include "dhcpr_table.h"
+
+/************************
+ * DHCPRA SYSTEM INIT
+>>>>>>> master
  ************************/
 
 /* Return 0: success */
@@ -623,6 +632,7 @@ dhcpra_system_init()
     indigo_core_packet_in_listener_register(dhcpra_handle_pkt);
 
     dhcpr_table_init();
+
     return 0;
 }
 
