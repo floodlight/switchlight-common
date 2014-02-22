@@ -21,11 +21,24 @@
 #define DHCRELAY_H_
 
 int dhc_strip_relay_agent_options(struct dhcp_packet *packet,
-                                  uint32_t length, uint32_t *vlan,
-                                  cir_to_vlan_fn c2v);
+                                  uint32_t length, uint32_t *vlan);
 
 int dhc_add_relay_agent_options(struct dhcp_packet *packet,
                                 unsigned length, unsigned max_len,
                                 opt_info_t *opt);
+
+/* Error statistics */
+/* For dhcp request */
+extern uint32_t agent_option_errors;
+extern uint32_t dhcp_request_cookie_unfound;
+extern uint32_t dhcp_request_message_missing;
+
+/* For dhcp reply */
+extern uint32_t missing_circuit_id;
+extern uint32_t bad_circuit_id;
+extern uint32_t corrupt_agent_options;
+extern uint32_t missing_dhcp_agent_option;
+extern uint32_t dhcp_reply_cookie_unfound;
+extern uint32_t dhcp_reply_message_missing;
 
 #endif /* DHCRELAY_H_ */

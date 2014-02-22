@@ -50,6 +50,7 @@
 #include "dhcp.h"
 #include "dhcpra_int.h"
 #include "dhcrelay.h"
+#include "dhcpr_table.h"
 
 /* Relay mode can have 4 options */
 enum { forward_and_append,  /* Forward and append our own relay option. */
@@ -58,19 +59,19 @@ enum { forward_and_append,  /* Forward and append our own relay option. */
        discard } agent_relay_mode = discard;
 
 
-/* Error Statistics */
+/* Error statistics, also used by ucli for debugging purpose */
 /* For dhcp request */
-int agent_option_errors = 0;
-int dhcp_request_cookie_unfound = 0;
-int dhcp_request_message_missing = 0;
+uint32_t agent_option_errors = 0;
+uint32_t dhcp_request_cookie_unfound = 0;
+uint32_t dhcp_request_message_missing = 0;
 
 /* For dhcp reply */
-int missing_circuit_id = 0;
-int bad_circuit_id = 0;
-int corrupt_agent_options = 0;
-int missing_dhcp_agent_option = 0;
-int dhcp_reply_cookie_unfound = 0;
-int dhcp_reply_message_missing = 0;
+uint32_t missing_circuit_id = 0;
+uint32_t bad_circuit_id = 0;
+uint32_t corrupt_agent_options = 0;
+uint32_t missing_dhcp_agent_option = 0;
+uint32_t dhcp_reply_cookie_unfound = 0;
+uint32_t dhcp_reply_message_missing = 0;
 
 /*
  * Examine a packet to see if it's a candidate to have a Relay
@@ -208,10 +209,12 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
         dhcp_request_message_missing++;
         return length;
     }
+
     /* If the packet was padded out, we can store the agent option
        at the beginning of the padding. */
-    if (end_pad != NULL)
+    if (end_pad != NULL) {
         sp = end_pad;
+    }
 
     /* Remember where the end of the packet was after parsing it. */
     op = sp;
@@ -220,7 +223,7 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
     if((opt->circuit_id.bytes > 255) || (opt->circuit_id.bytes < 1)) {
         ++agent_option_errors;
         AIM_LOG_ERROR("Circuid_id length(%u) out of range "
-                      "[1 - 255]\n", opt->circuit_id.bytes);
+                      "[1 - 255]", opt->circuit_id.bytes);
         return 0;
     }
 
@@ -230,7 +233,7 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
         if ((opt->remote_id.bytes >= 255) || (opt->remote_id.bytes <= 1)) {
             ++agent_option_errors;
             AIM_LOG_ERROR("Remote_id length(%u) out of range "
-                      "[2 - 254]\n", opt->remote_id.bytes);
+                      "[2 - 254]", opt->remote_id.bytes);
             return 0;
         }
         optlen += opt->remote_id.bytes + 2;    /* RAI_REMOTE_ID + len */
@@ -242,7 +245,7 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
     if ((optlen < 3) ||(optlen > 255)) {
         ++agent_option_errors;
         AIM_LOG_ERROR("Total agent option length(%u) out of range "
-                      "[3 - 255]\n", optlen);
+                      "[3 - 255]", optlen);
         return 0;
     }
     
@@ -311,8 +314,7 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
  * --circuit_id is bogus
  */
 static int
-find_vlan_by_agent_option(u_int8_t *buf, int len, uint32_t *vlan,
-                           cir_to_vlan_fn c2v) {
+find_vlan_by_agent_option(u_int8_t *buf, int len, uint32_t *vlan) {
     int i = 0;
     u_int8_t *circuit_id = 0;
     unsigned circuit_id_len = 0;
@@ -346,7 +348,7 @@ find_vlan_by_agent_option(u_int8_t *buf, int len, uint32_t *vlan,
         return -1;
     }
 
-    (*c2v)(vlan, circuit_id, circuit_id_len);
+    dhcpr_circuit_id_to_vlan(vlan, circuit_id, circuit_id_len);
 
     if(*vlan != INVALID_VLAN)
         /* Successful */
@@ -371,8 +373,7 @@ find_vlan_by_agent_option(u_int8_t *buf, int len, uint32_t *vlan,
  * */
 int
 dhc_strip_relay_agent_options(struct dhcp_packet *packet,
-                               uint32_t length, uint32_t *vlan,
-                               cir_to_vlan_fn c2v) {
+                               uint32_t length, uint32_t *vlan) {
     int is_dhcp = 0;
     u_int8_t *op, *nextop, *sp, *max;
     int dhcp_agent_option = 0;
@@ -430,7 +431,7 @@ dhc_strip_relay_agent_options(struct dhcp_packet *packet,
                 return 0;
             }
             
-            status = find_vlan_by_agent_option(op + 2, op[1], vlan, c2v);
+            status = find_vlan_by_agent_option(op + 2, op[1], vlan);
             if (status) {
                 /* 1) circuit_id opt is corrupted
                  * 2) circuit_id is missing

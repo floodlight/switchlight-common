@@ -17,14 +17,6 @@
  *
  ****************************************************************/
 
-<<<<<<< HEAD
-/*
- * Client -> Server: DHCP Discover opcode 1 
- * Server -> Client: DHCP Offer    opcode 2
- * Client -> Server: DHCP Request  opcode 1
- * Server -> Client: DHCP Ack      opcode 2
- */
-
 #include <dhcpra/dhcpra.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -34,6 +26,7 @@
 #include "dhcrelay.h"
 
 #include <indigo/of_state_manager.h>
+#include <OS/os.h>
 #include <SocketManager/socketmanager.h>
 #include <PPE/ppe.h>
 
@@ -44,20 +37,20 @@ typedef struct {
     uint32_t dhcp_reply;
     uint32_t dhcp_reply_relay;
 }dhcp_relay_stat_t;
-dhcp_relay_stat_t dhcp_stat_ports[MAX_SYSTEM_PORT+1];
+
+static dhcp_relay_stat_t dhcp_stat_ports[MAX_SYSTEM_PORT+1];
 
 /* This variable is set by ucli for debugging purpose*/
-int dhcpra_dump_data = DHCPRA_DUMP_DISABLE_ALL_PORTS;
+int dhcpra_dump_data = DHCPRA_DUMP_ENABLE_ALL_PORTS;
 int dhcpra_port_dump_data = 0;
-
-/* Switch Lay 2 routing takes care of this for us */
-int sw_can_unicast_without_arp = 1;
 
 /* Maximum DHCP packet out */
 #define OUT_PKT_BUF_SIZE DHCP_MTU_MAX
 
 /* Maximum hop count */
-int max_hop_count = 10;
+static int max_hop_count = 10;
+
+static aim_ratelimiter_t dhcpra_pktin_log_limiter;
 
 /*
  * NOTE: We can call ppe_build_ipv4_header to build ip header by
@@ -82,14 +75,63 @@ struct udp {
     u_int16_t uh_sport;     /* source port - 0 */
     u_int16_t uh_dport;     /* destination port - User */
     u_int16_t uh_ulen;      /* udp length: udp_hdr + payload - User */
-    u_int16_t uh_sum;       /* udp checksum - Uer*/
+    u_int16_t uh_sum;       /* udp checksum - User*/
 };
-
 
 #define ETHERTYPE_DOT1Q 0x8100
 #define DOT1Q_IP_HEADER_OFFSET 18
 #define UDP_HEADER_OFFSET      (DOT1Q_IP_HEADER_OFFSET + sizeof(struct ip))
 #define DHCP_HEADER_OFFSET     (UDP_HEADER_OFFSET + sizeof(struct udp))
+
+#define HEX_LEN 80
+#define PER_LINE 16
+static inline void
+dhcpra_pkt_hexdump(unsigned char *buf, int bytes)
+{
+    int idx;
+    char display[HEX_LEN];
+    int disp_offset = 0;
+    int buf_offset = 0;
+
+    /*one byte is printed into 2 chars, extra byte for NULL char*/
+    char whole_pkt_display[OUT_PKT_BUF_SIZE*2+1];
+    int pkt_offset = 0;
+
+    DHCPRA_DEBUG("DHCPRA_PKT_HEXDUMP");
+
+    /* Legality check */
+    if (bytes > OUT_PKT_BUF_SIZE) {
+        DHCPRA_DEBUG("bytes_to_read=%d, pkt_offset=%d, display_size=%d",
+                      bytes, pkt_offset, sizeof(whole_pkt_display));
+        return;
+    }
+
+    /* Dump 16 bytes for quick view */
+    while (bytes > 0) {
+
+        disp_offset = 0;
+        for (idx = 0; (idx < PER_LINE) && (idx < bytes); idx++) {
+
+            /* aim_snprintf: only return number of chars, excluding null */
+            disp_offset += aim_snprintf(&display[disp_offset], sizeof("xx"),
+                                        "%02x", buf[buf_offset + idx]);
+
+            pkt_offset += aim_snprintf(&whole_pkt_display[pkt_offset], sizeof("xx"),
+                                       "%02x", buf[buf_offset + idx]);
+        }
+
+        DHCPRA_DEBUG("%s",display);
+
+        bytes -= idx;
+        buf_offset += idx;
+
+
+    }
+
+    /* Dump the whole packet at once for external tool analysis */
+    DHCPRA_DEBUG("%s", whole_pkt_display);
+
+}
 
 static void
 set_dot1q_ipv4_type (uint8_t *pkt)
@@ -211,7 +253,7 @@ get_dhcp_server_ip(dhc_relay_t *dc)
     return (dc->dhcp_server_ip);
 }
 
-static uint8_t*
+static uint8_t *
 get_virtual_router_mac(dhc_relay_t *dc)
 {
     return (dc->vrouter_mac).addr;
@@ -243,20 +285,20 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, uint32_t relay_agent
     
     /* Legality check */
     if (dhcp_pkt->hlen > sizeof (dhcp_pkt->chaddr)) {
-        AIM_LOG_ERROR("Discarding packet with invalid hw len %d", dhcp_pkt->hlen);
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Discarding packet with invalid hw len %d", dhcp_pkt->hlen);
         return 0;
     }
 
     /* For unicast reply support */
-    if (!(dhcp_pkt->flags & htons(BOOTP_BROADCAST)) &&
-        sw_can_unicast_without_arp) {
+    if (!(dhcp_pkt->flags & htons(BOOTP_BROADCAST))) {
 
         host_ip_addr  = ntohl(dhcp_pkt->yiaddr.s_addr);
 
-        /* and hardware address is not broadcast */
-        if (dhcp_pkt->htype != 0x01) { 
-            /* ONly support Ethernet */
-            AIM_LOG_ERROR ("Unsupported Ethernet type %u", dhcp_pkt->htype);
+        /* Only support Ethernet */
+        if (dhcp_pkt->htype != HTYPE_ETHER) {
+            AIM_LOG_RL_ERROR (&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                              "Unsupported Ethernet type %u", dhcp_pkt->htype);
             return 0;
         }
 
@@ -269,13 +311,13 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, uint32_t relay_agent
     }
 
     /* Parse DCHP and strip option if any */
-    dhcp_pkt_new_len = dhc_strip_relay_agent_options(dhcp_pkt, dhcp_pkt_len, &vlan_id,
-                                                     dhcpr_circuit_id_to_vlan);
+    dhcp_pkt_new_len = dhc_strip_relay_agent_options(dhcp_pkt, dhcp_pkt_len, &vlan_id);
     DHCPRA_DEBUG("dhcp_len %u, dhcp_new_len %u", dhcp_pkt_len, dhcp_pkt_new_len);
 
     if (dhcp_pkt_new_len == 0) {
         /* Option invalid, don't need to forward to controller */
-        AIM_LOG_ERROR("Discard dhcp packets\n");
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Discard dhcp packets");
         return 0;
     }
 
@@ -285,10 +327,11 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, uint32_t relay_agent
         /*
          * Can't find vlan using relay_agent_ip. This dhcp pkt is out of date, drop it
          * This might happen when controller removed a configuration from relay agent
-         * before server knowns it
+         * before server is aware of configuration changed
          * */
-        AIM_LOG_ERROR("Unsupported vlan_vid=%d on %d, relayIP=%x\n",
-                        vlan_id, port_no, relay_agent_ip);
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Unsupported vlan_vid=%d on %d, relayIP=%x",
+                         vlan_id, port_no, relay_agent_ip);
         return 0;
     }
 
@@ -316,15 +359,15 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, uint32_t relay_agent
     
     ppe_packet_init(&ppep, data_tx.data, data_tx.bytes);
     if (ppe_parse(&ppep) < 0) {
-	    AIM_LOG_ERROR("Packet parsing failed. packet=%{data}", data_tx.data, data_tx.bytes);
-	    return 0;
-	}
+        AIM_DIE("Packet parsing failed. packet=%{data}", data_tx.data, data_tx.bytes);
+        return 0;
+    }
 
     /*
      * Set VLAN / Assume EtherType TEID: x8100 / Keep PCP/DEI the same
      * Set IP src (Switch mgmt) / dst: broadcast or unicast
      * Set MAC Src (Switch generic MAC)
-     * Set MAC Dst to packet->clienHW (L2 fwding) 
+     * Set MAC Dst to packet->clientHW (for L2 forwarding)
      * Transmit will pump to OFPP_TABLE port
      */
     ppe_field_set(&ppep, PPE_FIELD_8021Q_VLAN, vlan_id);
@@ -340,8 +383,8 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, uint32_t relay_agent
     ppe_packet_update(&ppep);
 
     if(dhcpra_port_dump_data) {
-        DHCPRA_DEBUG("Port %d: BootRely Dumping packet sent to client", port_no);
-        ppe_packet_dump(&ppep, aim_log_pvs_get(&AIM_LOG_STRUCT));
+        DHCPRA_DEBUG("Port %d: BootReply: dumping packet sent to client", port_no);
+        dhcpra_pkt_hexdump(data_tx.data, data_tx.bytes);
     }
 
     /* Send out */
@@ -370,7 +413,8 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
 
 
     if(!(dc = dhcpr_get_dhcpr_entry_from_vlan_table(vlan_id))){
-        AIM_LOG_ERROR("Unsupported vlan_vid=%d on %d\n", vlan_id, port_no);
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Unsupported vlan_vid=%d on %d", vlan_id, port_no);
         return 0;
     }
 
@@ -380,7 +424,8 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
 
     /* Legality check and copy host_mac_address */
     if (dhcp_pkt->hlen > sizeof (dhcp_pkt->chaddr)) {
-        AIM_LOG_ERROR("Discarding packet with invalid hlen.");
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Discarding packet with invalid hlen");
         return 0;
     }
     DHCPRA_MEMCPY(host_mac_address, dhcp_pkt->chaddr, dhcp_pkt->hlen);
@@ -388,7 +433,8 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
     /* If giaddr matches one of our addresses, ignore the packet */
     switch_ip = get_virtual_router_ip(dc);
     if ((dhcp_pkt->giaddr.s_addr) == htonl(switch_ip)) {
-        AIM_LOG_ERROR("Error boot request having giaddr == switch_ip ");
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Error boot request having giaddr == switch_ip");
         return 0;
     }
 
@@ -400,7 +446,8 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
 
         if (dhcp_pkt_new_len == 0) {
             /* Option or Circuit corrupted */
-            AIM_LOG_ERROR("Discard dhcp packets\n");
+            AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                             "Discard dhcp packets");
             return 0;
         }
     } else {
@@ -433,9 +480,9 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
 
     ppe_packet_init(&ppep, data_tx.data, data_tx.bytes);
     if (ppe_parse(&ppep) < 0) {
-	    AIM_LOG_ERROR("Packet parsing failed. packet=%{data}", data_tx.data, data_tx.bytes);
-	    return 0;
-	}
+        AIM_DIE("Packet parsing failed. packet=%{data}", data_tx.data, data_tx.bytes);
+        return 0;
+    }
 
     /*
      * vlan = internalVlan from original packet
@@ -448,9 +495,6 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
     ppe_field_set(&ppep, PPE_FIELD_8021Q_VLAN, vlan_id);
     ppe_field_set(&ppep, PPE_FIELD_8021Q_PRI,  vlan_pcp);
 
-    /*TODO review all htonl: look like ppe_field already take care of that
-     * it make sure most significant get get out first.
-     */
     ppe_field_set(&ppep, PPE_FIELD_IP4_SRC_ADDR, switch_ip);
     ppe_field_set(&ppep, PPE_FIELD_IP4_DST_ADDR, get_dhcp_server_ip(dc));
 
@@ -461,8 +505,8 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
     ppe_packet_update(&ppep);
 
     if(dhcpra_port_dump_data) {
-        DHCPRA_DEBUG("Port %d: BootRequest dumping packet sent to server", port_no);
-        ppe_packet_dump(&ppep, aim_log_pvs_get(&AIM_LOG_STRUCT));
+        DHCPRA_DEBUG("Port %d: BootRequest: dumping packet sent to server", port_no);
+        dhcpra_pkt_hexdump(data_tx.data, data_tx.bytes);
     }
 
     /* Send out */
@@ -482,13 +526,13 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
 indigo_core_listener_result_t
 dhcpra_handle_pkt (of_packet_in_t *packet_in)
 {
-    uint8_t                    reason;
+
     of_octets_t                data;
     of_octets_t                ldata;
     of_port_no_t               port_no;
     of_match_t                 match;
     ppe_packet_t               ppep;
-	indigo_core_listener_result_t ret = INDIGO_CORE_LISTENER_RESULT_PASS;
+    indigo_core_listener_result_t ret = INDIGO_CORE_LISTENER_RESULT_PASS;
     uint32_t                   opcode;
     uint8_t                    buf[OUT_PKT_BUF_SIZE];
     struct dhcp_packet         *dhcp_pkt;
@@ -500,44 +544,50 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     ldata.data  = buf;
     ldata.bytes =  OUT_PKT_BUF_SIZE;
 
-    of_packet_in_reason_get(packet_in, &reason);
-    if (reason != OF_PACKET_IN_REASON_BSN_DHCP) {
-        return ret;
-    }
+    /* Note: do not need to check for
+     * packet_in reason: OF_PACKET_IN_REASON_BSN_DHCP.
+     * DHCP packet from server has Virtual Router IP in dst IP,
+     * This pkt is matched to an L3 entry and delivered to CPU.
+     * Switch HW doesn't set dhcp packet_in reason in this case.
+     */
 
-	of_packet_in_data_get(packet_in, &data);
+    of_packet_in_data_get(packet_in, &data);
 
-	/* Get port_no for debugging purpose */
+    /* Get port_no for debugging purpose */
     if (packet_in->version <= OF_VERSION_1_1) {
         of_packet_in_in_port_get(packet_in, &port_no);
     } else {
         if (of_packet_in_match_get(packet_in, &match) < 0) {
-            AIM_LOG_ERROR("match get failed");
+            AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                             "match get failed");
             return ret;
         }
         port_no = match.fields.in_port;
         DHCPRA_DEBUG("port %u",port_no);
     }
 
-	/* Parsing ether pkt and identify if this is a LLDP Packet */
-	ppe_packet_init(&ppep, data.data, data.bytes);
+    /* Parsing ether pkt and identify if this is a LLDP Packet */
+    ppe_packet_init(&ppep, data.data, data.bytes);
     
-	if (ppe_parse(&ppep) < 0) {
-	    AIM_LOG_ERROR("Packet parsing failed. packet=%{data}", data.data, data.bytes);
-	    return ret;
-	}
+    if (ppe_parse(&ppep) < 0) {
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Packet parsing failed. packet=%{data}", data.data, data.bytes);
+        return ret;
+    }
 
     if (!(dhcp_pkt = (struct dhcp_packet*)ppe_header_get(&ppep, PPE_HEADER_DHCP))) {
         /*
          * Since we listen to pkt_ins
-         * Not LLDP packet, simply return
+         * Not DHCP packet, simply return
          */
-        AIM_LOG_ERROR("port %u: NOT DHCP packet",port_no);
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "port %u: NOT DHCP packet",port_no);
         return ret;
     }
 
     if(port_no > MAX_SYSTEM_PORT) {
-        AIM_LOG_ERROR("Port out of range %u", port_no);
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Port out of range %u", port_no);
         return ret;
     }
 
@@ -550,17 +600,20 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
 
     if(dhcpra_port_dump_data) {
         DHCPRA_DEBUG("Port %d: Dumping packet in", port_no);
-        ppe_packet_dump(&ppep, aim_log_pvs_get(&AIM_LOG_STRUCT));
+        /* ppe_packet_dump won't have a nice display in syslog */
+        dhcpra_pkt_hexdump(data.data, data.bytes);
     }
 
     if (data.bytes > OUT_PKT_BUF_SIZE) {
-        AIM_LOG_ERROR("DHCP Packet too big len=%l", data.bytes);
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "DHCP Packet too big len=%l", data.bytes);
         return ret;
     }
 
     if(!ppe_header_get(&ppep, PPE_HEADER_8021Q)) {
-        /* ONly support single tag x8100, don't support double tag x9100 */
-        AIM_LOG_ERROR("DHCP Packet with unsupported VLAN tag");
+        /* Only support single tag x8100, don't support double tag x9100 */
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "DHCP Packet with unsupported VLAN tag");
         return ret;
     }
 
@@ -587,8 +640,9 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     switch (opcode) {
     case BOOTREQUEST:
         dhcp_stat_ports[port_no].dhcp_request++;
-        if (dhcpra_handle_bootrequest(&ldata, dhcp_pkt_len, vlan_vid, vlan_pcp, port_no))
+        if (dhcpra_handle_bootrequest(&ldata, dhcp_pkt_len, vlan_vid, vlan_pcp, port_no)) {
             return ret;
+        }
         break;
     case BOOTREPLY:
         dhcp_stat_ports[port_no].dhcp_reply++;
@@ -600,11 +654,13 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
          *                [MSB]                               [LSB]
          * */
         ppe_field_get(&ppep, PPE_FIELD_IP4_DST_ADDR, &relay_agent_ip);
-        if (dhcpra_handle_bootreply(&ldata, dhcp_pkt_len, relay_agent_ip, vlan_pcp, port_no))
+        if (dhcpra_handle_bootreply(&ldata, dhcp_pkt_len, relay_agent_ip, vlan_pcp, port_no)) {
             return ret;
+        }
         break;
     default:
-        AIM_LOG_ERROR("Unsupported opcode=%d\n", opcode);
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Unsupported opcode=%d", opcode);
         return ret;
     }
 
@@ -612,15 +668,7 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
 }
 
 /************************
- * LLDAP INIT and FINISH
-=======
-#include <dhcpra/dhcpra.h>
-#include "dhcpra_int.h"
-#include "dhcpr_table.h"
-
-/************************
  * DHCPRA SYSTEM INIT
->>>>>>> master
  ************************/
 
 /* Return 0: success */
@@ -628,12 +676,13 @@ int
 dhcpra_system_init()
 {
 
+    /* dhcp_relay table init */
+    dhcpr_table_init();
+
+    aim_ratelimiter_init(&dhcpra_pktin_log_limiter, 1000*1000, 5, NULL);
+
     /* handler dhcp packet */
     indigo_core_packet_in_listener_register(dhcpra_handle_pkt);
 
-    dhcpr_table_init();
-
     return 0;
 }
-
-
