@@ -794,7 +794,7 @@ indigo_error_t indigo_fwd_packet_out (of_packet_out_t *pkt)
 }
 
 int
-test_discovery_pkt_in(int port_no)
+test_discovery_pkt_in(int port_no, int indigo_ret_expected)
 {
 
 #define OUT_PKT_BUF_SIZE 1500
@@ -850,12 +850,7 @@ test_discovery_pkt_in(int port_no)
     /* Handle packet */
     rv = dhcpra_handle_pkt (obj);
 
-    if (rv == INDIGO_CORE_LISTENER_RESULT_PASS) {
-        printf("\nError: NOT DHCP packet-in\n");
-    } else if (rv == INDIGO_CORE_LISTENER_RESULT_DROP)
-        printf("\nIS DHCP packet-in\n");
-    else
-        printf("\nError: Unsupport packet-in\n");
+    AIM_TRUE_OR_DIE(rv == indigo_ret_expected);
 
     of_packet_in_delete(obj);
     return rv;
@@ -942,9 +937,8 @@ int aim_main(int argc, char* argv[])
     add_entry_to_dhcpr_table();
     mod_entry_to_dhcpr_table();
 
-    //AIM_TRUE_OR_DIE(0);
-    //Port 1:
-    test_discovery_pkt_in(1);
+    //Port 1: Correct setup, packet process and pass to controller
+    test_discovery_pkt_in(1, INDIGO_CORE_LISTENER_RESULT_PASS);
     test_offer_pkt_in(1);
 
     if (dhcp_pkt_matched[1])
@@ -961,7 +955,9 @@ int aim_main(int argc, char* argv[])
     dhcp_pkt_matched[0] = 0;
     dhcp_pkt_matched[1] = 0;
     del_entry_to_dhcpr_table();
-    test_discovery_pkt_in(1);
+
+    //Incorrect VLAN drop packet
+    test_discovery_pkt_in(1, INDIGO_CORE_LISTENER_RESULT_DROP);
     test_offer_pkt_in(1);
     printf("\n\nSUMMARY:\nDISCOV:\t%s\n", dhcp_pkt_matched[0] ? "PASSED" : "FAILED");
     printf("OFFER:\t%s\n", dhcp_pkt_matched[1] ? "PASSED" : "FAILED");

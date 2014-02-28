@@ -42,7 +42,6 @@ static dhcp_relay_stat_t dhcp_stat_ports[MAX_SYSTEM_PORT+1];
 
 /* This variable is set by ucli for debugging purpose*/
 int dhcpra_dump_data = DHCPRA_DUMP_DISABLE_ALL_PORTS;
-int dhcpra_port_dump_data = 0;
 
 /* Maximum DHCP packet out */
 #define OUT_PKT_BUF_SIZE DHCP_MTU_MAX
@@ -271,7 +270,8 @@ get_virtual_router_mac(dhc_relay_t *dc)
  * */
 static int
 dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, uint32_t relay_agent_ip,
-                        uint32_t vlan_pcp, of_port_no_t port_no)
+                        uint32_t vlan_pcp, of_port_no_t port_no,
+                        int port_dump_data)
 {
     ppe_packet_t       ppep;
     of_octets_t        data_tx;
@@ -385,7 +385,7 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, uint32_t relay_agent
     /* Update ALL check sum: IP and UDP */
     ppe_packet_update(&ppep);
 
-    if(dhcpra_port_dump_data) {
+    if(port_dump_data) {
         DHCPRA_DEBUG("Port %d: BootReply: dumping packet sent to client", port_no);
         dhcpra_pkt_hexdump(data_tx.data, data_tx.bytes);
     }
@@ -406,7 +406,8 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, uint32_t relay_agent
  * */
 static int
 dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
-                            uint32_t vlan_pcp, of_port_no_t port_no)
+                          uint32_t vlan_pcp, of_port_no_t port_no,
+                          int port_dump_data)
 {
     ppe_packet_t        ppep;
     of_octets_t         data_tx;
@@ -521,7 +522,7 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
     /* Update ALL check sum: IP and UDP */
     ppe_packet_update(&ppep);
 
-    if(dhcpra_port_dump_data) {
+    if(port_dump_data) {
         DHCPRA_DEBUG("Port %d: BootRequest: dumping packet sent to server", port_no);
         dhcpra_pkt_hexdump(data_tx.data, data_tx.bytes);
     }
@@ -559,6 +560,7 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     uint32_t                   vlan_pcp;
     int                        dhcp_pkt_len;
     uint32_t                   relay_agent_ip;
+    int                        port_dump_data = 0;
 
     ldata.data  = buf;
     ldata.bytes =  OUT_PKT_BUF_SIZE;
@@ -612,12 +614,12 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
 
     if (dhcpra_dump_data == DHCPRA_DUMP_ENABLE_ALL_PORTS ||
         dhcpra_dump_data == port_no) {
-        dhcpra_port_dump_data = 1;
+        port_dump_data = 1;
     } else {
-        dhcpra_port_dump_data = 0;
+        port_dump_data = 0;
     }
 
-    if(dhcpra_port_dump_data) {
+    if(port_dump_data) {
         DHCPRA_DEBUG("Port %d: Dumping packet in", port_no);
         /* ppe_packet_dump won't have a nice display in syslog */
         dhcpra_pkt_hexdump(data.data, data.bytes);
@@ -660,7 +662,8 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     case BOOTREQUEST:
         dhcp_stat_ports[port_no].dhcp_request++;
         /* If message_type = DHCPDISCOVER: forward to controller */
-        if (dhcpra_handle_bootrequest(&ldata, dhcp_pkt_len, vlan_vid, vlan_pcp, port_no)) {
+        if (dhcpra_handle_bootrequest(&ldata, dhcp_pkt_len, vlan_vid, vlan_pcp,
+                                      port_no, port_dump_data)) {
             return ret;
         }
         break;
@@ -674,7 +677,8 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
          *                [MSB]                               [LSB]
          * */
         ppe_field_get(&ppep, PPE_FIELD_IP4_DST_ADDR, &relay_agent_ip);
-        if (dhcpra_handle_bootreply(&ldata, dhcp_pkt_len, relay_agent_ip, vlan_pcp, port_no)) {
+        if (dhcpra_handle_bootreply(&ldata, dhcp_pkt_len, relay_agent_ip, vlan_pcp,
+                                    port_no, port_dump_data)) {
             return ret;
         }
         break;

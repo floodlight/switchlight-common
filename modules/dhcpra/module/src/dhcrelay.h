@@ -29,17 +29,21 @@ int dhc_add_relay_agent_options(struct dhcp_packet *packet,
                                 opt_info_t *opt);
 
 /* Error statistics */
-/* For dhcp request */
-extern uint32_t agent_option_errors;
-extern uint32_t dhcp_request_cookie_unfound;
-extern uint32_t dhcp_request_message_missing;
+typedef struct {
+    /* For dhcp request */
+    uint32_t agent_option_errors;
+    uint32_t missing_request_cookie;
+    uint32_t missing_request_message;
 
-/* For dhcp reply */
-extern uint32_t missing_circuit_id;
-extern uint32_t bad_circuit_id;
-extern uint32_t corrupt_agent_options;
-extern uint32_t missing_dhcp_agent_option;
-extern uint32_t dhcp_reply_cookie_unfound;
-extern uint32_t dhcp_reply_message_missing;
+    /* For dhcp reply */
+    uint32_t missing_circuit_id;
+    uint32_t bad_circuit_id;
+    uint32_t corrupt_agent_options;
+    uint32_t missing_dhcp_agent_option;
+    uint32_t missing_reply_cookie;
+    uint32_t missing_reply_message;
+} dhcrelay_stat;
+
+extern dhcrelay_stat dhc_relay_stat;
 
 #endif /* DHCRELAY_H_ */
