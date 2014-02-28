@@ -31,7 +31,7 @@
 #define AIM_LOG_MODULE_NAME dhcpra
 #include <AIM/aim_log.h>
 #define DHCPRA_DEBUG(fmt, ...)                       \
-            AIM_LOG_INFO(fmt, ##__VA_ARGS__)
+            AIM_LOG_TRACE(fmt, ##__VA_ARGS__)
 
 /* 
  * Information about opt.

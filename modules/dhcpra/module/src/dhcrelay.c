@@ -87,6 +87,7 @@ uint32_t dhcp_reply_message_missing = 0;
 int
 dhc_add_relay_agent_options(struct dhcp_packet *packet,
                         unsigned length, unsigned max_dhcp_pkt_len,
+                        unsigned *message_type,
                         opt_info_t *opt) {
     int is_dhcp = 0, mms;
     unsigned optlen;
@@ -210,20 +211,22 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
         return length;
     }
 
+    /* If no circuit_id, we are not supposed to touch it */
+    if(!opt->circuit_id.bytes) {
+        return length;
+    }
+
     /* If the packet was padded out, we can store the agent option
        at the beginning of the padding. */
     if (end_pad != NULL) {
         sp = end_pad;
     }
 
-    /* Remember where the end of the packet was after parsing it. */
-    op = sp;
-
     /* Sanity check.  Had better not ever happen. */
     if((opt->circuit_id.bytes > 255) || (opt->circuit_id.bytes < 1)) {
         ++agent_option_errors;
-        AIM_LOG_ERROR("Circuid_id length(%u) out of range "
-                      "[1 - 255]", opt->circuit_id.bytes);
+        AIM_LOG_ERROR("Circuid_id length(%u) out of range [1 - 255]",
+                      opt->circuit_id.bytes);
         return 0;
     }
 
@@ -232,8 +235,8 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
     if (opt->remote_id.data) {
         if ((opt->remote_id.bytes >= 255) || (opt->remote_id.bytes <= 1)) {
             ++agent_option_errors;
-            AIM_LOG_ERROR("Remote_id length(%u) out of range "
-                      "[2 - 254]", opt->remote_id.bytes);
+            AIM_LOG_ERROR("Remote_id length(%u) out of range [2 - 254]",
+                          opt->remote_id.bytes);
             return 0;
         }
         optlen += opt->remote_id.bytes + 2;    /* RAI_REMOTE_ID + len */
@@ -244,8 +247,8 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
      */
     if ((optlen < 3) ||(optlen > 255)) {
         ++agent_option_errors;
-        AIM_LOG_ERROR("Total agent option length(%u) out of range "
-                      "[3 - 255]", optlen);
+        AIM_LOG_ERROR("Total agent option length(%u) out of range [3 - 255]",
+                      optlen);
         return 0;
     }
     
@@ -279,8 +282,7 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
         }
     } else {
         ++agent_option_errors;
-        AIM_LOG_ERROR("No room in packet (used %d of %d) "
-                      "for %d-byte relay agent option: omitted",
+        AIM_LOG_ERROR("No room in packet (used %d of %d) for %d-byte relay agent option: omitted",
                       (int) (sp - ((u_int8_t *) packet)),
                       (int) (max - ((u_int8_t *) packet)),
                       optlen + 3);

@@ -25,6 +25,7 @@ int dhc_strip_relay_agent_options(struct dhcp_packet *packet,
 
 int dhc_add_relay_agent_options(struct dhcp_packet *packet,
                                 unsigned length, unsigned max_len,
+                                unsigned *message_type,
                                 opt_info_t *opt);
 
 /* Error statistics */

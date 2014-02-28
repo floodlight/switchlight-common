@@ -41,7 +41,7 @@ typedef struct {
 static dhcp_relay_stat_t dhcp_stat_ports[MAX_SYSTEM_PORT+1];
 
 /* This variable is set by ucli for debugging purpose*/
-int dhcpra_dump_data = DHCPRA_DUMP_ENABLE_ALL_PORTS;
+int dhcpra_dump_data = DHCPRA_DUMP_DISABLE_ALL_PORTS;
 int dhcpra_port_dump_data = 0;
 
 /* Maximum DHCP packet out */
@@ -221,6 +221,8 @@ dhcpra_send_pkt (of_octets_t *octets, of_port_no_t port_no)
     of_object_delete(action);
 
     rv = of_packet_out_actions_set(pkt_out, list);
+    AIM_TRUE_OR_DIE(rv==OF_ERROR_NONE);
+
     of_object_delete(list);
 
     if ((rv = of_packet_out_data_set(pkt_out, octets)) != OF_ERROR_NONE) {
@@ -259,13 +261,13 @@ get_virtual_router_mac(dhc_relay_t *dc)
     return (dc->vrouter_mac).addr;
 }
 
-/* Generate vlan_id from relay_agent_ip or circuit_id option
+/*
+ * It drops a packet if
+ * - the packet is malformed
+ * - relay_agent_ip / routerIP doesn't mapped to any internal vlan
  *
- * Return 0: Won't pass message to the controller
- * If there is circuit_id, couldn't find vlan: drop packet
- * If relay_agent_ip / routerIP doesn't mapped to any internal vlan
- *
- * Extra legality check vlan_id vs relay_agent_ip_to_vlan_id;
+ * Using relay_agent_ip map, it gets the internal vlan which the dhcp client is on
+ * Circuit_id is only optional and used for legality check only
  * */
 static int
 dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, uint32_t relay_agent_ip,
@@ -283,31 +285,29 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, uint32_t relay_agent
 
     dhcp_pkt = (struct dhcp_packet *)(pkt->data + DHCP_HEADER_OFFSET);
     
-    /* Legality check */
-    if (dhcp_pkt->hlen > sizeof (dhcp_pkt->chaddr)) {
-        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                         "Discarding packet with invalid hw len %d", dhcp_pkt->hlen);
+    /* Only support Ethernet */
+    if (dhcp_pkt->htype != HTYPE_ETHER) {
+        AIM_LOG_RL_ERROR (&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                          "Discard packets with unsupported hw type=%d on port=%d",
+                          dhcp_pkt->htype, port_no);
         return 0;
     }
 
-    /* For unicast reply support */
+    if (dhcp_pkt->hlen != sizeof(host_mac_address)) {
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Discard packets with unsupport hw len=%d on port=%d",
+                         dhcp_pkt->hlen, port_no);
+        return 0;
+    }
+
     if (!(dhcp_pkt->flags & htons(BOOTP_BROADCAST))) {
-
+        /* Unicast */
         host_ip_addr  = ntohl(dhcp_pkt->yiaddr.s_addr);
-
-        /* Only support Ethernet */
-        if (dhcp_pkt->htype != HTYPE_ETHER) {
-            AIM_LOG_RL_ERROR (&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                              "Unsupported Ethernet type %u", dhcp_pkt->htype);
-            return 0;
-        }
-
-        DHCPRA_MEMCPY(host_mac_address, dhcp_pkt->chaddr, dhcp_pkt->hlen);
-         
+        DHCPRA_MEMCPY(host_mac_address, dhcp_pkt->chaddr, sizeof(host_mac_address));
     } else {
         /* Broadcast */
         host_ip_addr  = htonl(INADDR_BROADCAST);
-        DHCPRA_MEMSET (host_mac_address, 0xff, OF_MAC_ADDR_BYTES);
+        DHCPRA_MEMSET (host_mac_address, 0xff, sizeof(host_mac_address));
     }
 
     /* Parse DCHP and strip option if any */
@@ -315,9 +315,9 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, uint32_t relay_agent
     DHCPRA_DEBUG("dhcp_len %u, dhcp_new_len %u", dhcp_pkt_len, dhcp_pkt_new_len);
 
     if (dhcp_pkt_new_len == 0) {
-        /* Option invalid, don't need to forward to controller */
+        /* Option invalid: Drop packets */
         AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                         "Discard dhcp packets");
+                         "Discard a malformed packet");
         return 0;
     }
 
@@ -329,9 +329,13 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, uint32_t relay_agent
          * This might happen when controller removed a configuration from relay agent
          * before server is aware of configuration changed
          * */
-        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                         "Unsupported vlan_vid=%d on %d, relayIP=%x",
-                         vlan_id, port_no, relay_agent_ip);
+        AIM_LOG_RL_WARN(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                        "Unsupported vlan_vid=%d on port=%d, relayIP=%d.%d.%d.%d",
+                        vlan_id, port_no,
+                        ((uint8_t*)&relay_agent_ip)[3],
+                        ((uint8_t*)&relay_agent_ip)[2],
+                        ((uint8_t*)&relay_agent_ip)[1],
+                        ((uint8_t*)&relay_agent_ip)[0]);
         return 0;
     }
 
@@ -360,7 +364,6 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, uint32_t relay_agent
     ppe_packet_init(&ppep, data_tx.data, data_tx.bytes);
     if (ppe_parse(&ppep) < 0) {
         AIM_DIE("Packet parsing failed. packet=%{data}", data_tx.data, data_tx.bytes);
-        return 0;
     }
 
     /*
@@ -393,9 +396,13 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, uint32_t relay_agent
     return 0;
 }
 
-/* Drop packet:
- * having invalid info: option
- * vlan has no dhcp relay configuration
+/*
+ * It drops a packet if
+ * - the packet is malformed
+ * - its internal vlan has no dhcp relay configuration
+ *
+ * Use virtual_router_ip as relay_agent_ip
+ * Circuit_id is only optional
  * */
 static int
 dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
@@ -410,11 +417,11 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
     uint32_t            switch_ip;
     dhc_relay_t*        dc;
     uint8_t             host_mac_address[OF_MAC_ADDR_BYTES];
-
+    uint32_t            message_type = 0;
 
     if(!(dc = dhcpr_get_dhcpr_entry_from_vlan_table(vlan_id))){
         AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                         "Unsupported vlan_vid=%d on %d", vlan_id, port_no);
+                         "Unsupported vlan_vid=%d on port=%d", vlan_id, port_no);
         return 0;
     }
 
@@ -422,13 +429,30 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
     dhcp_pkt = (struct dhcp_packet *) (pkt->data + DHCP_HEADER_OFFSET);
     max_dhcp_pkt_len = OUT_PKT_BUF_SIZE - DHCP_HEADER_OFFSET;
 
-    /* Legality check and copy host_mac_address */
-    if (dhcp_pkt->hlen > sizeof (dhcp_pkt->chaddr)) {
-        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                         "Discarding packet with invalid hlen");
+    /* Only support Ethernet */
+    if (dhcp_pkt->htype != HTYPE_ETHER) {
+        AIM_LOG_RL_ERROR (&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                          "Discard packets with unsupported hw type=%d on port=%",
+                          dhcp_pkt->htype, port_no);
         return 0;
     }
-    DHCPRA_MEMCPY(host_mac_address, dhcp_pkt->chaddr, dhcp_pkt->hlen);
+
+    if (dhcp_pkt->hlen != sizeof(host_mac_address)) {
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Discard packets with unsupport hw len=%d on port=%d",
+                         dhcp_pkt->hlen, port_no);
+        return 0;
+    }
+
+    DHCPRA_MEMCPY(host_mac_address, dhcp_pkt->chaddr, OF_MAC_ADDR_BYTES);
+
+    if (dhcp_pkt->hops < max_hop_count) {
+        dhcp_pkt->hops = dhcp_pkt->hops + 1;
+    } else {
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Discard dhcp packet: dhcp hops %d > max_hop", dhcp_pkt->hops);
+        return 0;
+    }
 
     /* If giaddr matches one of our addresses, ignore the packet */
     switch_ip = get_virtual_router_ip(dc);
@@ -438,20 +462,20 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
         return 0;
     }
 
-    /* If circuit_id exists: parse dhcp options and attach opt 82, return new len */
-    if (opt->circuit_id.bytes) {
-        dhcp_pkt_new_len = dhc_add_relay_agent_options(dhcp_pkt, dhcp_pkt_len, max_dhcp_pkt_len, opt);
+    /* Always parse dhcp options to get message_type
+     * and attach opt 82 if circuit_id is valid
+     * Return new len */
+    dhcp_pkt_new_len = dhc_add_relay_agent_options(dhcp_pkt, dhcp_pkt_len,
+                                                   max_dhcp_pkt_len, &message_type, opt);
 
-        DHCPRA_DEBUG("dhcp_len %u, dhcp_new_len %u", dhcp_pkt_len, dhcp_pkt_new_len);
+    DHCPRA_DEBUG("msg_type %u, dhcp_len %u, dhcp_new_len %u",
+                  message_type, dhcp_pkt_len, dhcp_pkt_new_len);
 
-        if (dhcp_pkt_new_len == 0) {
-            /* Option or Circuit corrupted */
-            AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                             "Discard dhcp packets");
-            return 0;
-        }
-    } else {
-        dhcp_pkt_new_len = dhcp_pkt_len;
+    if (dhcp_pkt_new_len == 0) {
+        /* Option or circuit corrupted */
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Discard a malformed packet");
+        return 0;
     }
 
     /*
@@ -465,12 +489,6 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
         dhcp_pkt->giaddr.s_addr = htonl(get_virtual_router_ip(dc));
     }
 
-    if (dhcp_pkt->hops < max_hop_count) {
-        dhcp_pkt->hops = dhcp_pkt->hops + 1;
-    } else {
-        return 0;
-    }
-
     /* Set Ether, DOT1Q, IP, UDP src, dst, dhcp payload len */
     init_ppe_header(pkt->data, dhcp_pkt_new_len,
                     PPE_PSERVICE_PORT_DHCP_CLIENT, PPE_PSERVICE_PORT_DHCP_SERVER);
@@ -481,7 +499,6 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
     ppe_packet_init(&ppep, data_tx.data, data_tx.bytes);
     if (ppe_parse(&ppep) < 0) {
         AIM_DIE("Packet parsing failed. packet=%{data}", data_tx.data, data_tx.bytes);
-        return 0;
     }
 
     /*
@@ -512,7 +529,9 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
     /* Send out */
     dhcp_stat_ports[port_no].dhcp_request_relay++;
     dhcpra_send_pkt (&data_tx, port_no);
-    return 0;
+
+    /* If it is a valid discover message, pass to the controller */
+    return (message_type == DHCPDISCOVER ? 1 : 0);
 }
 
 /*
@@ -566,7 +585,7 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
         DHCPRA_DEBUG("port %u",port_no);
     }
 
-    /* Parsing ether pkt and identify if this is a LLDP Packet */
+    /* Parsing ether pkt and identify if this is a DHCP Packet */
     ppe_packet_init(&ppep, data.data, data.bytes);
     
     if (ppe_parse(&ppep) < 0) {
@@ -580,7 +599,7 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
          * Since we listen to pkt_ins
          * Not DHCP packet, simply return
          */
-        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+        AIM_LOG_RL_TRACE(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                          "port %u: NOT DHCP packet",port_no);
         return ret;
     }
@@ -640,6 +659,7 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     switch (opcode) {
     case BOOTREQUEST:
         dhcp_stat_ports[port_no].dhcp_request++;
+        /* If message_type = DHCPDISCOVER: forward to controller */
         if (dhcpra_handle_bootrequest(&ldata, dhcp_pkt_len, vlan_vid, vlan_pcp, port_no)) {
             return ret;
         }

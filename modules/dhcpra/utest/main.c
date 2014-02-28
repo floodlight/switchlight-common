@@ -851,9 +851,9 @@ test_discovery_pkt_in(int port_no)
     rv = dhcpra_handle_pkt (obj);
 
     if (rv == INDIGO_CORE_LISTENER_RESULT_PASS) {
-        printf("\nError: NOT LLDP packet-in\n");
+        printf("\nError: NOT DHCP packet-in\n");
     } else if (rv == INDIGO_CORE_LISTENER_RESULT_DROP)
-        printf("\nIS LLDP packet-in\n");
+        printf("\nIS DHCP packet-in\n");
     else
         printf("\nError: Unsupport packet-in\n");
 
@@ -918,9 +918,9 @@ test_offer_pkt_in(int port_no)
     rv = dhcpra_handle_pkt (obj);
 
     if (rv == INDIGO_CORE_LISTENER_RESULT_PASS) {
-        printf("\nError: NOT LLDP packet-in\n");
+        printf("\nError: NOT DHCP packet-in\n");
     } else if (rv == INDIGO_CORE_LISTENER_RESULT_DROP)
-        printf("\nIS LLDP packet-in\n");
+        printf("\nIS DHCP packet-in\n");
     else
         printf("\nError: Unsupport packet-in\n");
 
