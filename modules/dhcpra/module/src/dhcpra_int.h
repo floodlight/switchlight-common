@@ -31,7 +31,7 @@
 #define AIM_LOG_MODULE_NAME dhcpra
 #include <AIM/aim_log.h>
 #define DHCPRA_DEBUG(fmt, ...)                       \
-            AIM_LOG_INFO(fmt, ##__VA_ARGS__)
+            AIM_LOG_TRACE(fmt, ##__VA_ARGS__)
 
 /* 
  * Information about opt.
@@ -61,8 +61,5 @@ enum {
     DHCPRA_DUMP_DISABLE_ALL_PORTS = -2,
     DHCPRA_DUMP_ENABLE_ALL_PORTS  = -1
 };
-
-/* Set vlan to INVALID if not exist */
-typedef void (*cir_to_vlan_fn)(uint32_t *vlan, u_int8_t *cir_id, int cir_id_len);
 
 #endif /* __DHCPRA_INT_H__ */
