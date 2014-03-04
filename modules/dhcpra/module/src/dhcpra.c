@@ -552,7 +552,6 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     of_port_no_t               port_no;
     of_match_t                 match;
     ppe_packet_t               ppep;
-    indigo_core_listener_result_t ret = INDIGO_CORE_LISTENER_RESULT_PASS;
     uint32_t                   opcode;
     uint8_t                    buf[OUT_PKT_BUF_SIZE];
     struct dhcp_packet         *dhcp_pkt;
@@ -581,7 +580,7 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
         if (of_packet_in_match_get(packet_in, &match) < 0) {
             AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                              "match get failed");
-            return ret;
+            return INDIGO_CORE_LISTENER_RESULT_PASS;
         }
         port_no = match.fields.in_port;
         DHCPRA_DEBUG("port %u",port_no);
@@ -593,7 +592,7 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     if (ppe_parse(&ppep) < 0) {
         AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                          "Packet parsing failed. packet=%{data}", data.data, data.bytes);
-        return ret;
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
     if (!(dhcp_pkt = (struct dhcp_packet*)ppe_header_get(&ppep, PPE_HEADER_DHCP))) {
@@ -603,13 +602,13 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
          */
         AIM_LOG_RL_TRACE(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                          "port %u: NOT DHCP packet",port_no);
-        return ret;
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
     if(port_no > MAX_SYSTEM_PORT) {
         AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                          "Port out of range %u", port_no);
-        return ret;
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
     if (dhcpra_dump_data == DHCPRA_DUMP_ENABLE_ALL_PORTS ||
@@ -628,14 +627,14 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     if (data.bytes > OUT_PKT_BUF_SIZE) {
         AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                          "DHCP Packet too big len=%l", data.bytes);
-        return ret;
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
     if(!ppe_header_get(&ppep, PPE_HEADER_8021Q)) {
         /* Only support single tag x8100, don't support double tag x9100 */
         AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                          "DHCP Packet with unsupported VLAN tag");
-        return ret;
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
     /* Don't support PPE_FIELD_OUTER_8021Q_VLAN / PPE_FIELD_INNER_8021Q_VLAN */
@@ -664,7 +663,8 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
         /* If message_type = DHCPDISCOVER: forward to controller */
         if (dhcpra_handle_bootrequest(&ldata, dhcp_pkt_len, vlan_vid, vlan_pcp,
                                       port_no, port_dump_data)) {
-            return ret;
+            DHCPRA_DEBUG("Forward REQUEST to controller");
+            return INDIGO_CORE_LISTENER_RESULT_PASS;
         }
         break;
     case BOOTREPLY:
@@ -679,13 +679,14 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
         ppe_field_get(&ppep, PPE_FIELD_IP4_DST_ADDR, &relay_agent_ip);
         if (dhcpra_handle_bootreply(&ldata, dhcp_pkt_len, relay_agent_ip, vlan_pcp,
                                     port_no, port_dump_data)) {
-            return ret;
+            DHCPRA_DEBUG("Forward REPLY to controller");
+            return INDIGO_CORE_LISTENER_RESULT_PASS;
         }
         break;
     default:
         AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                          "Unsupported opcode=%d", opcode);
-        return ret;
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
     return INDIGO_CORE_LISTENER_RESULT_DROP;   
