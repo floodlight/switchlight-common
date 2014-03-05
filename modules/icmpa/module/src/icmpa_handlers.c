@@ -134,9 +134,8 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
         if (icmpa_reply(&ppep, port_no)) {
             result = INDIGO_CORE_LISTENER_RESULT_DROP;
             ++port_pkt_counters[port_no].icmp_echo_packets;
-        }
-       
-        return result; 
+            return result;
+        } 
     }  
   
     /*
