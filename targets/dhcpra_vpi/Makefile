@@ -28,7 +28,7 @@ $(LIBRARY)_SUBDIR := $(dir $(lastword $(MAKEFILE_LIST)))
 include $(BUILDER)/lib.mk
 
 DEPENDMODULES := AIM PPE IOF VPI BigList OS loci indigo SocketManager \
-		         cjson Configuration murmur OFConnectionManager \
+                 cjson Configuration murmur OFConnectionManager \
                  uCli BigHash dhcpra
 
 include $(BUILDER)/dependmodules.mk

@@ -1,6 +1,6 @@
 /****************************************************************
  *
- *        Copyright 2013, Big Switch Networks, Inc.
+ *        Copyright 2014, Big Switch Networks, Inc.
  *
  * Licensed under the Eclipse Public License, Version 1.0 (the
  * "License"); you may not use this file except in compliance
@@ -80,7 +80,7 @@ dhcpra_show_dhcp_relay__(ucli_context_t* uc, uint32_t vlan_id)
         ucli_printf(uc, "%s\t", inet_ntoa(ip));
         p = de->vrouter_mac.addr;
         ucli_printf(uc,"%02x:%02x:%02x:%02x:%02x:%02x\t",
-                       p[0], p[1], p[2], p[3], p[4], p[5]);
+                    p[0], p[1], p[2], p[3], p[4], p[5]);
         ip.s_addr = de->dhcp_server_ip;
         ucli_printf(uc, "%s\t", inet_ntoa(ip));
         ucli_printf(uc,"%{data}\n", de->opt_id.circuit_id.data, de->opt_id.circuit_id.bytes);
