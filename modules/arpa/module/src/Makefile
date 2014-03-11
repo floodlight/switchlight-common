@@ -5,5 +5,5 @@
 ###############################################################################
 
 ucli:
-	@../../../../tools/uclihandlers.py arpa_ucli.c
+	@$(SUBMODULE_BIGCODE)/tools/uclihandlers.py arpa_ucli.c
 
