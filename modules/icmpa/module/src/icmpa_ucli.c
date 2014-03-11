@@ -88,6 +88,8 @@ icmpa_ucli_ucli__show_counters__(ucli_context_t* uc)
                     pkt_counters.icmp_total_in_packets);
         ucli_printf(uc, "TOTAL PACKETS SENT         : %" PRId64 "\n",
                     pkt_counters.icmp_total_out_packets);
+        ucli_printf(uc, "TOTAL PACKETS PASSED       : %" PRId64 "\n",
+                    pkt_counters.icmp_total_passed_packets);
         ucli_printf(uc, "INTERNAL ERRORS            : %" PRId64 "\n",
                     pkt_counters.icmp_internal_errors);
         ucli_printf(uc, "*************END DUMPING INFO********************\n");
@@ -125,6 +127,7 @@ icmpa_ucli_ucli__clear_counters__(ucli_context_t* uc)
     } else {
         pkt_counters.icmp_total_in_packets = 0;
         pkt_counters.icmp_total_out_packets = 0;
+        pkt_counters.icmp_total_passed_packets = 0;
         pkt_counters.icmp_internal_errors = 0;
 
         for (port = 0; port <= MAX_PORTS; port++) {

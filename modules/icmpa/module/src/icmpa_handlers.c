@@ -100,6 +100,18 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
     of_packet_in_reason_get(packet_in, &reason); 
 
     /*
+     * Check if the packet-in reasons 
+     * FIXME: Temporary fix, need to think of long term solution
+     */
+    if (reason == OF_PACKET_IN_REASON_BSN_BAD_VLAN || 
+        reason == OF_PACKET_IN_REASON_BSN_STATION_MOVE ||
+        reason == OF_PACKET_IN_REASON_BSN_NEW_HOST) {
+        ++pkt_counters.icmp_total_passed_packets;
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
+    }
+        
+
+    /*
      * Identify the recv port
      */
     if (packet_in->version <= OF_VERSION_1_1) {
@@ -225,6 +237,7 @@ icmpa_init (void)
 
     pkt_counters.icmp_total_in_packets = 0;
     pkt_counters.icmp_total_out_packets = 0;
+    pkt_counters.icmp_total_passed_packets = 0;
     pkt_counters.icmp_internal_errors = 0;
     ICMPA_MEMSET(&port_pkt_counters[0], 0, 
                  sizeof(icmpa_typecode_packet_counter_t) * (MAX_PORTS+1));
@@ -256,6 +269,7 @@ icmpa_finish (void)
 
     pkt_counters.icmp_total_in_packets = 0;
     pkt_counters.icmp_total_out_packets = 0;
+    pkt_counters.icmp_total_passed_packets = 0;
     pkt_counters.icmp_internal_errors = 0;
     ICMPA_MEMSET(&port_pkt_counters[0], 0,
                  sizeof(icmpa_typecode_packet_counter_t) * (MAX_PORTS+1));
