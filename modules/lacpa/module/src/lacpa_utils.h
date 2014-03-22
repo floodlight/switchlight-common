@@ -30,19 +30,19 @@ lacpa_register_system_counters (void)
 {
     debug_counter_register(&lacpa_system.debug_info.lacp_total_in_packets,
                            "lacpa.lacp_total_in_packets",
-                           "Number of pkt-ins recv'd by lacpa"); 
+                           "Packet-ins recv'd by lacpa"); 
     debug_counter_register(&lacpa_system.debug_info.lacp_system_in_packets,
                            "lacpa.lacp_system_in_packets",
-                           "Number of lacp pkts recv'd by lacpa");
+                           "Lacp packets recv'd by lacpa");
     debug_counter_register(&lacpa_system.debug_info.lacp_system_out_packets,
                            "lacpa.lacp_system_out_packets",
-                           "Number of lacp pkts sent by lacpa");
+                           "Lacp packets sent by lacpa");
     debug_counter_register(&lacpa_system.debug_info.lacp_controller_set_requests,
                            "lacpa.lacp_controller_set_requests",
-                           "Number of set request msgs recv'd by lacpa");
+                           "Set request msgs recv'd by lacpa");
     debug_counter_register(&lacpa_system.debug_info.lacp_controller_stats_requests,
                            "lacpa.lacp_controller_stats_requests",
-                           "Number of stats request msgs recv'd by lacpa");  
+                           "Stats request msgs recv'd by lacpa");  
 }
 
 /*
