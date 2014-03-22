@@ -90,7 +90,7 @@ lacpa_update_controller (lacpa_port_t *port)
      * Send convergence status to the controller 
      */
     indigo_cxn_send_async_message(obj);
-    ++port->debug_info.lacp_convergence_notif;     
+    debug_counter_inc(&port->debug_info.lacp_convergence_notif);     
 }
 
 /*
@@ -137,8 +137,8 @@ lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets)
     } else {
         AIM_LOG_TRACE("Successfully sent packet out the port: %d", 
                       port->actor.port_no);
-        ++port->debug_info.lacp_port_out_packets;
-        ++lacpa_system.debug_info.lacp_system_out_packets;
+        debug_counter_inc(&port->debug_info.lacp_port_out_packets);
+        debug_counter_inc(&lacpa_system.debug_info.lacp_system_out_packets);
     }
 
     of_packet_out_delete(obj);
@@ -159,7 +159,7 @@ lacpa_packet_in_handler (of_packet_in_t *packet_in)
     lacpa_pdu_t                pdu;
     ppe_packet_t               ppep;
 
-    ++lacpa_system.debug_info.lacp_total_in_packets;
+    debug_counter_inc(&lacpa_system.debug_info.lacp_total_in_packets);
     if (!packet_in) return INDIGO_CORE_LISTENER_RESULT_PASS;
 
     LACPA_MEMSET(&pdu, 0, sizeof(lacpa_pdu_t));
@@ -180,7 +180,7 @@ lacpa_packet_in_handler (of_packet_in_t *packet_in)
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
-    ++lacpa_system.debug_info.lacp_system_in_packets; 
+    debug_counter_inc(&lacpa_system.debug_info.lacp_system_in_packets); 
 
     /*
      * Identify the recv port and see if it has LACP agent running
@@ -360,9 +360,25 @@ lacpa_get_port_stats_handle (indigo_cxn_id_t cxn,
              * Append the entry obj created in the list of enteries
              */
             if (of_list_append(&entries, entry) < 0) {
-                AIM_LOG_ERROR("Unable to add entry to stats reply for port: %d",
-                              port->actor.port_no);
-                break;
+                
+                /* 
+                 * This entry didn't fit, send out the current message and
+                 * allocate a new one. 
+                 */
+                of_bsn_lacp_stats_reply_flags_set(reply, 
+                                             OF_STATS_REPLY_FLAG_REPLY_MORE);
+                indigo_cxn_send_controller_message(cxn, reply);
+
+                reply = of_bsn_lacp_stats_reply_new(obj->version);
+                AIM_TRUE_OR_DIE(reply != NULL);
+
+                of_bsn_lacp_stats_reply_xid_set(reply, xid);
+                of_bsn_lacp_stats_reply_entries_bind(reply, &entries);
+
+                if (of_list_append(&entries, entry) < 0) {    
+                    AIM_DIE("Unexpected failure appending single bsn_lacp"
+                            "stats entry");
+                }
             }
         }
     }
@@ -398,13 +414,13 @@ lacpa_controller_msg_handler (indigo_cxn_id_t cxn, of_object_t *obj)
      */
     switch (obj->object_id) {
     case OF_BSN_SET_LACP_REQUEST:
-        ++lacpa_system.debug_info.lacp_controller_set_requests;
+        debug_counter_inc(&lacpa_system.debug_info.lacp_controller_set_requests);
         lacpa_set_port_param_handle(cxn, (of_bsn_set_lacp_request_t *)obj);
         result = INDIGO_CORE_LISTENER_RESULT_DROP;
         break;
 
     case OF_BSN_LACP_STATS_REQUEST:
-        ++lacpa_system.debug_info.lacp_controller_stats_requests;
+        debug_counter_inc(&lacpa_system.debug_info.lacp_controller_stats_requests);
         lacpa_get_port_stats_handle(cxn, (of_bsn_lacp_stats_request_t *)obj);
         result = INDIGO_CORE_LISTENER_RESULT_DROP;
         break;

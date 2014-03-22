@@ -134,12 +134,12 @@ lacpa_dump_port (lacpa_port_t *port)
     LACPA_LOG_PORTSTATS("LACP TANSMIT REASON   : %{lacpa_transmit}",
                         port->debug_info.ntt_reason);
     LACPA_LOG_PORTSTATS("\nPACKET INFO");
-    LACPA_LOG_PORTSTATS("LACP PACKET IN        : %" PRId64, 
-                        port->debug_info.lacp_port_in_packets);
-    LACPA_LOG_PORTSTATS("LACP PACKET OUT       : %" PRId64, 
-                        port->debug_info.lacp_port_out_packets);
-    LACPA_LOG_PORTSTATS("CONVERGENCE NOTIF     : %" PRId64,
-                        port->debug_info.lacp_convergence_notif);
+    LACPA_LOG_PORTSTATS("LACP PACKET IN        : %" PRId64, debug_counter_get( 
+                        &port->debug_info.lacp_port_in_packets));
+    LACPA_LOG_PORTSTATS("LACP PACKET OUT       : %" PRId64, debug_counter_get(
+                        &port->debug_info.lacp_port_out_packets));
+    LACPA_LOG_PORTSTATS("CONVERGENCE NOTIF     : %" PRId64, debug_counter_get(
+                        &port->debug_info.lacp_convergence_notif));
     LACPA_LOG_PORTSTATS("*************END DUMPING INFO**************\n");
 }
 
@@ -431,13 +431,29 @@ lacpa_init_port (lacpa_info_t *info, bool lacp_enabled)
 
     if (lacp_enabled) {
         event = LACPA_EVENT_ENABLED;
+        snprintf(port->debug_info.lacp_pktin_counter_name_buf, 64,
+                 "lacpa.port:%d.lacp_port_in_packets", info->port_no);
+        snprintf(port->debug_info.lacp_pktout_counter_name_buf, 64,
+                 "lacpa.port:%d.lacp_port_out_packets", info->port_no);
+        snprintf(port->debug_info.lacp_convergence_counter_name_buf, 64,
+                 "lacpa.port:%d.lacp_convergence_notif", info->port_no); 
+        debug_counter_register(&port->debug_info.lacp_port_in_packets,
+                               port->debug_info.lacp_pktin_counter_name_buf,
+                               "Number of lacp pkts recv'd on this port");
+        debug_counter_register(&port->debug_info.lacp_port_out_packets,
+                               port->debug_info.lacp_pktout_counter_name_buf,
+                               "Number of lacp pkts sent on this port");
+        debug_counter_register(&port->debug_info.lacp_convergence_notif,
+                               port->debug_info.lacp_convergence_counter_name_buf,
+                               "Number of convergence notifications sent to " 
+                               "the controller for this port");
     } else {
         event = LACPA_EVENT_DISABLED;
+        debug_counter_unregister(&port->debug_info.lacp_port_in_packets);
+        debug_counter_unregister(&port->debug_info.lacp_port_out_packets);
+        debug_counter_unregister(&port->debug_info.lacp_convergence_notif);
     }
-
-    port->debug_info.lacp_port_in_packets = 0;
-    port->debug_info.lacp_port_out_packets = 0;
-    port->debug_info.lacp_convergence_notif = 0;
+    
     port->churn_detection_running = false;
     lacpa_machine(port, NULL, event);
 }
@@ -594,7 +610,7 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu, lacpa_event_t event)
         LACPA_CLR_STATE_EXPIRED(port->actor.state);
         LACPA_CLR_STATE_DEFAULTED(port->actor.state);
         prev_error = port->error;
-        ++port->debug_info.lacp_port_in_packets;
+        debug_counter_inc(&port->debug_info.lacp_port_in_packets);
 
         /*
          * Process the received Partner LACPDU

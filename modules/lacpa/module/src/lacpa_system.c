@@ -61,7 +61,7 @@ lacpa_init (void)
     ports_size = sizeof(lacpa_port_t) * (PHY_PORT_COUNT+1);
     lacpa_system.lacp_active_port_count = 0;
     aim_ratelimiter_init(&lacpa_pktin_log_limiter, 1000*1000, 5, NULL);
-    lacpa_clear_system_counters();
+    lacpa_register_system_counters();
 
     lacpa_system.ports = (lacpa_port_t *) LACPA_MALLOC(ports_size);
     if (lacpa_system.ports == NULL) {
@@ -100,12 +100,11 @@ lacpa_init (void)
 void
 lacpa_finish (void)
 {
-
     indigo_core_packet_in_listener_unregister(lacpa_packet_in_handler);
     indigo_core_message_listener_unregister(lacpa_controller_msg_handler);
 
     lacpa_system.lacp_active_port_count = 0;
-    lacpa_clear_system_counters();
+    lacpa_unregister_system_counters();
 
     LACPA_FREE(lacpa_system.ports);
     lacp_system_initialized = false;

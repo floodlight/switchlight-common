@@ -22,17 +22,53 @@
 #include "lacpa_int.h"
 #include <PPE/ppe.h>
 
+/*
+ * lacpa_register_system_counters
+ */
+static inline void
+lacpa_register_system_counters (void)
+{
+    debug_counter_register(&lacpa_system.debug_info.lacp_total_in_packets,
+                           "lacpa.lacp_total_in_packets",
+                           "Number of pkt-ins recv'd by lacpa"); 
+    debug_counter_register(&lacpa_system.debug_info.lacp_system_in_packets,
+                           "lacpa.lacp_system_in_packets",
+                           "Number of lacp pkts recv'd by lacpa");
+    debug_counter_register(&lacpa_system.debug_info.lacp_system_out_packets,
+                           "lacpa.lacp_system_out_packets",
+                           "Number of lacp pkts sent by lacpa");
+    debug_counter_register(&lacpa_system.debug_info.lacp_controller_set_requests,
+                           "lacpa.lacp_controller_set_requests",
+                           "Number of set request msgs recv'd by lacpa");
+    debug_counter_register(&lacpa_system.debug_info.lacp_controller_stats_requests,
+                           "lacpa.lacp_controller_stats_requests",
+                           "Number of stats request msgs recv'd by lacpa");  
+}
+
+/*
+ * lacpa_unregister_system_counters
+ */
+static inline void
+lacpa_unregister_system_counters (void)
+{
+    debug_counter_unregister(&lacpa_system.debug_info.lacp_total_in_packets);
+    debug_counter_unregister(&lacpa_system.debug_info.lacp_system_in_packets);
+    debug_counter_unregister(&lacpa_system.debug_info.lacp_system_out_packets);
+    debug_counter_unregister(&lacpa_system.debug_info.lacp_controller_set_requests);
+    debug_counter_unregister(&lacpa_system.debug_info.lacp_controller_stats_requests);
+}    
+
 /* 
  * lacpa_clear_system_counters
  */
 static inline void
 lacpa_clear_system_counters (void)
 {
-    lacpa_system.debug_info.lacp_total_in_packets = 0;
-    lacpa_system.debug_info.lacp_system_in_packets = 0;
-    lacpa_system.debug_info.lacp_system_out_packets = 0;
-    lacpa_system.debug_info.lacp_controller_set_requests = 0;
-    lacpa_system.debug_info.lacp_controller_stats_requests = 0;
+    debug_counter_reset(&lacpa_system.debug_info.lacp_total_in_packets);
+    debug_counter_reset(&lacpa_system.debug_info.lacp_system_in_packets);
+    debug_counter_reset(&lacpa_system.debug_info.lacp_system_out_packets);
+    debug_counter_reset(&lacpa_system.debug_info.lacp_controller_set_requests);
+    debug_counter_reset(&lacpa_system.debug_info.lacp_controller_stats_requests);
 }
 
 /*
