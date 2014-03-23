@@ -22,7 +22,7 @@ MODULE := icmpa_utest
 TEST_MODULE := icmpa
 DEPENDMODULES := AIM PPE IOF loci indigo OS SocketManager cjson \
                  BigList Configuration murmur OFConnectionManager BigHash \
-                 router_ip_table uCli 
+                 router_ip_table uCli debug_counter 
 
 GLOBAL_CFLAGS += -DINDIGO_LINUX_LOGGING
 GLOBAL_CFLAGS += -DINDIGO_LINUX_TIME

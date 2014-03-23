@@ -93,7 +93,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
     indigo_core_listener_result_t result = INDIGO_CORE_LISTENER_RESULT_PASS;
     uint32_t                   type, code;
 
-    ++pkt_counters.icmp_total_in_packets;
+    debug_counter_inc(&pkt_counters.icmp_total_in_packets);
     if (!packet_in) return INDIGO_CORE_LISTENER_RESULT_PASS;
 
     of_packet_in_data_get(packet_in, &octets);
@@ -106,7 +106,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
     if (reason == OF_PACKET_IN_REASON_BSN_BAD_VLAN || 
         reason == OF_PACKET_IN_REASON_BSN_STATION_MOVE ||
         reason == OF_PACKET_IN_REASON_BSN_NEW_HOST) {
-        ++pkt_counters.icmp_total_passed_packets;
+        debug_counter_inc(&pkt_counters.icmp_total_passed_packets);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
         
@@ -119,7 +119,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
     } else {
         if (of_packet_in_match_get(packet_in, &match) < 0) {
             AIM_LOG_ERROR("ICMPA: match get failed");
-            ++pkt_counters.icmp_internal_errors;
+            debug_counter_inc(&pkt_counters.icmp_internal_errors);
             return INDIGO_CORE_LISTENER_RESULT_PASS;
         }
         port_no = match.fields.in_port;
@@ -127,7 +127,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
 
     if (port_no > MAX_PORTS) {
         AIM_LOG_ERROR("ICMPA: Port No: %d Out of Range %d", port_no, MAX_PORTS);
-        ++pkt_counters.icmp_internal_errors;
+        debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
@@ -135,7 +135,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
     if (ppe_parse(&ppep) < 0) {
         AIM_LOG_RL_ERROR(&icmp_pktin_log_limiter, os_time_monotonic(),
                          "ICMPA: Packet_in parsing failed.");
-        ++pkt_counters.icmp_internal_errors;
+        debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
 
@@ -235,10 +235,22 @@ icmpa_init (void)
 
     AIM_LOG_INFO("init");
 
-    pkt_counters.icmp_total_in_packets = 0;
-    pkt_counters.icmp_total_out_packets = 0;
-    pkt_counters.icmp_total_passed_packets = 0;
-    pkt_counters.icmp_internal_errors = 0;
+    /*
+     * Register system debug counters
+     */
+    debug_counter_register(&pkt_counters.icmp_total_in_packets,
+                           "icmpa.icmp_total_in_packets",
+                           "Packet-ins recv'd by icmpa");
+    debug_counter_register(&pkt_counters.icmp_total_out_packets,
+                           "icmpa.icmp_total_out_packets",
+                           "Icmp packets sent by lacpa");
+    debug_counter_register(&pkt_counters.icmp_total_passed_packets,
+                           "icmpa.icmp_total_passed_packets",
+                            "Packet-ins passed by icmpa");
+    debug_counter_register(&pkt_counters.icmp_internal_errors,
+                           "icmpa.icmp_internal_errors",
+                           "Internal errors in icmpa");
+
     ICMPA_MEMSET(&port_pkt_counters[0], 0, 
                  sizeof(icmpa_typecode_packet_counter_t) * (MAX_PORTS+1));
     aim_ratelimiter_init(&icmp_pktin_log_limiter, 1000*1000, 5, NULL);
@@ -267,10 +279,14 @@ icmpa_finish (void)
 {
     if (!icmpa_is_initialized()) return;
 
-    pkt_counters.icmp_total_in_packets = 0;
-    pkt_counters.icmp_total_out_packets = 0;
-    pkt_counters.icmp_total_passed_packets = 0;
-    pkt_counters.icmp_internal_errors = 0;
+    /*
+     * Unregister system debug counters
+     */
+    debug_counter_unregister(&pkt_counters.icmp_total_in_packets);
+    debug_counter_unregister(&pkt_counters.icmp_total_out_packets);
+    debug_counter_unregister(&pkt_counters.icmp_total_passed_packets);
+    debug_counter_unregister(&pkt_counters.icmp_internal_errors);
+
     ICMPA_MEMSET(&port_pkt_counters[0], 0,
                  sizeof(icmpa_typecode_packet_counter_t) * (MAX_PORTS+1));
 
