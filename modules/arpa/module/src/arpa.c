@@ -26,6 +26,7 @@
 #include <AIM/aim_list.h>
 #include <indigo/time.h>
 #include <SocketManager/socketmanager.h>
+#include <debug_counter/debug_counter.h>
 
 #include "arpa_log.h"
 
@@ -121,6 +122,24 @@ static aim_ratelimiter_t arpa_pktin_log_limiter;
 
 static bighash_table_t *arp_entries;
 
+/* Debug counters */
+static debug_counter_t add_success_counter;
+static debug_counter_t add_failure_counter;
+static debug_counter_t modify_success_counter;
+static debug_counter_t modify_failure_counter;
+static debug_counter_t delete_success_counter;
+static debug_counter_t pktin_counter;
+static debug_counter_t parse_failure_counter;
+static debug_counter_t source_missing_counter;
+static debug_counter_t source_mismatch_counter;
+static debug_counter_t unconfigured_vlan_counter;
+static debug_counter_t router_ip_mismatch_counter;
+static debug_counter_t reply_counter;
+static debug_counter_t pktout_failure_counter;
+static debug_counter_t unicast_requery_counter;
+static debug_counter_t broadcast_requery_counter;
+static debug_counter_t idle_notification_counter;
+
 
 /* Public interface */
 
@@ -141,6 +160,70 @@ arpa_init()
     if ((rv = ind_soc_timer_event_register(arpa_timer, NULL, 1000)) < 0) {
         AIM_DIE("Failed to register ARP agent timer: %s", indigo_strerror(rv));
     }
+
+    debug_counter_register(
+        &add_success_counter, "arpa.table_add",
+        "ARP table entry added by the controller");
+
+    debug_counter_register(
+        &add_failure_counter, "arpa.table_add_failure",
+        "ARP table entry unsuccessfully added by the controller");
+
+    debug_counter_register(
+        &modify_success_counter, "arpa.table_modify",
+        "ARP table entry modified by the controller");
+
+    debug_counter_register(
+        &modify_failure_counter, "arpa.table_modify_failure",
+        "ARP table entry unsuccessfully modified by the controller");
+
+    debug_counter_register(
+        &delete_success_counter, "arpa.table_delete",
+        "ARP table entry deleted by the controller");
+
+    debug_counter_register(
+        &pktin_counter, "arpa.pktin",
+        "Number of ARP packets received from the dataplane");
+
+    debug_counter_register(
+        &parse_failure_counter, "arpa.parse_failure",
+        "ARP packet failed to parse");
+
+    debug_counter_register(
+        &source_missing_counter, "arpa.source_missing",
+        "ARP packet source IP/VLAN did not exist in the ARP table");
+
+    debug_counter_register(
+        &source_mismatch_counter, "arpa.source_mismatch",
+        "ARP packet source MAC did not match existing entry in the ARP table");
+
+    debug_counter_register(
+        &unconfigured_vlan_counter, "arpa.unconfigured_vlan",
+        "ARP packet received on a VLAN without a configured virtual router");
+
+    debug_counter_register(
+        &router_ip_mismatch_counter, "arpa.router_ip_mismatch",
+        "ARP request target IP did not match VLAN's virtual router IP");
+
+    debug_counter_register(
+        &reply_counter, "arpa.reply",
+        "ARP reply sent for virtual router");
+
+    debug_counter_register(
+        &pktout_failure_counter, "arpa.pktout_failure",
+        "Failed to sent ARP reply");
+
+    debug_counter_register(
+        &unicast_requery_counter, "arpa.unicast_requery",
+        "Sent a unicast ARP request for an idle ARP table entry");
+
+    debug_counter_register(
+        &broadcast_requery_counter, "arpa.broadcast_requery",
+        "Sent a broadcast ARP request for an idle ARP table entry");
+
+    debug_counter_register(
+        &idle_notification_counter, "arpa.idle_notification",
+        "Sent a notification to the controller that an ARP table entry was idle");
 
     return INDIGO_ERROR_NONE;
 }
@@ -268,11 +351,13 @@ arp_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs, of_list_bsn_tlv_t *value_
 
     rv = arp_parse_key(key_tlvs, &key);
     if (rv < 0) {
+        debug_counter_inc(&add_failure_counter);
         return rv;
     }
 
     rv = arp_parse_value(value_tlvs, &value);
     if (rv < 0) {
+        debug_counter_inc(&add_failure_counter);
         return rv;
     }
 
@@ -290,6 +375,7 @@ arp_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs, of_list_bsn_tlv_t *value_
     arp_entries_hashtable_insert(arp_entries, entry);
 
     *entry_priv = entry;
+    debug_counter_inc(&add_success_counter);
     return INDIGO_ERROR_NONE;
 }
 
@@ -302,6 +388,7 @@ arp_modify(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key_tlvs, of_l
 
     rv = arp_parse_value(value_tlvs, &value);
     if (rv < 0) {
+        debug_counter_inc(&modify_failure_counter);
         return rv;
     }
 
@@ -314,6 +401,7 @@ arp_modify(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key_tlvs, of_l
         arpa_set_timer_state(entry, ARP_TIMER_STATE_NONE);
     }
 
+    debug_counter_inc(&modify_success_counter);
     return INDIGO_ERROR_NONE;
 }
 
@@ -323,6 +411,7 @@ arp_delete(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key_tlvs)
     struct arp_entry *entry = entry_priv;
     bighash_remove(arp_entries, &entry->hash_entry);
     aim_free(entry);
+    debug_counter_inc(&delete_success_counter);
     return INDIGO_ERROR_NONE;
 }
 
@@ -403,10 +492,13 @@ arpa_handle_pkt(of_packet_in_t *packet_in)
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
+    debug_counter_inc(&pktin_counter);
+
     rv = arpa_parse_packet(&octets, &info);
     if (rv < 0) {
         AIM_LOG_RL_ERROR(&arpa_pktin_log_limiter, os_time_monotonic(),
                          "not a valid ARP packet: %s", indigo_strerror(rv));
+        debug_counter_inc(&parse_failure_counter);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
@@ -425,11 +517,13 @@ arpa_handle_pkt(of_packet_in_t *packet_in)
     of_mac_addr_t router_mac;
     if (router_ip_table_lookup(info.vlan_vid, &router_ip, &router_mac) < 0) {
         AIM_LOG_TRACE("no router configured on vlan %u", info.vlan_vid);
+        debug_counter_inc(&unconfigured_vlan_counter);
         return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
     if (router_ip != info.tpa) {
         AIM_LOG_TRACE("not destined for our router IP");
+        debug_counter_inc(&router_ip_mismatch_counter);
         return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
@@ -447,6 +541,7 @@ arpa_handle_pkt(of_packet_in_t *packet_in)
 
     arpa_send_packet(&reply_info);
 
+    debug_counter_inc(&reply_counter);
     return INDIGO_CORE_LISTENER_RESULT_DROP;
 }
 
@@ -607,6 +702,7 @@ arpa_send_packet(struct arp_info *info)
     indigo_error_t rv = indigo_fwd_packet_out(obj);
     if (rv < 0) {
         AIM_LOG_ERROR("Failed to inject ARP reply: %s", indigo_strerror(rv));
+        debug_counter_inc(&pktout_failure_counter);
     }
 
     of_packet_out_delete(obj);
@@ -618,12 +714,14 @@ arpa_check_source(struct arp_info *info)
     struct arp_entry *entry = arpa_lookup(info->vlan_vid, info->spa);
     if (entry == NULL) {
         AIM_LOG_TRACE("Source not found in ARP table");
+        debug_counter_inc(&source_missing_counter);
         return false;
     }
 
     if (memcmp(info->sha.addr, entry->value.mac.addr, OF_MAC_ADDR_BYTES)) {
         AIM_LOG_TRACE("Source MAC does not match");
         entry->stats.miss_packets++;
+        debug_counter_inc(&source_mismatch_counter);
         return false;
     }
 
@@ -696,12 +794,15 @@ arpa_timer(void *cookie)
             if (entry->timer_state == ARP_TIMER_STATE_UNICAST_QUERY) {
                 arpa_send_query(entry, false);
                 arpa_set_timer_state(entry, ARP_TIMER_STATE_BROADCAST_QUERY);
+                debug_counter_inc(&unicast_requery_counter);
             } else if (entry->timer_state == ARP_TIMER_STATE_BROADCAST_QUERY) {
                 arpa_send_query(entry, true);
                 arpa_set_timer_state(entry, ARP_TIMER_STATE_IDLE_TIMEOUT);
+                debug_counter_inc(&broadcast_requery_counter);
             } else if (entry->timer_state == ARP_TIMER_STATE_IDLE_TIMEOUT) {
                 arpa_send_idle_notification(entry);
                 entry->deadline = now + entry->value.idle_timeout;
+                debug_counter_inc(&idle_notification_counter);
             }
         }
     }
