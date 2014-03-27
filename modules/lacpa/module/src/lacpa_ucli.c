@@ -39,9 +39,9 @@ lacpa_clear_port_counters__(ucli_context_t* uc, uint32_t port_no)
 
     if (!port->lacp_enabled) return;
 
-    port->debug_info.lacp_port_in_packets = 0; 
-    port->debug_info.lacp_port_out_packets = 0;    
-    port->debug_info.lacp_convergence_notif = 0;
+    debug_counter_reset(&port->debug_info.lacp_port_in_packets);
+    debug_counter_reset(&port->debug_info.lacp_port_out_packets);;    
+    debug_counter_reset(&port->debug_info.lacp_convergence_notif);
 }
 
 static ucli_status_t
@@ -80,16 +80,16 @@ lacpa_ucli_ucli__show_lacp_counters__(ucli_context_t* uc)
     if (!lacpa_is_initialized()) return UCLI_STATUS_E_ERROR;
 
     ucli_printf(uc, "*************DUMPING SYSTEM COUNTERS*************\n");
-    ucli_printf(uc, "TOTAL PACKETS RECV'D    : %" PRId64 "\n", 
-                lacpa_system.debug_info.lacp_total_in_packets); 
-    ucli_printf(uc, "LACPDU's RECV'D         : %" PRId64 "\n",
-                lacpa_system.debug_info.lacp_system_in_packets);
-    ucli_printf(uc, "LACPDU's SENT           : %" PRId64 "\n",
-                lacpa_system.debug_info.lacp_system_out_packets);
-    ucli_printf(uc, "SET REQUESTS RECV'D     : %" PRId64 "\n",
-                lacpa_system.debug_info.lacp_controller_set_requests);
-    ucli_printf(uc, "STATS REQUESTS RECV'D   : %" PRId64 "\n",
-                lacpa_system.debug_info.lacp_controller_stats_requests);             
+    ucli_printf(uc, "TOTAL PACKETS RECV'D    : %" PRId64 "\n", debug_counter_get(
+                &lacpa_system.debug_info.lacp_total_in_packets)); 
+    ucli_printf(uc, "LACPDU's RECV'D         : %" PRId64 "\n", debug_counter_get(
+                &lacpa_system.debug_info.lacp_system_in_packets));
+    ucli_printf(uc, "LACPDU's SENT           : %" PRId64 "\n", debug_counter_get(
+                &lacpa_system.debug_info.lacp_system_out_packets));
+    ucli_printf(uc, "SET REQUESTS RECV'D     : %" PRId64 "\n", debug_counter_get(
+                &lacpa_system.debug_info.lacp_controller_set_requests));
+    ucli_printf(uc, "STATS REQUESTS RECV'D   : %" PRId64 "\n", debug_counter_get(
+                &lacpa_system.debug_info.lacp_controller_stats_requests));             
     ucli_printf(uc, "*************END DUMPING INFO********************\n");
  
     return UCLI_STATUS_OK;
@@ -218,12 +218,12 @@ lacpa_show_portstats__(ucli_context_t* uc, uint32_t port_no)
     ucli_printf(uc, "LACP TANSMIT REASON   : %{lacpa_transmit}\n",
                 port->debug_info.ntt_reason);
     ucli_printf(uc, "\nPACKET INFO\n"); 
-    ucli_printf(uc, "LACP PACKET IN        : %" PRId64 "\n",
-                port->debug_info.lacp_port_in_packets);
-    ucli_printf(uc, "LACP PACKET OUT       : %" PRId64 "\n",
-                port->debug_info.lacp_port_out_packets);
-    ucli_printf(uc, "CONVERGENCE NOTIF     : %" PRId64 "\n",
-                port->debug_info.lacp_convergence_notif);
+    ucli_printf(uc, "LACP PACKET IN        : %" PRId64 "\n", debug_counter_get(
+                &port->debug_info.lacp_port_in_packets));
+    ucli_printf(uc, "LACP PACKET OUT       : %" PRId64 "\n", debug_counter_get(
+                &port->debug_info.lacp_port_out_packets));
+    ucli_printf(uc, "CONVERGENCE NOTIF     : %" PRId64 "\n", debug_counter_get(
+                &port->debug_info.lacp_convergence_notif));
     ucli_printf(uc, "\n*************END DUMPING INFO**************\n");     
 }
 
