@@ -22,6 +22,7 @@
 #include <lacpa/lacpa.h>
 #include "lacpa_log.h"
 #include <inttypes.h>
+#include <debug_counter/debug_counter.h>
 
 /******************************************************************************
  *
@@ -145,9 +146,12 @@ typedef struct lacp_pdu_s { /* lacpa_pdu */
 typedef struct lacpa_port_debug_s { /* lacpa_port_debug */
     lacpa_event_t    lacp_event;
     lacpa_transmit_t ntt_reason;
-    uint64_t         lacp_port_in_packets;
-    uint64_t         lacp_port_out_packets;
-    uint64_t         lacp_convergence_notif;
+    debug_counter_t  lacp_port_in_packets;
+    debug_counter_t  lacp_port_out_packets;
+    debug_counter_t  lacp_convergence_notif;
+    char             lacp_pktin_counter_name_buf[DEBUG_COUNTER_NAME_SIZE];
+    char             lacp_pktout_counter_name_buf[DEBUG_COUNTER_NAME_SIZE];
+    char             lacp_convergence_counter_name_buf[DEBUG_COUNTER_NAME_SIZE]; 
 } lacpa_port_debug_t;
 
 typedef struct lacpa_port_s { /* lacpa_port */
@@ -165,11 +169,11 @@ typedef struct lacpa_port_s { /* lacpa_port */
  * LACP : LINK AGGREGATION CONTROL PROTOCOL : SYSTEM DATA & API DECLARATIONS
  *****************************************************************************/
 typedef struct lacpa_system_debug_s { /* lacpa_system_debug */
-    uint64_t          lacp_total_in_packets;
-    uint64_t          lacp_system_in_packets;
-    uint64_t          lacp_system_out_packets;
-    uint64_t          lacp_controller_set_requests;
-    uint64_t          lacp_controller_stats_requests;
+    debug_counter_t   lacp_total_in_packets;
+    debug_counter_t   lacp_system_in_packets;
+    debug_counter_t   lacp_system_out_packets;
+    debug_counter_t   lacp_controller_set_requests;
+    debug_counter_t   lacp_controller_stats_requests;
 } lacpa_system_debug_t;
 
 typedef struct lacpa_system_s { /* lacpa_system */
