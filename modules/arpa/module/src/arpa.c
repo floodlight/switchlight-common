@@ -27,6 +27,7 @@
 #include <indigo/time.h>
 #include <SocketManager/socketmanager.h>
 #include <debug_counter/debug_counter.h>
+#include <timer_wheel/timer_wheel.h>
 
 #include "arpa_log.h"
 
@@ -70,6 +71,8 @@ struct arp_entry_stats {
 
 struct arp_entry {
     bighash_entry_t hash_entry;
+    timer_wheel_entry_t timer_entry;
+
     struct arp_entry_key key;
     struct arp_entry_value value;
     struct arp_entry_stats stats;
@@ -122,6 +125,13 @@ static aim_ratelimiter_t arpa_pktin_log_limiter;
 
 static bighash_table_t *arp_entries;
 
+/**
+ * Contains struct arp_entry through the timer_entry field. Position in the
+ * wheel is based on the deadline field. ARP entries in timer state NONE
+ * are not included in the timer wheel.
+ */
+static timer_wheel_t *timer_wheel;
+
 /* Debug counters */
 static debug_counter_t add_success_counter;
 static debug_counter_t add_failure_counter;
@@ -149,6 +159,9 @@ arpa_init()
     indigo_error_t rv;
 
     arp_entries = bighash_table_create(1024);
+
+    /* Assumes 1600 ARP entries with timeouts and an idle timeout of 300s. */
+    timer_wheel = timer_wheel_create(2048, 256, INDIGO_CURRENT_TIME);
 
     indigo_core_gentable_register("arp", &arp_ops, NULL, 16384, 1024,
                                   &arp_table);
@@ -365,6 +378,7 @@ arp_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs, of_list_bsn_tlv_t *value_
     entry->key = key;
     entry->value = value;
     entry->stats.active_time = INDIGO_CURRENT_TIME;
+    entry->timer_state = ARP_TIMER_STATE_NONE;
 
     if (entry->value.unicast_query_timeout > 0) {
         arpa_set_timer_state(entry, ARP_TIMER_STATE_UNICAST_QUERY);
@@ -409,6 +423,7 @@ static indigo_error_t
 arp_delete(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key_tlvs)
 {
     struct arp_entry *entry = entry_priv;
+    arpa_set_timer_state(entry, ARP_TIMER_STATE_NONE);
     bighash_remove(arp_entries, &entry->hash_entry);
     aim_free(entry);
     debug_counter_inc(&delete_success_counter);
@@ -760,6 +775,10 @@ arpa_set_timer_state(struct arp_entry *entry, enum arp_timer_state state)
                   arpa_timer_state_to_string(entry->timer_state),
                   arpa_timer_state_to_string(state));
 
+    if (entry->timer_entry.deadline != 0) {
+        timer_wheel_remove(timer_wheel, &entry->timer_entry);
+    }
+
     entry->timer_state = state;
 
     switch (state) {
@@ -776,34 +795,37 @@ arpa_set_timer_state(struct arp_entry *entry, enum arp_timer_state state)
         entry->deadline = entry->stats.active_time + entry->value.idle_timeout;
         break;
     }
+
+    if (state != ARP_TIMER_STATE_NONE) {
+        timer_wheel_insert(timer_wheel, &entry->timer_entry, entry->deadline);
+    }
 }
 
 static void
 arpa_timer(void *cookie)
 {
-    bighash_iter_t iter;
-    bighash_entry_t *cur;
+    timer_wheel_entry_t *cur;
     indigo_time_t now = INDIGO_CURRENT_TIME;
 
-    for (cur = bighash_iter_start(arp_entries, &iter);
-         cur != NULL;
-         cur = bighash_iter_next(&iter)) {
-        struct arp_entry *entry = container_of(cur, hash_entry, struct arp_entry);
+    while ((cur = timer_wheel_next(timer_wheel, now))) {
+        struct arp_entry *entry = container_of(cur, timer_entry, struct arp_entry);
 
-        if (entry->timer_state != ARP_TIMER_STATE_NONE && now >= entry->deadline) {
-            if (entry->timer_state == ARP_TIMER_STATE_UNICAST_QUERY) {
-                arpa_send_query(entry, false);
-                arpa_set_timer_state(entry, ARP_TIMER_STATE_BROADCAST_QUERY);
-                debug_counter_inc(&unicast_requery_counter);
-            } else if (entry->timer_state == ARP_TIMER_STATE_BROADCAST_QUERY) {
-                arpa_send_query(entry, true);
-                arpa_set_timer_state(entry, ARP_TIMER_STATE_IDLE_TIMEOUT);
-                debug_counter_inc(&broadcast_requery_counter);
-            } else if (entry->timer_state == ARP_TIMER_STATE_IDLE_TIMEOUT) {
-                arpa_send_idle_notification(entry);
-                entry->deadline = now + entry->value.idle_timeout;
-                debug_counter_inc(&idle_notification_counter);
-            }
+        AIM_ASSERT(entry->timer_state != ARP_TIMER_STATE_NONE);
+        AIM_ASSERT(now >= entry->deadline);
+
+        if (entry->timer_state == ARP_TIMER_STATE_UNICAST_QUERY) {
+            arpa_send_query(entry, false);
+            arpa_set_timer_state(entry, ARP_TIMER_STATE_BROADCAST_QUERY);
+            debug_counter_inc(&unicast_requery_counter);
+        } else if (entry->timer_state == ARP_TIMER_STATE_BROADCAST_QUERY) {
+            arpa_send_query(entry, true);
+            arpa_set_timer_state(entry, ARP_TIMER_STATE_IDLE_TIMEOUT);
+            debug_counter_inc(&broadcast_requery_counter);
+        } else if (entry->timer_state == ARP_TIMER_STATE_IDLE_TIMEOUT) {
+            arpa_send_idle_notification(entry);
+            entry->deadline = now + entry->value.idle_timeout;
+            timer_wheel_insert(timer_wheel, &entry->timer_entry, entry->deadline);
+            debug_counter_inc(&idle_notification_counter);
         }
     }
 }
