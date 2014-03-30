@@ -941,9 +941,9 @@ int aim_main(int argc, char* argv[])
     test_discovery_pkt_in(1, INDIGO_CORE_LISTENER_RESULT_PASS);
     test_offer_pkt_in(1);
 
-    if (dhcp_pkt_matched[1])
+    if (dhcp_pkt_matched[0])
         printf("DISCOVERY PASSED\n");
-    if (dhcp_pkt_matched[2])
+    if (dhcp_pkt_matched[1])
         printf("OFFER PASSED\n");
 
     printf("\n\nSUMMARY:\nDISCOV:\t%s\n", dhcp_pkt_matched[0] ? "PASSED" : "FAILED");
