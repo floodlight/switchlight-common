@@ -54,8 +54,9 @@ lldpa_port_t*
 lldpa_find_port(of_port_no_t port_no)
 {
     lldpa_port_t *ret = NULL;
-    if ((port_no >= 0) && (port_no < lldpa_port_sys.lldpa_total_of_ports))
+    if (port_no < lldpa_port_sys.lldpa_total_of_ports) {
         ret = &lldpa_port_sys.lldpa_ports[port_no];
+    }
 
     return ret;
 }
