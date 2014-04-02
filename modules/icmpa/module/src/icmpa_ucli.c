@@ -84,14 +84,14 @@ icmpa_ucli_ucli__show_counters__(ucli_context_t* uc)
 
     if (uc->pargs->count != 1) {
         ucli_printf(uc, "*************DUMPING SYSTEM COUNTERS*************\n");
-        ucli_printf(uc, "TOTAL PACKETS RECV'D       : %" PRId64 "\n",
-                    pkt_counters.icmp_total_in_packets);
+        ucli_printf(uc, "TOTAL PACKETS RECV'D       : %" PRId64 "\n", 
+                    debug_counter_get(&pkt_counters.icmp_total_in_packets));
         ucli_printf(uc, "TOTAL PACKETS SENT         : %" PRId64 "\n",
-                    pkt_counters.icmp_total_out_packets);
+                    debug_counter_get(&pkt_counters.icmp_total_out_packets));
         ucli_printf(uc, "TOTAL PACKETS PASSED       : %" PRId64 "\n",
-                    pkt_counters.icmp_total_passed_packets);
+                    debug_counter_get(&pkt_counters.icmp_total_passed_packets));
         ucli_printf(uc, "INTERNAL ERRORS            : %" PRId64 "\n",
-                    pkt_counters.icmp_internal_errors);
+                    debug_counter_get(&pkt_counters.icmp_internal_errors));
         ucli_printf(uc, "*************END DUMPING INFO********************\n");
     }
 
@@ -125,10 +125,10 @@ icmpa_ucli_ucli__clear_counters__(ucli_context_t* uc)
         UCLI_ARGPARSE_OR_RETURN(uc, "i", &port);
         icmpa_clear_portcounters__(uc, port);
     } else {
-        pkt_counters.icmp_total_in_packets = 0;
-        pkt_counters.icmp_total_out_packets = 0;
-        pkt_counters.icmp_total_passed_packets = 0;
-        pkt_counters.icmp_internal_errors = 0;
+        debug_counter_reset(&pkt_counters.icmp_total_in_packets);
+        debug_counter_reset(&pkt_counters.icmp_total_out_packets);
+        debug_counter_reset(&pkt_counters.icmp_total_passed_packets);
+        debug_counter_reset(&pkt_counters.icmp_internal_errors);
 
         for (port = 0; port <= MAX_PORTS; port++) {
             icmpa_clear_portcounters__(uc, port);

@@ -196,7 +196,7 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
      */
     if (!icmpa_get_vlan_id(ppep, &vlan_id, &vlan_pcp)) {
         AIM_LOG_ERROR("ICMPA: Received Untagged Packet_in");
-        ++pkt_counters.icmp_internal_errors;
+        debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;    
     } 
 
@@ -205,7 +205,7 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
      */
     if (router_ip_table_lookup(vlan_id, &router_ip, &router_mac) < 0) {
         AIM_LOG_ERROR("ICMPA: Router IP lookup failed for vlan: %d", vlan_id);
-        ++pkt_counters.icmp_internal_errors;
+        debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
 
@@ -222,7 +222,7 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
     ppe_field_get(ppep, PPE_FIELD_IP4_SRC_ADDR, &src_ip);
     if (!isValidIP(src_ip)) {
         AIM_LOG_ERROR("ICMPA: Echo request src_ip: 0x%.8x not valid", src_ip);
-        ++pkt_counters.icmp_internal_errors;
+        debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
 
@@ -243,14 +243,14 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
     if (ip_hdr_size > IP_HEADER_SIZE) {
         AIM_LOG_ERROR("ICMPA: IP Options set as ip header size: %d is more "
                       "than 20 Bytes", ip_hdr_size);
-        ++pkt_counters.icmp_internal_errors;
+        debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
     
     octets_out.data = (uint8_t *) ICMPA_MALLOC(ppep->size);
     if (octets_out.data == NULL) {
         AIM_LOG_ERROR("ICMPA: Failed to allocate memory for echo response");
-        ++pkt_counters.icmp_internal_errors;
+        debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
 
@@ -270,7 +270,7 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
                       port_no, indigo_strerror(rv));
         goto free_and_return;
     } else {
-        ++pkt_counters.icmp_total_out_packets;
+        debug_counter_inc(&pkt_counters.icmp_total_out_packets);
         AIM_LOG_TRACE("Successfully sent packet out the port: %d", port_no); 
     }
 
@@ -278,7 +278,7 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
     return true;
 
 free_and_return:
-    ++pkt_counters.icmp_internal_errors;
+    debug_counter_inc(&pkt_counters.icmp_internal_errors);
     ICMPA_FREE(octets_out.data);
     return false;
 }
@@ -317,7 +317,7 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
     if (!ip_hdr) {
         AIM_LOG_RL_TRACE(&icmp_pktin_log_limiter, os_time_monotonic(),
                          "Not an IP Packet");
-        ++pkt_counters.icmp_internal_errors;
+        debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
    
@@ -326,13 +326,13 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
      */
     if (!icmpa_get_vlan_id(ppep, &vlan_id, &vlan_pcp)) {
         AIM_LOG_ERROR("ICMPA: Received Untagged Packet_in");
-        ++pkt_counters.icmp_internal_errors;
+        debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
 
     if (router_ip_table_lookup(vlan_id, &router_ip, &router_mac) < 0) {
         AIM_LOG_ERROR("ICMPA: Router IP lookup failed for vlan: %d", vlan_id);
-        ++pkt_counters.icmp_internal_errors;
+        debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     } 
 
@@ -343,7 +343,7 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
     if (!isValidIP(src_ip)) {
         AIM_LOG_ERROR("ICMPA: src_ip: 0x%.8x in original ip packet not valid",
                       src_ip);
-        ++pkt_counters.icmp_internal_errors;
+        debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
 
@@ -358,14 +358,14 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
     if (ip_total_len < ICMP_DATA_LEN) {
         AIM_LOG_ERROR("ICMPA: IP Total len: %d is less than required 28 Bytes",
                       ip_total_len);
-        ++pkt_counters.icmp_internal_errors;
+        debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     } 
 
     if (!icmpa_build_pdu(ppep, &octets_out, vlan_id, vlan_pcp, IP_TOTAL_LEN, 
         router_ip, type, code, 0, ip_hdr, ICMP_DATA_LEN)) {
         AIM_LOG_ERROR("ICMPA: icmpa_build_pdu failed");
-        ++pkt_counters.icmp_internal_errors;
+        debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }        
 
@@ -373,10 +373,10 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
     if (rv < 0) {
         AIM_LOG_ERROR("ICMPA: Send packet_out failed for port: %d, reason: %s",
                       port_no, indigo_strerror(rv));
-        ++pkt_counters.icmp_internal_errors;
+        debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     } else {
-        ++pkt_counters.icmp_total_out_packets;
+        debug_counter_inc(&pkt_counters.icmp_total_out_packets);
         AIM_LOG_TRACE("Successfully sent packet out the port: %d", port_no);
     }
 

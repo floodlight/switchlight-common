@@ -29,7 +29,7 @@ include $(BUILDER)/lib.mk
 
 DEPENDMODULES := lacpa AIM PPE IOF VPI BigList OS loci indigo SocketManager \
 		 cjson Configuration OFStateManager murmur OFConnectionManager \
-                 uCli BigHash
+                uCli BigHash debug_counter
 
 include $(BUILDER)/dependmodules.mk
 
