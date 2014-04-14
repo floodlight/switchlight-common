@@ -269,8 +269,11 @@ get_virtual_router_mac(dhc_relay_t *dc)
  * Circuit_id is only optional and used for legality check only
  * */
 static int
-dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, uint32_t relay_agent_ip,
-                        uint32_t vlan_pcp, of_port_no_t port_no,
+dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, 
+                        uint32_t relay_agent_ip,
+                        uint8_t *relay_mac_addr,
+                        uint32_t vlan_pcp,
+                        of_port_no_t port_no,
                         int port_dump_data)
 {
     ppe_packet_t       ppep;
@@ -322,7 +325,9 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, uint32_t relay_agent
     }
 
     /* This vlan_id should exist */
-    dhcpr_virtual_router_ip_to_vlan(&relay_agent_ip_to_vlan_id, relay_agent_ip);
+    dhcpr_virtual_router_key_to_vlan(&relay_agent_ip_to_vlan_id,
+                                     relay_agent_ip,
+                                     relay_mac_addr);
     if (relay_agent_ip_to_vlan_id == INVALID_VLAN) {
         /*
          * Can't find vlan using relay_agent_ip. This dhcp pkt is out of date, drop it
@@ -560,6 +565,7 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     int                        dhcp_pkt_len;
     uint32_t                   relay_agent_ip;
     int                        port_dump_data = 0;
+    uint8_t                    relay_mac_addr[OF_MAC_ADDR_BYTES];
 
     ldata.data  = buf;
     ldata.bytes =  OUT_PKT_BUF_SIZE;
@@ -677,8 +683,12 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
          *                [MSB]                               [LSB]
          * */
         ppe_field_get(&ppep, PPE_FIELD_IP4_DST_ADDR, &relay_agent_ip);
-        if (dhcpra_handle_bootreply(&ldata, dhcp_pkt_len, relay_agent_ip, vlan_pcp,
-                                    port_no, port_dump_data)) {
+        ppe_wide_field_get(&ppep, 
+                           PPE_FIELD_ETHERNET_DST_MAC,
+                           relay_mac_addr);
+        if (dhcpra_handle_bootreply(&ldata, dhcp_pkt_len, 
+                                    relay_agent_ip, relay_mac_addr, 
+                                    vlan_pcp, port_no, port_dump_data)) {
             DHCPRA_DEBUG("Forward REPLY to controller");
             return INDIGO_CORE_LISTENER_RESULT_PASS;
         }
