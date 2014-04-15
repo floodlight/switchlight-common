@@ -36,10 +36,10 @@ static int dhcpr_vlan_entry_count;
 
 /*
  * Define key for dhcpr_vrouter_ip_table
- * 1st value is vourter_ip
+ * 1st value is vrouter_ip
  * 2nd value is vrouter_mac
  *
- * Use attribute pack, so that we can use  murmur / memcmp directly
+ * Use attribute 'packed', so that we can use murmur / memcmp directly
  * Otherwise, must initialize padding
  */
 typedef struct {
@@ -48,7 +48,7 @@ typedef struct {
 } __attribute__((packed)) vrouter_key_t;
 
 
-/* This is aux tables for other lookup purpose only */
+/* These are aux tables for other lookup purposes */
 BIGHASH_DEFINE_STATIC(dhcpr_circuit_table, 256); /* Circuit to vlan */
 BIGHASH_DEFINE_STATIC(dhcpr_vrouter_ip_table, 256); /* Virtual router ip to vlan */
 
