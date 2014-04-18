@@ -43,7 +43,7 @@ extern int lldpa_dump_data;
 uint8_t Lldppdu_Tx[] = {10,11,12,13,250,251,252,253};
 /* LLDP type packet */
 uint8_t Lldppdu_Rx[] = {1,2,3,4,5,6,1,2,3,4,5,6,0x88,0xcc,0xd,0xe,0xa,0xf,0xb,0xe,0xe,0xf};
-
+static ind_soc_config_t soc_cfg;
 
 #ifndef HEXDUMP_COLS
 #define HEXDUMP_COLS 8
@@ -294,6 +294,8 @@ int aim_main(int argc, char* argv[])
     printf("lldpa Utest Start ..\n");
     lldpa_config_show(&aim_pvs_stdout);
 
+    ind_soc_init(&soc_cfg);
+    
     lldpa_dump_data = 1;
     lldpa_system_init();
 
