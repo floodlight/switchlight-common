@@ -103,14 +103,12 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
      * Check if the packet-in reasons 
      * FIXME: Temporary fix, need to think of long term solution
      */
-    if (reason == OF_PACKET_IN_REASON_BSN_BAD_VLAN || 
-        reason == OF_PACKET_IN_REASON_BSN_STATION_MOVE ||
+    if (reason == OF_PACKET_IN_REASON_BSN_STATION_MOVE ||
         reason == OF_PACKET_IN_REASON_BSN_NEW_HOST) {
         debug_counter_inc(&pkt_counters.icmp_total_passed_packets);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
         
-
     /*
      * Identify the recv port
      */
@@ -154,18 +152,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
      * Identify if the reason is valid for ICMP Agent to consume the packet
      */
     switch (reason) {
-    case OF_PACKET_IN_REASON_BSN_DEST_NETWORK_UNREACHABLE:
-        AIM_LOG_TRACE("ICMP Dest Network Unreachable received on port: %d",
-                      port_no);
-        type = ICMP_DEST_UNREACHABLE;
-        code = 0;
-        if (icmpa_send(&ppep, port_no, type, code)) {
-            result = INDIGO_CORE_LISTENER_RESULT_DROP;
-            ++port_pkt_counters[port_no].icmp_network_unreachable_packets;
-        }
-        break;
     case OF_PACKET_IN_REASON_BSN_NO_ROUTE:
-    case OF_PACKET_IN_REASON_BSN_DEST_HOST_UNREACHABLE:
         AIM_LOG_TRACE("ICMP Dest Host Unreachable received on port: %d", 
                       port_no);
         type = ICMP_DEST_UNREACHABLE;
@@ -173,16 +160,6 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
         if (icmpa_send(&ppep, port_no, type, code)) {
             result = INDIGO_CORE_LISTENER_RESULT_DROP;
             ++port_pkt_counters[port_no].icmp_host_unreachable_packets;
-        }
-        break;
-    case OF_PACKET_IN_REASON_BSN_DEST_PORT_UNREACHABLE:
-        AIM_LOG_TRACE("ICMP Dest Port Unreachable received on port: %d", 
-                      port_no);
-        type = ICMP_DEST_UNREACHABLE;
-        code = 3;
-        if (icmpa_send(&ppep, port_no, type, code)) {
-            result = INDIGO_CORE_LISTENER_RESULT_DROP;
-            ++port_pkt_counters[port_no].icmp_port_unreachable_packets;
         }
         break;
     case OF_PACKET_IN_REASON_BSN_FRAGMENTATION_REQUIRED:
