@@ -12,9 +12,13 @@
 
 #include <arpa/arpa.h>
 #include <indigo/of_state_manager.h>
+#include <SocketManager/socketmanager.h>
+
+static ind_soc_config_t soc_cfg;
 
 int aim_main(int argc, char* argv[])
 {
+    ind_soc_init(&soc_cfg);   
     AIM_TRUE_OR_DIE(arpa_init() == INDIGO_ERROR_NONE);
     arpa_finish();
     return 0;
