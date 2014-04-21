@@ -89,7 +89,6 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
     of_port_no_t               port_no;
     of_match_t                 match;
     ppe_packet_t               ppep;
-    uint8_t                    reason;
     indigo_core_listener_result_t result = INDIGO_CORE_LISTENER_RESULT_PASS;
     uint32_t                   type, code;
 
@@ -97,18 +96,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
     if (!packet_in) return INDIGO_CORE_LISTENER_RESULT_PASS;
 
     of_packet_in_data_get(packet_in, &octets);
-    of_packet_in_reason_get(packet_in, &reason); 
 
-    /*
-     * Check if the packet-in reasons 
-     * FIXME: Temporary fix, need to think of long term solution
-     */
-    if (reason == OF_PACKET_IN_REASON_BSN_STATION_MOVE ||
-        reason == OF_PACKET_IN_REASON_BSN_NEW_HOST) {
-        debug_counter_inc(&pkt_counters.icmp_total_passed_packets);
-        return INDIGO_CORE_LISTENER_RESULT_PASS;
-    }
-        
     /*
      * Identify the recv port
      */
@@ -126,6 +114,16 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
     if (port_no > MAX_PORTS) {
         AIM_LOG_ERROR("ICMPA: Port No: %d Out of Range %d", port_no, MAX_PORTS);
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
+    }
+
+    /*
+     * Check the packet-in reasons in metadata 
+     * FIXME: Temporary fix, need to think of long term solution
+     */
+    if ((match.fields.metadata & OFP_BSN_PKTIN_FLAG_STATION_MOVE) ||
+        (match.fields.metadata & OFP_BSN_PKTIN_FLAG_NEW_HOST)) {
+        debug_counter_inc(&pkt_counters.icmp_total_passed_packets);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
@@ -151,8 +149,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
     /*
      * Identify if the reason is valid for ICMP Agent to consume the packet
      */
-    switch (reason) {
-    case OF_PACKET_IN_REASON_BSN_NO_ROUTE:
+    if (match.fields.metadata & OFP_BSN_PKTIN_FLAG_L3_MISS) {
         AIM_LOG_TRACE("ICMP Dest Host Unreachable received on port: %d", 
                       port_no);
         type = ICMP_DEST_UNREACHABLE;
@@ -161,17 +158,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
             result = INDIGO_CORE_LISTENER_RESULT_DROP;
             ++port_pkt_counters[port_no].icmp_host_unreachable_packets;
         }
-        break;
-    case OF_PACKET_IN_REASON_BSN_FRAGMENTATION_REQUIRED:
-        AIM_LOG_TRACE("ICMP Fragmentation Reqd received on port: %d", port_no);
-        type = ICMP_DEST_UNREACHABLE;
-        code = 4; 
-        if (icmpa_send(&ppep, port_no, type, code)) {
-            result = INDIGO_CORE_LISTENER_RESULT_DROP;
-            ++port_pkt_counters[port_no].icmp_fragmentation_reqd_packets;
-        }
-        break;
-    case OF_PACKET_IN_REASON_INVALID_TTL:
+    } else if (match.fields.metadata & OFP_BSN_PKTIN_FLAG_TTL_EXPIRED) {
         AIM_LOG_TRACE("ICMP TTL Expired received on port: %d", port_no);
         type = ICMP_TIME_EXCEEDED;
         code = 0;
@@ -179,10 +166,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
             result = INDIGO_CORE_LISTENER_RESULT_DROP;
             ++port_pkt_counters[port_no].icmp_time_exceeded_packets;    
         }
-        break;
-    default:
-        break;    
-    } 
+    }
 
     return result;
 }

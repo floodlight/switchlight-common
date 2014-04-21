@@ -122,7 +122,7 @@ indigo_fwd_packet_out (of_packet_out_t *of_packet_out)
 }
  
 indigo_error_t
-icmpa_create_send_packet_in (of_octets_t *of_octets, uint8_t reason, 
+icmpa_create_send_packet_in (of_octets_t *of_octets, uint64_t reason, 
                              of_port_no_t in_port)
 {
     of_packet_in_t *of_packet_in;
@@ -138,6 +138,8 @@ icmpa_create_send_packet_in (of_octets_t *of_octets, uint8_t reason,
     match.version = OF_VERSION_1_3;
     match.fields.in_port = in_port;
     OF_MATCH_MASK_IN_PORT_EXACT_SET(&match);
+    match.fields.metadata = 0;
+    match.fields.metadata |= reason;
     if ((of_packet_in_match_set(of_packet_in, &match)) != OF_ERROR_NONE) {
         printf("Failed to write match to packet-in message\n");
         of_packet_in_delete(of_packet_in);
@@ -150,8 +152,6 @@ icmpa_create_send_packet_in (of_octets_t *of_octets, uint8_t reason,
         return INDIGO_ERROR_UNKNOWN;
     }
 
-    of_packet_in_reason_set(of_packet_in, reason);
- 
     if (icmpa_packet_in_handler(of_packet_in) == 
         INDIGO_CORE_LISTENER_RESULT_DROP) {
         printf("Listener dropped packet-in\n");
@@ -212,21 +212,18 @@ int aim_main (int argc, char* argv[])
     octets.data = echo_request; 
     octets.bytes = PACKET_BUF_SIZE;
     port_no = 10;
-    icmpa_create_send_packet_in(&octets, 
-                                OF_PACKET_IN_REASON_BSN_ICMP_ECHO_REQUEST, 
-                                port_no);
+    icmpa_create_send_packet_in(&octets, OFP_BSN_PKTIN_FLAG_L3_CPU, port_no); 
     octets.data = ip_packet;
     port_no = 20; 
-    icmpa_create_send_packet_in(&octets, 
-                                OF_PACKET_IN_REASON_BSN_NO_ROUTE, port_no);
+    icmpa_create_send_packet_in(&octets, OFP_BSN_PKTIN_FLAG_L3_MISS, port_no); 
     port_no = 30;
-    icmpa_create_send_packet_in(&octets, OF_PACKET_IN_REASON_INVALID_TTL, 
-                                port_no);
+    icmpa_create_send_packet_in(&octets, OFP_BSN_PKTIN_FLAG_TTL_EXPIRED, 
+                                port_no); 
 
     /*
      * Unhandled ICMP reason, to test if the packet is passed
      */
-    icmpa_create_send_packet_in(&octets, 139, port_no);
+    icmpa_create_send_packet_in(&octets, OFP_BSN_PKTIN_FLAG_PDU, port_no);
 
     ops->del(table_priv, entry_priv, key);
     of_object_delete(key);
