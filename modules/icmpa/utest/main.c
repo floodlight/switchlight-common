@@ -40,6 +40,9 @@ static const indigo_core_gentable_ops_t *ops;
 static void *table_priv;
 static const of_mac_addr_t mac = { { 0x00, 0x50, 0x56, 0xe0, 0x14, 0x49 } };
 of_port_no_t port_no;
+bool echo_response_received = false;
+bool dest_unreach_received = false;
+bool ttl_expired_received = false;
 
 void
 indigo_core_gentable_register(
@@ -110,10 +113,13 @@ indigo_fwd_packet_out (of_packet_out_t *of_packet_out)
      */
     if (port_no == 10) {
         icmpa_verify_packet(&of_octets, ICMP_ECHO_REPLY);
+        echo_response_received = true;
     } else if (port_no == 20) {  
         icmpa_verify_packet(&of_octets, ICMP_DEST_UNREACHABLE);
+        dest_unreach_received = true;
     } else if (port_no == 30) {
         icmpa_verify_packet(&of_octets, ICMP_TIME_EXCEEDED);
+        ttl_expired_received = true;
     } else {
         return INDIGO_ERROR_PARAM;
     }
@@ -128,6 +134,8 @@ icmpa_create_send_packet_in (of_octets_t *of_octets, uint64_t reason,
     of_packet_in_t *of_packet_in;
     of_match_t     match;
 
+    memset(&match, 0, sizeof(of_match_t)); 
+
     if (!of_octets) return INDIGO_ERROR_UNKNOWN;
 
     if ((of_packet_in = of_packet_in_new(OF_VERSION_1_3)) == NULL) {
@@ -138,8 +146,8 @@ icmpa_create_send_packet_in (of_octets_t *of_octets, uint64_t reason,
     match.version = OF_VERSION_1_3;
     match.fields.in_port = in_port;
     OF_MATCH_MASK_IN_PORT_EXACT_SET(&match);
-    match.fields.metadata = 0;
     match.fields.metadata |= reason;
+    OF_MATCH_MASK_METADATA_EXACT_SET(&match);
     if ((of_packet_in_match_set(of_packet_in, &match)) != OF_ERROR_NONE) {
         printf("Failed to write match to packet-in message\n");
         of_packet_in_delete(of_packet_in);
@@ -219,6 +227,13 @@ int aim_main (int argc, char* argv[])
     port_no = 30;
     icmpa_create_send_packet_in(&octets, OFP_BSN_PKTIN_FLAG_TTL_EXPIRED, 
                                 port_no); 
+
+    /*
+     * Test if we actually received responses from icmpa
+     */
+    assert(echo_response_received == true);
+    assert(dest_unreach_received == true);
+    assert(ttl_expired_received == true);
 
     /*
      * Unhandled ICMP reason, to test if the packet is passed
