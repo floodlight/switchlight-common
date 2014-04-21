@@ -132,7 +132,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
         AIM_LOG_RL_ERROR(&icmp_pktin_log_limiter, os_time_monotonic(),
                          "ICMPA: Packet_in parsing failed.");
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
-        return false;
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
     /*
