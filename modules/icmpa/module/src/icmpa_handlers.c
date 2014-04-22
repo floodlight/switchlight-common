@@ -101,7 +101,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
      * Identify the recv port
      */
     if (packet_in->version <= OF_VERSION_1_1) {
-        of_packet_in_in_port_get(packet_in, &port_no);
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
     } else {
         if (of_packet_in_match_get(packet_in, &match) < 0) {
             AIM_LOG_ERROR("ICMPA: match get failed");
