@@ -40,6 +40,9 @@ static const indigo_core_gentable_ops_t *ops;
 static void *table_priv;
 static const of_mac_addr_t mac = { { 0x00, 0x50, 0x56, 0xe0, 0x14, 0x49 } };
 of_port_no_t port_no;
+bool echo_response_received = false;
+bool dest_unreach_received = false;
+bool ttl_expired_received = false;
 
 void
 indigo_core_gentable_register(
@@ -110,10 +113,13 @@ indigo_fwd_packet_out (of_packet_out_t *of_packet_out)
      */
     if (port_no == 10) {
         icmpa_verify_packet(&of_octets, ICMP_ECHO_REPLY);
+        echo_response_received = true;
     } else if (port_no == 20) {  
         icmpa_verify_packet(&of_octets, ICMP_DEST_UNREACHABLE);
+        dest_unreach_received = true;
     } else if (port_no == 30) {
         icmpa_verify_packet(&of_octets, ICMP_TIME_EXCEEDED);
+        ttl_expired_received = true;
     } else {
         return INDIGO_ERROR_PARAM;
     }
@@ -122,11 +128,13 @@ indigo_fwd_packet_out (of_packet_out_t *of_packet_out)
 }
  
 indigo_error_t
-icmpa_create_send_packet_in (of_octets_t *of_octets, uint8_t reason, 
+icmpa_create_send_packet_in (of_octets_t *of_octets, uint64_t reason, 
                              of_port_no_t in_port)
 {
     of_packet_in_t *of_packet_in;
     of_match_t     match;
+
+    memset(&match, 0, sizeof(of_match_t)); 
 
     if (!of_octets) return INDIGO_ERROR_UNKNOWN;
 
@@ -138,6 +146,8 @@ icmpa_create_send_packet_in (of_octets_t *of_octets, uint8_t reason,
     match.version = OF_VERSION_1_3;
     match.fields.in_port = in_port;
     OF_MATCH_MASK_IN_PORT_EXACT_SET(&match);
+    match.fields.metadata |= reason;
+    OF_MATCH_MASK_METADATA_EXACT_SET(&match);
     if ((of_packet_in_match_set(of_packet_in, &match)) != OF_ERROR_NONE) {
         printf("Failed to write match to packet-in message\n");
         of_packet_in_delete(of_packet_in);
@@ -150,8 +160,6 @@ icmpa_create_send_packet_in (of_octets_t *of_octets, uint8_t reason,
         return INDIGO_ERROR_UNKNOWN;
     }
 
-    of_packet_in_reason_set(of_packet_in, reason);
- 
     if (icmpa_packet_in_handler(of_packet_in) == 
         INDIGO_CORE_LISTENER_RESULT_DROP) {
         printf("Listener dropped packet-in\n");
@@ -212,21 +220,25 @@ int aim_main (int argc, char* argv[])
     octets.data = echo_request; 
     octets.bytes = PACKET_BUF_SIZE;
     port_no = 10;
-    icmpa_create_send_packet_in(&octets, 
-                                OF_PACKET_IN_REASON_BSN_ICMP_ECHO_REQUEST, 
-                                port_no);
+    icmpa_create_send_packet_in(&octets, OFP_BSN_PKTIN_FLAG_L3_CPU, port_no); 
     octets.data = ip_packet;
     port_no = 20; 
-    icmpa_create_send_packet_in(&octets, 
-                                OF_PACKET_IN_REASON_BSN_NO_ROUTE, port_no);
+    icmpa_create_send_packet_in(&octets, OFP_BSN_PKTIN_FLAG_L3_MISS, port_no); 
     port_no = 30;
-    icmpa_create_send_packet_in(&octets, OF_PACKET_IN_REASON_INVALID_TTL, 
-                                port_no);
+    icmpa_create_send_packet_in(&octets, OFP_BSN_PKTIN_FLAG_TTL_EXPIRED, 
+                                port_no); 
+
+    /*
+     * Test if we actually received responses from icmpa
+     */
+    assert(echo_response_received == true);
+    assert(dest_unreach_received == true);
+    assert(ttl_expired_received == true);
 
     /*
      * Unhandled ICMP reason, to test if the packet is passed
      */
-    icmpa_create_send_packet_in(&octets, 139, port_no);
+    icmpa_create_send_packet_in(&octets, OFP_BSN_PKTIN_FLAG_PDU, port_no);
 
     ops->del(table_priv, entry_priv, key);
     of_object_delete(key);

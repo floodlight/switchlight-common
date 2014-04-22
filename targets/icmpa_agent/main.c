@@ -89,8 +89,7 @@ indigo_core_packet_in_listener_unregister(indigo_core_packet_in_listener_f fn)
 }
 
 indigo_error_t
-icmpa_create_send_packet_in (of_octets_t *of_octets, uint8_t reason,
-                             of_port_no_t in_port)
+icmpa_create_send_packet_in (of_octets_t *of_octets, of_port_no_t in_port)
 {
     of_packet_in_t *of_packet_in;
     of_match_t     match;
@@ -140,8 +139,6 @@ icmpa_create_send_packet_in (of_octets_t *of_octets, uint8_t reason,
         of_packet_in_delete(of_packet_in);
         return INDIGO_ERROR_UNKNOWN;
     }
-
-    of_packet_in_reason_set(of_packet_in, reason);
 
     if (icmpa_packet_in_handler(of_packet_in) == 
         INDIGO_CORE_LISTENER_RESULT_DROP) {
@@ -251,8 +248,7 @@ int main (int argc, char* argv[])
         if (fds[0].revents & POLLIN) {
             of_octets.bytes = vpi_recv(vpi1, buf, 256, 0);
             printf("received_pkt on tap0 with %d bytes\n", of_octets.bytes);
-            icmpa_create_send_packet_in(&of_octets, 
-                                OF_PACKET_IN_REASON_BSN_ICMP_ECHO_REQUEST, 10);
+            icmpa_create_send_packet_in(&of_octets, 10); 
         }
 
     }
