@@ -495,15 +495,15 @@ arpa_lookup(uint16_t vlan_vid, uint32_t ipv4)
 static indigo_core_listener_result_t
 arpa_handle_pkt(of_packet_in_t *packet_in)
 {
-    uint8_t reason;
+    of_match_t match;
     of_octets_t octets;
     struct arp_info info;
     indigo_error_t rv;
 
-    of_packet_in_reason_get(packet_in, &reason);
+    AIM_TRUE_OR_DIE(of_packet_in_match_get(packet_in, &match) == 0);
     of_packet_in_data_get(packet_in, &octets);
 
-    if (reason != OF_PACKET_IN_REASON_BSN_ARP) {
+    if ((match.fields.metadata & OFP_BSN_PKTIN_FLAG_ARP) == 0) {
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
