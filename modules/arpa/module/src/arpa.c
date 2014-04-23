@@ -500,6 +500,10 @@ arpa_handle_pkt(of_packet_in_t *packet_in)
     struct arp_info info;
     indigo_error_t rv;
 
+    if (packet_in->version < OF_VERSION_1_3) {
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
+    }
+
     AIM_TRUE_OR_DIE(of_packet_in_match_get(packet_in, &match) == 0);
     of_packet_in_data_get(packet_in, &octets);
 
