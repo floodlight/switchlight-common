@@ -531,8 +531,7 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
     dhcp_stat_ports[port_no].dhcp_request_relay++;
     dhcpra_send_pkt (&data_tx, port_no);
 
-    /* If it is a valid discover message, pass to the controller */
-    return (message_type == DHCPDISCOVER ? 1 : 0);
+    return 0;
 }
 
 /*
