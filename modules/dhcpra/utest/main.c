@@ -937,8 +937,9 @@ int aim_main(int argc, char* argv[])
     add_entry_to_dhcpr_table();
     mod_entry_to_dhcpr_table();
 
-    //Port 1: Correct setup, packet process and pass to controller
-    test_discovery_pkt_in(1, INDIGO_CORE_LISTENER_RESULT_PASS);
+    //Port 1: Correct setup, packet process
+    //Driver will take care of sending L2_SRC_MISSED to controller
+    test_discovery_pkt_in(1, INDIGO_CORE_LISTENER_RESULT_DROP);
     test_offer_pkt_in(1);
 
     if (dhcp_pkt_matched[0])
