@@ -45,3 +45,4 @@ definitions:
         - vsnprintf
         - snprintf
         - strlen
+        - memcmp
