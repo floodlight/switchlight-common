@@ -34,6 +34,7 @@
 #include <indigo/of_state_manager.h>
 #include <OS/os_time.h>
 #include <AIM/aim_list.h>
+#include <debug_counter/debug_counter.h>
 
 typedef struct arp_mapping_s { /* arp_mapping */
     of_mac_addr_t mac;
@@ -54,6 +55,14 @@ typedef struct arp_cache_entry_s { /* arp_cache_entry */
     arp_mapping_t entry;
     list_links_t  links;
 } arp_cache_entry_t;
+
+typedef struct arpra_packet_counter_s { /* arpra_packet_counter */
+    debug_counter_t  total_in_packets;
+    debug_counter_t  total_out_packets;
+    debug_counter_t  internal_errors;
+} arpra_packet_counter_t;
+
+extern arpra_packet_counter_t pkt_counters;
 
 bool arpra_is_initialized (void);
 

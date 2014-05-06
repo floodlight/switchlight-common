@@ -38,6 +38,7 @@
 bool arpra_initialized = false;
 aim_ratelimiter_t arpra_pktin_log_limiter;
 static LIST_DEFINE(arp_cache);
+arpra_packet_counter_t pkt_counters;
 
 /*
  * arpra_is_initialized
@@ -263,8 +264,10 @@ arpra_send_packet (arp_info_t *info, of_port_no_t port_no)
     if (rv < 0) {
         AIM_LOG_ERROR("Failed to send packet out the port: %d, reason: %s",
                       port_no, indigo_strerror(rv));
+        debug_counter_inc(&pkt_counters.internal_errors);
     } else {
         AIM_LOG_TRACE("Succesfully sent a packet out the port: %d", port_no);
+        debug_counter_inc(&pkt_counters.total_out_packets);
     }
 
     of_packet_out_delete(obj); 
@@ -285,6 +288,7 @@ arpra_packet_in_handler (of_packet_in_t *packet_in)
     arp_info_t                    info;
     indigo_error_t                rv;
 
+    debug_counter_inc(&pkt_counters.total_in_packets);
     if (!packet_in) return INDIGO_CORE_LISTENER_RESULT_PASS;
 
     of_packet_in_data_get(packet_in, &octets);
@@ -297,6 +301,7 @@ arpra_packet_in_handler (of_packet_in_t *packet_in)
     } else {
         if (of_packet_in_match_get(packet_in, &match) < 0) {
             AIM_LOG_ERROR("ARPRA: match get failed");
+            debug_counter_inc(&pkt_counters.internal_errors);    
             return INDIGO_CORE_LISTENER_RESULT_PASS;
         }
         port_no = match.fields.in_port;
@@ -306,6 +311,7 @@ arpra_packet_in_handler (of_packet_in_t *packet_in)
     if (ppe_parse(&ppep) < 0) {
         AIM_LOG_RL_ERROR(&arpra_pktin_log_limiter, os_time_monotonic(),
                          "ARPRA: Packet_in parsing failed.");
+        debug_counter_inc(&pkt_counters.internal_errors);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
@@ -325,6 +331,7 @@ arpra_packet_in_handler (of_packet_in_t *packet_in)
         AIM_LOG_RL_ERROR(&arpra_pktin_log_limiter, os_time_monotonic(),
                          "ARPRA: not a valid ARP packet: %s", 
                          indigo_strerror(rv));
+        debug_counter_inc(&pkt_counters.internal_errors);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
@@ -488,6 +495,19 @@ arpra_init (void)
     aim_ratelimiter_init(&arpra_pktin_log_limiter, 1000*1000, 5, NULL);
 
     /*
+     * Register debug counters
+     */
+    debug_counter_register(&pkt_counters.total_in_packets,
+                           "arpra.total_in_packets",
+                           "Packet-ins recv'd by arpra");
+    debug_counter_register(&pkt_counters.total_out_packets,
+                           "arpra.total_out_packets",
+                           "ARP replies sent by arpra");
+    debug_counter_register(&pkt_counters.internal_errors,
+                           "arpra.internal_errors",
+                           "Internal errors in arpra");    
+
+    /*
      * Register listerner for packet_in
      */
     if (indigo_core_packet_in_listener_register(
@@ -510,6 +530,13 @@ void
 arpra_finish (void)
 {
     if (!arpra_is_initialized()) return;
+
+    /*
+     * Unregister debug counters
+     */
+    debug_counter_unregister(&pkt_counters.total_in_packets);
+    debug_counter_unregister(&pkt_counters.total_out_packets);
+    debug_counter_unregister(&pkt_counters.internal_errors); 
 
     /*
      * Unregister listerner for packet_in
