@@ -19,9 +19,18 @@
 
 /*
  * Implementation of BigTap ARP Agent.
+ * (Not to be confused with arpa module which is t5/t6 ARP agent)  
  *
  * This file contains the api's for initializing and handling incoming/outgoing
  * messages to/from the agent.
+ *
+ * ARP Agent maintains a cache for IP --> MAC mapping and 
+ * responds to ARP requests for target IP's present in the cache.
+ * ARP requests for IP addresses not present in the cache are passed
+ * to the controller.
+ *
+ * ARP Cache enteries are added/deleted by 
+ * broadcom/Modules/Indigo/BRCMDriver/module/src/brcm_l2gre_port.c
  */
 
 #include "arpra_int.h"
@@ -36,7 +45,7 @@ static LIST_DEFINE(arp_cache);
  * true = ARPRA Initialized
  * false = ARPRA Uninitialized
  */
-static bool
+bool
 arpra_is_initialized (void)
 {
     return arpra_initialized;

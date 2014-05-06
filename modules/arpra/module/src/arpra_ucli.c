@@ -4,12 +4,38 @@
  *
  *****************************************************************************/
 #include <arpra/arpra_config.h>
+#include "arpra_int.h"
 
 #if ARPRA_CONFIG_INCLUDE_UCLI == 1
 
 #include <uCli/ucli.h>
 #include <uCli/ucli_argparse.h>
 #include <uCli/ucli_handler_macros.h>
+
+static ucli_status_t
+arpra_ucli_ucli__show_cache__(ucli_context_t* uc)
+{
+    list_head_t *cache = arp_cache_list();
+    list_links_t *cur;
+
+    UCLI_COMMAND_INFO(uc,
+                      "cache", 0,
+                      "$summary#Display the ARP cache entries.");
+
+    if (!arpra_is_initialized()) return UCLI_STATUS_E_ERROR;
+
+    if (list_empty(cache)) return UCLI_STATUS_OK;
+
+    ucli_printf(uc, "IP --> MAC\n");
+    LIST_FOREACH(cache, cur) {
+        arp_cache_entry_t *cache_entry = container_of(cur, links,
+                                                      arp_cache_entry_t);
+        ucli_printf(uc, "%{ipv4a} --> %{mac}\n", 
+                    cache_entry->entry.ipv4, cache_entry->entry.mac.addr); 
+    }
+
+    return UCLI_STATUS_OK;
+}
 
 static ucli_status_t
 arpra_ucli_ucli__config__(ucli_context_t* uc)
@@ -26,6 +52,7 @@ arpra_ucli_ucli__config__(ucli_context_t* uc)
  *****************************************************************************/
 static ucli_command_handler_f arpra_ucli_ucli_handlers__[] = 
 {
+    arpra_ucli_ucli__show_cache__,
     arpra_ucli_ucli__config__,
     NULL
 };

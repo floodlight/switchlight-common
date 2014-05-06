@@ -55,6 +55,8 @@ typedef struct arp_cache_entry_s { /* arp_cache_entry */
     list_links_t  links;
 } arp_cache_entry_t;
 
+bool arpra_is_initialized (void);
+
 /*
  * 
  * Return a list of registered debug counters
