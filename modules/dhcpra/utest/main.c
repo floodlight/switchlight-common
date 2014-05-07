@@ -442,7 +442,7 @@ void add_entry_to_dhcpr_table()
             AIM_TRUE_OR_DIE(vlan==1);
 
             /* Test 3: routerip -> vlan */
-            dhcpr_virtual_router_ip_to_vlan(&vlan, vr_ip);
+            dhcpr_virtual_router_key_to_vlan(&vlan, vr_ip, dummy_dhcp_opt_info.vrouter_mac.addr);
             printf("router_ip_to_vlan = %u, vr_ip = %s\n",
                         vlan, inet_ntoa(*(struct in_addr *) &vr_ip));
             AIM_TRUE_OR_DIE(vlan==1);
@@ -481,7 +481,7 @@ void mod_entry_to_dhcpr_table()
     AIM_TRUE_OR_DIE(vlan_ret==INVALID_VLAN);
 
     /* Test 3: routerip -> vlan */
-    dhcpr_virtual_router_ip_to_vlan(&vlan_ret, dummy_dhcp_opt_info.vrouter_ip+1);
+    dhcpr_virtual_router_key_to_vlan(&vlan_ret, dummy_dhcp_opt_info.vrouter_ip+1, dummy_dhcp_opt_info.vrouter_mac.addr);
     printf("router_ip_to_vlan = %d\n", vlan_ret);
     AIM_TRUE_OR_DIE(vlan_ret==INVALID_VLAN);
 
@@ -492,7 +492,7 @@ void mod_entry_to_dhcpr_table()
    AIM_TRUE_OR_DIE(vlan_ret==vlan_id);
 
    /* Test 5: routerip -> vlan */
-   dhcpr_virtual_router_ip_to_vlan(&vlan_ret, dummy_dhcp_opt_info.vrouter_ip);
+   dhcpr_virtual_router_key_to_vlan(&vlan_ret, dummy_dhcp_opt_info.vrouter_ip, dummy_dhcp_opt_info.vrouter_mac.addr);
    printf("router_ip_to_vlan = %d\n", vlan_ret);
    AIM_TRUE_OR_DIE(vlan_ret==vlan_id);
 
@@ -524,7 +524,7 @@ void del_entry_to_dhcpr_table()
     AIM_TRUE_OR_DIE(vlan_ret==INVALID_VLAN);
 
     /* Test 3: routerip -> vlan */
-    dhcpr_virtual_router_ip_to_vlan(&vlan_ret, dummy_dhcp_opt_info.vrouter_ip);
+    dhcpr_virtual_router_key_to_vlan(&vlan_ret, dummy_dhcp_opt_info.vrouter_ip, dummy_dhcp_opt_info.vrouter_mac.addr);
     printf("router_ip_to_vlan = %d\n", vlan_ret);
     AIM_TRUE_OR_DIE(vlan_ret==INVALID_VLAN);
 
@@ -617,7 +617,9 @@ char Dhcp_discovery_expected_hex_stream[] =
 
 /* Using wireshark: sel frame, sel copy-> hex stream */
 char Dhcp_offer_hex_stream[] = 
-    "000c2926d330005056e016ad" // Ether hdr 
+    //"000c2926d330"
+    "5516c7010203" // Must be matched to dhcpra table
+    "005056e016ad" // Ether hdr 
     "81000001" //Manually add Dot1q: 0x8100, VLANID = 1,
     "0800" //Ether type: IPv4
     "45100148000000001011e411ac1036fe" "c0a86402" //"ac103665" //IP
@@ -941,11 +943,6 @@ int aim_main(int argc, char* argv[])
     //Driver will take care of sending L2_SRC_MISSED to controller
     test_discovery_pkt_in(1, INDIGO_CORE_LISTENER_RESULT_DROP);
     test_offer_pkt_in(1);
-
-    if (dhcp_pkt_matched[0])
-        printf("DISCOVERY PASSED\n");
-    if (dhcp_pkt_matched[1])
-        printf("OFFER PASSED\n");
 
     printf("\n\nSUMMARY:\nDISCOV:\t%s\n", dhcp_pkt_matched[0] ? "PASSED" : "FAILED");
     printf("OFFER:\t%s\n", dhcp_pkt_matched[1] ? "PASSED" : "FAILED");
