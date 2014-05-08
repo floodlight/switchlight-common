@@ -85,7 +85,7 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
     /* If there's no cookie, it's a bootp packet, so we should just
        forward it unchanged. */
     if (memcmp(packet->options, DHCP_OPTIONS_COOKIE, 4)) {
-        dhc_relay_stat.missing_request_cookie++;
+        debug_counter_inc(&dhc_relay_stat.missing_request_cookie);
         return length;
     }
 
@@ -197,7 +197,7 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
 
     /* If it's not a DHCP packet, we're not supposed to touch it. */
     if (!is_dhcp) {
-        dhc_relay_stat.missing_request_message++;
+        debug_counter_inc(&dhc_relay_stat.missing_request_message);
         return length;
     }
 
@@ -214,7 +214,7 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
 
     /* Sanity check.  Had better not ever happen. */
     if((opt->circuit_id.bytes > 255) || (opt->circuit_id.bytes < 1)) {
-        dhc_relay_stat.agent_option_errors++;
+        debug_counter_inc(&dhc_relay_stat.agent_option_errors);
         AIM_LOG_ERROR("Circuid_id length(%u) out of range [1 - 255]",
                       opt->circuit_id.bytes);
         return 0;
@@ -224,7 +224,7 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
 
     if (opt->remote_id.data) {
         if ((opt->remote_id.bytes >= 255) || (opt->remote_id.bytes <= 1)) {
-            dhc_relay_stat.agent_option_errors++;
+            debug_counter_inc(&dhc_relay_stat.agent_option_errors);
             AIM_LOG_ERROR("Remote_id length(%u) out of range [2 - 254]",
                           opt->remote_id.bytes);
             return 0;
@@ -236,7 +236,7 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
      * support an option data exceeding 255 bytes).
      */
     if ((optlen < 3) ||(optlen > 255)) {
-        dhc_relay_stat.agent_option_errors++;
+        debug_counter_inc(&dhc_relay_stat.agent_option_errors);
         AIM_LOG_ERROR("Total agent option length(%u) out of range [3 - 255]",
                       optlen);
         return 0;
@@ -271,7 +271,7 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
             sp += opt->remote_id.bytes;
         }
     } else {
-        dhc_relay_stat.agent_option_errors++;
+        debug_counter_inc(&dhc_relay_stat.agent_option_errors);
         AIM_LOG_ERROR("No room in packet (used %d of %d) for %d-byte relay agent option: omitted",
                       (int) (sp - ((u_int8_t *) packet)),
                       (int) (max - ((u_int8_t *) packet)),
@@ -316,7 +316,7 @@ find_vlan_by_agent_option(u_int8_t *buf, int len, uint32_t *vlan) {
            packet, the agent option buffer is corrupt. */
         if (i + 1 == len ||
             i + buf[i + 1] + 2 > len) {
-            dhc_relay_stat.corrupt_agent_options++;
+            debug_counter_inc(&dhc_relay_stat.corrupt_agent_options);
             return -1;
         }
         switch(buf[i]) {
@@ -336,7 +336,7 @@ find_vlan_by_agent_option(u_int8_t *buf, int len, uint32_t *vlan) {
     /* If there's no circuit ID, it's not really ours, tell the caller
        it's no good. */
     if (!circuit_id) {
-        dhc_relay_stat.missing_circuit_id++;
+        debug_counter_inc(&dhc_relay_stat.missing_circuit_id);
         return -1;
     }
 
@@ -348,7 +348,7 @@ find_vlan_by_agent_option(u_int8_t *buf, int len, uint32_t *vlan) {
 
     AIM_LOG_ERROR("Bad Circuit");
     /* If we didn't get a match, the circuit ID was bogus. */
-    dhc_relay_stat.bad_circuit_id++;
+    debug_counter_inc(&dhc_relay_stat.bad_circuit_id);
 
     return -1;
 }
@@ -377,7 +377,7 @@ dhc_strip_relay_agent_options(struct dhcp_packet *packet,
     /* If there's no cookie, it's a bootp packet, so we should just
        forward it unchanged. */
     if (memcmp(packet->options, DHCP_OPTIONS_COOKIE, 4)) {
-        dhc_relay_stat.missing_reply_cookie++;
+        debug_counter_inc(&dhc_relay_stat.missing_reply_cookie);
         return length;
     }
 
@@ -464,12 +464,12 @@ dhc_strip_relay_agent_options(struct dhcp_packet *packet,
  out:
     /* If it's not a DHCP packet, we're not supposed to touch it. */
     if (!is_dhcp) {
-        dhc_relay_stat.missing_reply_message++;
+        debug_counter_inc(&dhc_relay_stat.missing_reply_message);
         return length;
     }
     
     if (!dhcp_agent_option) {
-        dhc_relay_stat.missing_dhcp_agent_option++;
+        debug_counter_inc(&dhc_relay_stat.missing_dhcp_agent_option);
     }
 
     /* Adjust the length... */

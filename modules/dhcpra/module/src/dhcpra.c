@@ -30,15 +30,8 @@
 #include <SocketManager/socketmanager.h>
 #include <PPE/ppe.h>
 
-#define MAX_SYSTEM_PORT 96
-typedef struct {
-    uint32_t dhcp_request;
-    uint32_t dhcp_request_relay;
-    uint32_t dhcp_reply;
-    uint32_t dhcp_reply_relay;
-}dhcp_relay_stat_t;
 
-static dhcp_relay_stat_t dhcp_stat_ports[MAX_SYSTEM_PORT+1];
+dhcp_relay_stat_t dhcp_stat_ports[MAX_SYSTEM_PORT+1];
 
 /* This variable is set by ucli for debugging purpose*/
 int dhcpra_dump_data = DHCPRA_DUMP_DISABLE_ALL_PORTS;
@@ -396,7 +389,7 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len,
     }
 
     /* Send out */
-    dhcp_stat_ports[port_no].dhcp_reply_relay++;
+    debug_counter_inc(&dhcp_stat_ports[port_no].dhcp_reply_relay);
     dhcpra_send_pkt (&data_tx, port_no);
     return 0;
 }
@@ -533,7 +526,7 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
     }
 
     /* Send out */
-    dhcp_stat_ports[port_no].dhcp_request_relay++;
+    debug_counter_inc(&dhcp_stat_ports[port_no].dhcp_request_relay);
     dhcpra_send_pkt (&data_tx, port_no);
 
     return 0;
@@ -664,7 +657,7 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     DHCPRA_DEBUG("port %u, dhcp opcode %u",port_no, opcode);
     switch (opcode) {
     case BOOTREQUEST:
-        dhcp_stat_ports[port_no].dhcp_request++;
+        debug_counter_inc(&dhcp_stat_ports[port_no].dhcp_request);
         /* If message_type = DHCPDISCOVER: forward to controller */
         if (dhcpra_handle_bootrequest(&ldata, dhcp_pkt_len, vlan_vid, vlan_pcp,
                                       port_no, port_dump_data)) {
@@ -673,7 +666,7 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
         }
         break;
     case BOOTREPLY:
-        dhcp_stat_ports[port_no].dhcp_reply++;
+        debug_counter_inc(&dhcp_stat_ports[port_no].dhcp_reply);
         /*
          * Using relay_agent_ip if circuit_id not existing
          * ppe_field_get already takes care of ntohl
@@ -701,6 +694,82 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     return INDIGO_CORE_LISTENER_RESULT_DROP;   
 }
 
+static void
+dhcpra_debug_counter_register()
+{
+    int port_no;
+    /* Register dhcp debug counter */
+    for (port_no = 0; port_no <=MAX_SYSTEM_PORT; port_no++) {
+        dhcp_relay_stat_t *stat = &dhcp_stat_ports[port_no];
+        char counter_name_buf[DEBUG_COUNTER_NAME_SIZE];
+
+        snprintf(counter_name_buf,
+                 DEBUG_COUNTER_NAME_SIZE,
+                 "dhcpra.port:%d.dhcp_request", port_no);
+
+        debug_counter_register(&stat->dhcp_request,
+                               counter_name_buf,
+                               "dhcp request recv'd on this port");
+
+        snprintf(counter_name_buf,
+                 DEBUG_COUNTER_NAME_SIZE,
+                 "dhcpra.port:%d.dhcp_request_relay", port_no);
+
+        debug_counter_register(&stat->dhcp_request_relay,
+                               counter_name_buf,
+                               "dhcp request relay sent on this port");
+
+
+        snprintf(counter_name_buf,
+                 DEBUG_COUNTER_NAME_SIZE,
+                 "dhcpra.port:%d.dhcp_reply", port_no);
+
+        debug_counter_register(&stat->dhcp_reply,
+                               counter_name_buf,
+                               "dhcp reply recv'd on this port");
+
+        snprintf(counter_name_buf,
+                 DEBUG_COUNTER_NAME_SIZE,
+                 "dhcpra.port:%d.dhcp_reply_relay", port_no);
+
+        debug_counter_register(&stat->dhcp_reply_relay,
+                               counter_name_buf,
+                               "dhcp reply_relay sent on this port");
+    }
+
+    /* request error debug counter */
+    debug_counter_register(&dhc_relay_stat.agent_option_errors,
+                           "dhcpra.option_error",
+                           "dhcp request option error");
+    debug_counter_register(&dhc_relay_stat.missing_request_cookie,
+                           "dhcpra.request_cookie_missing",
+                           "dhcp request cookie missing");
+    debug_counter_register(&dhc_relay_stat.missing_request_message,
+                           "dhcpra.request_message_missing",
+                           "dhcp request message missing");
+
+    /* request error debug counter */
+    debug_counter_register(&dhc_relay_stat.missing_circuit_id,
+                           "dhcpra.circuit_id_missing",
+                           "dhcp reply circuit id missing");
+    debug_counter_register(&dhc_relay_stat.bad_circuit_id,
+                           "dhcpra.bad_circuit_id",
+                           "dhcp reply bad circuit id");
+    debug_counter_register(&dhc_relay_stat.corrupt_agent_options,
+                           "dhcpra.option_corrupted",
+                           "dhcp reply option corrupted");
+    debug_counter_register(&dhc_relay_stat.missing_dhcp_agent_option,
+                           "dhcpra.option_missing",
+                           "dhcp reply option missing");
+    debug_counter_register(&dhc_relay_stat.missing_reply_cookie,
+                           "dhcpra.reply_cookie_missing",
+                           "dhcp reply cookie missing");
+    debug_counter_register(&dhc_relay_stat.missing_reply_message,
+                           "dhcpra.reply_messsage_missing",
+                           "dhcp reply message missing");
+
+}
+
 /************************
  * DHCPRA SYSTEM INIT
  ************************/
@@ -717,6 +786,9 @@ dhcpra_system_init()
 
     /* handler dhcp packet */
     indigo_core_packet_in_listener_register(dhcpra_handle_pkt);
+
+
+    dhcpra_debug_counter_register();
 
     return 0;
 }
