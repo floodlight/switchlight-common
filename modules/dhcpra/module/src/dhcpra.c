@@ -715,9 +715,10 @@ dhcpra_debug_counter_register()
                  DEBUG_COUNTER_NAME_SIZE,
                  "dhcpra.port:%d.dhcp_request_relay", port_no);
 
-        debug_counter_register(&stat->dhcp_request_relay,
-                               counter_name_buf,
-                               "dhcp request relay sent on this port");
+        debug_counter_register(
+            &stat->dhcp_request_relay,
+            counter_name_buf,
+            "dhcp request relayed from this port");
 
 
         snprintf(counter_name_buf,
@@ -732,41 +733,51 @@ dhcpra_debug_counter_register()
                  DEBUG_COUNTER_NAME_SIZE,
                  "dhcpra.port:%d.dhcp_reply_relay", port_no);
 
-        debug_counter_register(&stat->dhcp_reply_relay,
-                               counter_name_buf,
-                               "dhcp reply_relay sent on this port");
+        debug_counter_register(
+            &stat->dhcp_reply_relay,
+            counter_name_buf,
+            "dhcp reply relayed from this port");
     }
 
     /* request error debug counter */
-    debug_counter_register(&dhc_relay_stat.request_option_error,
-                           "dhcpra.request_option_error",
-                           "dhcp request option error");
-    debug_counter_register(&dhc_relay_stat.request_missing_cookie,
-                           "dhcpra.request_missing_cookie",
-                           "dhcp request missing cookie");
-    debug_counter_register(&dhc_relay_stat.request_missing_message,
-                           "dhcpra.request_missing_message",
-                           "dhcp request missing message");
+    debug_counter_register(
+        &dhc_relay_stat.request_option_error,
+        "dhcpra.request_option_error",
+        "invalid option or not enough space to add it");
+    debug_counter_register(
+        &dhc_relay_stat.request_missing_cookie,
+        "dhcpra.request_missing_cookie",
+        "");
+    debug_counter_register(
+        &dhc_relay_stat.request_missing_message,
+        "dhcpra.request_missing_message",
+        "dhcp packet does not have dhcp message");
 
     /* reply error debug counter */
-    debug_counter_register(&dhc_relay_stat.reply_missing_circuit_id,
-                           "dhcpra.reply_circuit_id_missing",
-                           "dhcp reply missing circuit id");
-    debug_counter_register(&dhc_relay_stat.reply_bad_circuit_id,
-                           "dhcpra.reply_bad_circuit_id",
-                           "dhcp reply bad circuit id");
-    debug_counter_register(&dhc_relay_stat.reply_corrupt_option,
-                           "dhcpra.reply_corrupt_option",
-                           "dhcp reply corrupt option");
-    debug_counter_register(&dhc_relay_stat.reply_missing_option,
-                           "dhcpra.reply_missing_option",
-                           "dhcp reply missing option");
-    debug_counter_register(&dhc_relay_stat.reply_missing_cookie,
-                           "dhcpra.reply_missing_cookie",
-                           "dhcp reply missing cookie");
-    debug_counter_register(&dhc_relay_stat.reply_missing_message,
-                           "dhcpra.reply_missing_messsage",
-                           "dhcp reply missing message");
+    debug_counter_register(
+        &dhc_relay_stat.reply_missing_circuit_id,
+        "dhcpra.reply_circuit_id_missing",
+        "dhcp option does not have circuit id");
+    debug_counter_register(
+        &dhc_relay_stat.reply_bad_circuit_id,
+        "dhcpra.reply_bad_circuit_id",
+        "dhcp option has a bad circuit id");
+    debug_counter_register(
+        &dhc_relay_stat.reply_corrupt_option,
+        "dhcpra.reply_corrupt_option",
+        "dhcp packet has a corrupt option");
+    debug_counter_register(
+        &dhc_relay_stat.reply_missing_option,
+        "dhcpra.reply_missing_option",
+        "dhcp packet has dhcp message but does not have an option");
+    debug_counter_register(
+        &dhc_relay_stat.reply_missing_cookie,
+        "dhcpra.reply_missing_cookie",
+        "");
+    debug_counter_register(
+        &dhc_relay_stat.reply_missing_message,
+        "dhcpra.reply_missing_messsage",
+        "dhcp packet does not have dhcp message");
 
 }
 
