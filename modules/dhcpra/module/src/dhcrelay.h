@@ -33,17 +33,17 @@ int dhc_add_relay_agent_options(struct dhcp_packet *packet,
 /* Error statistics */
 typedef struct {
     /* For dhcp request */
-    debug_counter_t agent_option_errors;
-    debug_counter_t missing_request_cookie;
-    debug_counter_t missing_request_message;
+    debug_counter_t request_option_error;
+    debug_counter_t request_missing_cookie;
+    debug_counter_t request_missing_message;
 
     /* For dhcp reply */
-    debug_counter_t missing_circuit_id;
-    debug_counter_t bad_circuit_id;
-    debug_counter_t corrupt_agent_options;
-    debug_counter_t missing_dhcp_agent_option;
-    debug_counter_t missing_reply_cookie;
-    debug_counter_t missing_reply_message;
+    debug_counter_t reply_missing_circuit_id;
+    debug_counter_t reply_bad_circuit_id;
+    debug_counter_t reply_corrupt_option;
+    debug_counter_t reply_missing_option;
+    debug_counter_t reply_missing_cookie;
+    debug_counter_t reply_missing_message;
 } dhcrelay_stat;
 
 extern dhcrelay_stat dhc_relay_stat;

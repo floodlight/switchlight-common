@@ -738,35 +738,35 @@ dhcpra_debug_counter_register()
     }
 
     /* request error debug counter */
-    debug_counter_register(&dhc_relay_stat.agent_option_errors,
-                           "dhcpra.option_error",
+    debug_counter_register(&dhc_relay_stat.request_option_error,
+                           "dhcpra.request_option_error",
                            "dhcp request option error");
-    debug_counter_register(&dhc_relay_stat.missing_request_cookie,
-                           "dhcpra.request_cookie_missing",
-                           "dhcp request cookie missing");
-    debug_counter_register(&dhc_relay_stat.missing_request_message,
-                           "dhcpra.request_message_missing",
-                           "dhcp request message missing");
+    debug_counter_register(&dhc_relay_stat.request_missing_cookie,
+                           "dhcpra.request_missing_cookie",
+                           "dhcp request missing cookie");
+    debug_counter_register(&dhc_relay_stat.request_missing_message,
+                           "dhcpra.request_missing_message",
+                           "dhcp request missing message");
 
-    /* request error debug counter */
-    debug_counter_register(&dhc_relay_stat.missing_circuit_id,
-                           "dhcpra.circuit_id_missing",
-                           "dhcp reply circuit id missing");
-    debug_counter_register(&dhc_relay_stat.bad_circuit_id,
-                           "dhcpra.bad_circuit_id",
+    /* reply error debug counter */
+    debug_counter_register(&dhc_relay_stat.reply_missing_circuit_id,
+                           "dhcpra.reply_circuit_id_missing",
+                           "dhcp reply missing circuit id");
+    debug_counter_register(&dhc_relay_stat.reply_bad_circuit_id,
+                           "dhcpra.reply_bad_circuit_id",
                            "dhcp reply bad circuit id");
-    debug_counter_register(&dhc_relay_stat.corrupt_agent_options,
-                           "dhcpra.option_corrupted",
-                           "dhcp reply option corrupted");
-    debug_counter_register(&dhc_relay_stat.missing_dhcp_agent_option,
-                           "dhcpra.option_missing",
-                           "dhcp reply option missing");
-    debug_counter_register(&dhc_relay_stat.missing_reply_cookie,
-                           "dhcpra.reply_cookie_missing",
-                           "dhcp reply cookie missing");
-    debug_counter_register(&dhc_relay_stat.missing_reply_message,
-                           "dhcpra.reply_messsage_missing",
-                           "dhcp reply message missing");
+    debug_counter_register(&dhc_relay_stat.reply_corrupt_option,
+                           "dhcpra.reply_corrupt_option",
+                           "dhcp reply corrupt option");
+    debug_counter_register(&dhc_relay_stat.reply_missing_option,
+                           "dhcpra.reply_missing_option",
+                           "dhcp reply missing option");
+    debug_counter_register(&dhc_relay_stat.reply_missing_cookie,
+                           "dhcpra.reply_missing_cookie",
+                           "dhcp reply missing cookie");
+    debug_counter_register(&dhc_relay_stat.reply_missing_message,
+                           "dhcpra.reply_missing_messsage",
+                           "dhcp reply missing message");
 
 }
 

@@ -133,7 +133,7 @@ dhcpra_ucli_ucli__clear_dhcpra_stat__(ucli_context_t* uc)
         if (port > MAX_SYSTEM_PORT) {
             ucli_printf(uc, "of_port %d out of range\n", port);
         } else {
-            ucli_printf(uc, "Clearing rx/tx stat of of_port %d\n", port);
+            ucli_printf(uc, "Clearing rx/tx stat for of_port %d\n", port);
             dhcpra_clear_rxtx_stat__(uc, port);
         }
     } else {
@@ -189,24 +189,24 @@ dhcpra_ucli_ucli__show_dhcrelay_stat__(ucli_context_t* uc)
                       "err_relay_stat", -1,
                       "$summary#Display dhcrelay error statistics");
 
-    ucli_printf(uc, "agent_option_errors=%" PRId64 "\n",
-                debug_counter_get(&dhc_relay_stat.agent_option_errors));
-    ucli_printf(uc, "dhcp_request_cookie_unfound=%" PRId64 "\n",
-                debug_counter_get(&dhc_relay_stat.missing_request_cookie));
-    ucli_printf(uc, "dhcp_request_message_missing=%" PRId64 "\n",
-                debug_counter_get(&dhc_relay_stat.missing_request_message));
-    ucli_printf(uc, "missing_circuit_id=%" PRId64 "\n",
-                debug_counter_get(&dhc_relay_stat.missing_circuit_id));
-    ucli_printf(uc, "bad_circuit_id=%" PRId64 "\n",
-                debug_counter_get(&dhc_relay_stat.bad_circuit_id));
-    ucli_printf(uc, "corrupt_agent_options=%" PRId64 "\n",
-                debug_counter_get(&dhc_relay_stat.corrupt_agent_options));
-    ucli_printf(uc, "missing_dhcp_agent_optio=%" PRId64 "\n",
-                debug_counter_get(&dhc_relay_stat.missing_dhcp_agent_option));
-    ucli_printf(uc, "dhcp_reply_cookie_unfound=%" PRId64 "\n",
-                debug_counter_get(&dhc_relay_stat.missing_reply_cookie));
-    ucli_printf(uc, "dhcp_reply_message_missing=%" PRId64 "\n",
-                debug_counter_get(&dhc_relay_stat.missing_reply_message));
+    ucli_printf(uc, "request_option_error=%" PRId64 "\n",
+                debug_counter_get(&dhc_relay_stat.request_option_error));
+    ucli_printf(uc, "request_missing_cookie=%" PRId64 "\n",
+                debug_counter_get(&dhc_relay_stat.request_missing_cookie));
+    ucli_printf(uc, "request_missing_message=%" PRId64 "\n",
+                debug_counter_get(&dhc_relay_stat.request_missing_message));
+    ucli_printf(uc, "reply_missing_circuit_id=%" PRId64 "\n",
+                debug_counter_get(&dhc_relay_stat.reply_missing_circuit_id));
+    ucli_printf(uc, "reply_bad_circuit_id=%" PRId64 "\n",
+                debug_counter_get(&dhc_relay_stat.reply_bad_circuit_id));
+    ucli_printf(uc, "reply_corrupt_option=%" PRId64 "\n",
+                debug_counter_get(&dhc_relay_stat.reply_corrupt_option));
+    ucli_printf(uc, "reply_missing_option=%" PRId64 "\n",
+                debug_counter_get(&dhc_relay_stat.reply_missing_option));
+    ucli_printf(uc, "reply_missing_cookie=%" PRId64 "\n",
+                debug_counter_get(&dhc_relay_stat.reply_missing_cookie));
+    ucli_printf(uc, "reply_missing_message=%" PRId64 "\n",
+                debug_counter_get(&dhc_relay_stat.reply_missing_message));
 
     return UCLI_STATUS_OK;
 }
@@ -218,15 +218,15 @@ dhcpra_ucli_ucli__clear_dhcrelay_stat__(ucli_context_t* uc)
                       "clr_err_stat", -1,
                       "$summary#Clear dhcrelay error statistics");
 
-    debug_counter_reset(&dhc_relay_stat.agent_option_errors);
-    debug_counter_reset(&dhc_relay_stat.missing_request_cookie);
-    debug_counter_reset(&dhc_relay_stat.missing_request_message);
-    debug_counter_reset(&dhc_relay_stat.missing_circuit_id);
-    debug_counter_reset(&dhc_relay_stat.bad_circuit_id);
-    debug_counter_reset(&dhc_relay_stat.corrupt_agent_options);
-    debug_counter_reset(&dhc_relay_stat.missing_dhcp_agent_option);
-    debug_counter_reset(&dhc_relay_stat.missing_reply_cookie);
-    debug_counter_reset(&dhc_relay_stat.missing_reply_message);
+    debug_counter_reset(&dhc_relay_stat.request_option_error);
+    debug_counter_reset(&dhc_relay_stat.request_missing_cookie);
+    debug_counter_reset(&dhc_relay_stat.request_missing_message);
+    debug_counter_reset(&dhc_relay_stat.reply_missing_circuit_id);
+    debug_counter_reset(&dhc_relay_stat.reply_bad_circuit_id);
+    debug_counter_reset(&dhc_relay_stat.reply_corrupt_option);
+    debug_counter_reset(&dhc_relay_stat.reply_missing_option);
+    debug_counter_reset(&dhc_relay_stat.reply_missing_cookie);
+    debug_counter_reset(&dhc_relay_stat.reply_missing_message);
 
     return UCLI_STATUS_OK;
 }
