@@ -175,8 +175,7 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
     uint32_t                   ip_total_len, ip_hdr_size;
     uint32_t                   icmp_data_len;
     uint32_t                   vlan_id, vlan_pcp;
-    uint32_t                   router_ip, src_ip, dest_ip;
-    of_mac_addr_t              router_mac;
+    uint32_t                   src_ip, dest_ip;
     indigo_error_t             rv;
 
     if (!ppep) return false;
@@ -203,16 +202,10 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
     /*
      * Echo requests should always be destined to Router IP
      */
-    if (router_ip_table_lookup(vlan_id, &router_ip, &router_mac) < 0) {
-        AIM_LOG_ERROR("ICMPA: Router IP lookup failed for vlan: %d", vlan_id);
-        debug_counter_inc(&pkt_counters.icmp_internal_errors);
-        return false;
-    }
-
     ppe_field_get(ppep, PPE_FIELD_IP4_DST_ADDR, &dest_ip); 
-    if (router_ip != dest_ip) {
-        AIM_LOG_TRACE("ICMPA: Echo request dest_ip: 0x%.8x is not router IP: "
-                      "0x%.8x", dest_ip, router_ip);
+    if (is_router_ip(dest_ip) == false) {
+        AIM_LOG_TRACE("ICMPA: Echo request dest_ip: 0x%.8x is not router IP",
+                      dest_ip);
         return false;
     } 
 
@@ -258,7 +251,7 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
     octets_out.bytes = ppep->size;
     icmp_data_len = ip_total_len - ip_hdr_size - ICMP_HEADER_SIZE;
     if (!icmpa_build_pdu(ppep, &octets_out, vlan_id, vlan_pcp, ip_total_len,
-        router_ip, ICMP_ECHO_REPLY, 0, hdr_data, 
+        dest_ip, ICMP_ECHO_REPLY, 0, hdr_data, 
         ppe_fieldp_get(ppep, PPE_FIELD_ICMP_PAYLOAD), icmp_data_len)) {
         AIM_LOG_ERROR("ICMPA: icmpa_build_pdu failed");
         goto free_and_return;
@@ -288,10 +281,7 @@ free_and_return:
  * 
  * Send an ICMP message in response to below situation's
  * 1. TTL Expired
- * 2. Fragmentation Required
- * 3. Network Unreachable
- * 4. Host Unreachable
- * 5. Port Unreachable
+ * 2. Host Unreachable
  *
  * RFC 1122: 3.2.2 MUST send at least the IP header and 8 bytes of header.
  */
