@@ -80,6 +80,9 @@ int aim_main(int argc, char* argv[])
         AIM_ASSERT(ip == 0x1234);
         AIM_ASSERT(!memcmp(&mac, &mac1, sizeof(of_mac_addr_t)));
 
+        AIM_ASSERT(router_ip_check(ip) == true);
+        AIM_ASSERT(router_ip_check(0x5678) == false);
+
         rv = ops->modify(table_priv, entry_priv, key1, value2);
         AIM_ASSERT(rv == INDIGO_ERROR_NONE);
 
@@ -88,11 +91,16 @@ int aim_main(int argc, char* argv[])
         AIM_ASSERT(ip == 0x5678);
         AIM_ASSERT(!memcmp(&mac, &mac2, sizeof(of_mac_addr_t)));
 
+        AIM_ASSERT(router_ip_check(ip) == true);
+        AIM_ASSERT(router_ip_check(0x1234) == false);
+
         rv = ops->del(table_priv, entry_priv, key1);
         AIM_ASSERT(rv == INDIGO_ERROR_NONE);
 
         rv = router_ip_table_lookup(10, &ip, &mac);
         AIM_ASSERT(rv == INDIGO_ERROR_NOT_FOUND);
+
+        AIM_ASSERT(router_ip_check(0x5678) == false);
     }
 
     /* Invalid key */

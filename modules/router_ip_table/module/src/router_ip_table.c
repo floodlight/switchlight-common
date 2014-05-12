@@ -19,6 +19,8 @@
 
 #include <router_ip_table/router_ip_table.h>
 #include <indigo/of_state_manager.h>
+#include <BigHash/bighash.h>
+#include <AIM/aim_list.h>
 
 #include "router_ip_table_log.h"
 
@@ -26,9 +28,16 @@
 #define INVALID_IP 0
 
 struct router_ip_entry {
+    bighash_entry_t hash_entry;
     uint32_t ip;
     of_mac_addr_t mac;
 };
+
+#define TEMPLATE_NAME router_ip_entries_hashtable
+#define TEMPLATE_OBJ_TYPE struct router_ip_entry
+#define TEMPLATE_KEY_FIELD ip 
+#define TEMPLATE_ENTRY_FIELD hash_entry
+#include <BigHash/bighash_template.h>
 
 static indigo_core_gentable_t *router_ip_table;
 
@@ -36,6 +45,7 @@ static const indigo_core_gentable_ops_t router_ip_ops;
 
 static struct router_ip_entry router_ips[MAX_VLAN+1];
 
+static bighash_table_t *router_ip_entries;
 
 /* Public interface */
 
@@ -44,6 +54,7 @@ router_ip_table_init()
 {
     indigo_core_gentable_register("router_ip", &router_ip_ops, NULL, MAX_VLAN+1, 256,
                                   &router_ip_table);
+    router_ip_entries = bighash_table_create(MAX_VLAN+1);
 
     return INDIGO_ERROR_NONE;
 }
@@ -52,6 +63,7 @@ void
 router_ip_table_finish()
 {
     indigo_core_gentable_unregister(router_ip_table);
+    bighash_table_destroy(router_ip_entries, NULL);
 }
 
 indigo_error_t
@@ -71,6 +83,17 @@ router_ip_table_lookup(uint16_t vlan, uint32_t *ip, of_mac_addr_t *mac)
     return INDIGO_ERROR_NONE;
 }
 
+bool
+router_ip_check(uint32_t ip)
+{
+    struct router_ip_entry *entry = router_ip_entries_hashtable_first(
+                                        router_ip_entries, &ip);
+    if (entry == NULL) {
+        return false;
+    } 
+
+    return true;
+}
 
 /* router_ip table operations */
 
@@ -169,6 +192,9 @@ router_ip_add(void *table_priv, of_list_bsn_tlv_t *key, of_list_bsn_tlv_t *value
     entry->mac = mac;
 
     *entry_priv = entry;
+
+    router_ip_entries_hashtable_insert(router_ip_entries, entry);
+
     return INDIGO_ERROR_NONE;
 }
 
@@ -184,10 +210,13 @@ router_ip_modify(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key, of_
     if (rv < 0) {
         return rv;
     }
-
+   
+    bighash_remove(router_ip_entries, &entry->hash_entry); 
+     
     entry->ip = ip;
     entry->mac = mac;
 
+    router_ip_entries_hashtable_insert(router_ip_entries, entry); 
     return INDIGO_ERROR_NONE;
 }
 
@@ -195,6 +224,7 @@ static indigo_error_t
 router_ip_delete(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key)
 {
     struct router_ip_entry *entry = entry_priv;
+    bighash_remove(router_ip_entries, &entry->hash_entry);
     entry->ip = INVALID_IP;
     return INDIGO_ERROR_NONE;
 }

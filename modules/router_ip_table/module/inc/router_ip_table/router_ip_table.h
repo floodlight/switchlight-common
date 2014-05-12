@@ -39,4 +39,11 @@ void router_ip_table_finish();
  */
 indigo_error_t router_ip_table_lookup(uint16_t vlan, uint32_t *ip, of_mac_addr_t *mac);
 
+/**
+ * @brief Lookup if a given ip is a valid router IP 
+ * @param ip 
+ * @return bool 
+ */
+bool router_ip_check(uint32_t ip);
+
 #endif /* __ROUTER_IP_TABLE_H__ */
