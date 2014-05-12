@@ -203,8 +203,8 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
      * Echo requests should always be destined to Router IP
      */
     ppe_field_get(ppep, PPE_FIELD_IP4_DST_ADDR, &dest_ip); 
-    if (is_router_ip(dest_ip) == false) {
-        AIM_LOG_TRACE("ICMPA: Echo request dest_ip: 0x%.8x is not router IP",
+    if (router_ip_check(dest_ip) == false) {
+        AIM_LOG_TRACE("ICMPA: Echo request dest_ip: %{ipv4a} is not router IP",
                       dest_ip);
         return false;
     } 
@@ -214,7 +214,7 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
      */
     ppe_field_get(ppep, PPE_FIELD_IP4_SRC_ADDR, &src_ip);
     if (!isValidIP(src_ip)) {
-        AIM_LOG_ERROR("ICMPA: Echo request src_ip: 0x%.8x not valid", src_ip);
+        AIM_LOG_ERROR("ICMPA: Echo request src_ip: %{ipv4a} not valid", src_ip);
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
@@ -331,7 +331,7 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
      */
     ppe_field_get(ppep, PPE_FIELD_IP4_SRC_ADDR, &src_ip);
     if (!isValidIP(src_ip)) {
-        AIM_LOG_ERROR("ICMPA: src_ip: 0x%.8x in original ip packet not valid",
+        AIM_LOG_ERROR("ICMPA: src_ip: %{ipv4a} in original ip packet not valid",
                       src_ip);
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
