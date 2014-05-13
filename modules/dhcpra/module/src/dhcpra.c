@@ -747,7 +747,7 @@ dhcpra_debug_counter_register()
     debug_counter_register(
         &dhc_relay_stat.request_missing_cookie,
         "dhcpra.request_missing_cookie",
-        "");
+        "dhcp packet does not have a magic option cookie");
     debug_counter_register(
         &dhc_relay_stat.request_missing_message,
         "dhcpra.request_missing_message",
@@ -773,7 +773,7 @@ dhcpra_debug_counter_register()
     debug_counter_register(
         &dhc_relay_stat.reply_missing_cookie,
         "dhcpra.reply_missing_cookie",
-        "");
+        "dhcp packet does not have a magic option cookie");
     debug_counter_register(
         &dhc_relay_stat.reply_missing_message,
         "dhcpra.reply_missing_messsage",
