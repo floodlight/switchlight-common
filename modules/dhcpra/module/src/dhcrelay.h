@@ -20,6 +20,8 @@
 #ifndef DHCRELAY_H_
 #define DHCRELAY_H_
 
+#include <debug_counter/debug_counter.h>
+
 int dhc_strip_relay_agent_options(struct dhcp_packet *packet,
                                   uint32_t length, uint32_t *vlan);
 
@@ -31,17 +33,17 @@ int dhc_add_relay_agent_options(struct dhcp_packet *packet,
 /* Error statistics */
 typedef struct {
     /* For dhcp request */
-    uint32_t agent_option_errors;
-    uint32_t missing_request_cookie;
-    uint32_t missing_request_message;
+    debug_counter_t request_option_error;
+    debug_counter_t request_missing_cookie;
+    debug_counter_t request_missing_message;
 
     /* For dhcp reply */
-    uint32_t missing_circuit_id;
-    uint32_t bad_circuit_id;
-    uint32_t corrupt_agent_options;
-    uint32_t missing_dhcp_agent_option;
-    uint32_t missing_reply_cookie;
-    uint32_t missing_reply_message;
+    debug_counter_t reply_missing_circuit_id;
+    debug_counter_t reply_bad_circuit_id;
+    debug_counter_t reply_corrupt_option;
+    debug_counter_t reply_missing_option;
+    debug_counter_t reply_missing_cookie;
+    debug_counter_t reply_missing_message;
 } dhcrelay_stat;
 
 extern dhcrelay_stat dhc_relay_stat;

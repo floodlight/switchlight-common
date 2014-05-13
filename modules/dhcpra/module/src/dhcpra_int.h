@@ -23,7 +23,7 @@
  ****************************************************************/
 #ifndef __DHCPRA_INT_H__
 #define __DHCPRA_INT_H__
-
+#include <debug_counter/debug_counter.h>
 #include <dhcpra/dhcpra_config.h>
 #include <BigHash/bighash.h>
 #include <loci/loci.h>
@@ -61,5 +61,15 @@ enum {
     DHCPRA_DUMP_DISABLE_ALL_PORTS = -2,
     DHCPRA_DUMP_ENABLE_ALL_PORTS  = -1
 };
+
+#define MAX_SYSTEM_PORT 96
+typedef struct {
+    debug_counter_t dhcp_request;
+    debug_counter_t dhcp_request_relay;
+    debug_counter_t dhcp_reply;
+    debug_counter_t dhcp_reply_relay;
+}dhcp_relay_stat_t;
+
+extern dhcp_relay_stat_t dhcp_stat_ports[MAX_SYSTEM_PORT+1];
 
 #endif /* __DHCPRA_INT_H__ */
