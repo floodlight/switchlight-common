@@ -100,6 +100,16 @@
     #endif
 #endif
 
+#ifndef ARPRA_MEMCMP
+    #if defined(GLOBAL_MEMCMP)
+        #define ARPRA_MEMCMP GLOBAL_MEMCMP
+    #elif ARPRA_CONFIG_PORTING_STDLIB == 1
+        #define ARPRA_MEMCMP memcmp
+    #else
+        #error The macro ARPRA_MEMCMP is required but cannot be defined.
+    #endif
+#endif
+
 /* <auto.end.portingmacro(ALL).define> */
 
 
