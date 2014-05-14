@@ -416,17 +416,25 @@ arpra_add_cache_entry (uint32_t ipv4, of_mac_addr_t mac)
     cache_entry = arpra_find_cache_entry(ipv4, mac);
     if (cache_entry) {
         AIM_LOG_TRACE("Entry already exist in the arp cache");
+        ++cache_entry->refcount;
+        AIM_LOG_TRACE("Incermented refcount for Arp cache entry with ip: "
+                      "%{ipv4a}, mac: %{mac} to refcount: %d",
+                      cache_entry->entry.ipv4, cache_entry->entry.mac.addr,
+                      cache_entry->refcount);            
         return INDIGO_ERROR_NONE;
     }
 
     cache_entry = (arp_cache_entry_t *) ARPRA_MALLOC(sizeof(arp_cache_entry_t)); 
     AIM_TRUE_OR_DIE(cache_entry != NULL);
+    ARPRA_MEMSET(cache_entry, 0, sizeof(arp_cache_entry_t));
     cache_entry->entry.ipv4 = ipv4;
     ARPRA_MEMCPY(cache_entry->entry.mac.addr, mac.addr, OF_MAC_ADDR_BYTES);  
+    ++cache_entry->refcount;
     list_push(&arp_cache, &cache_entry->links);    
 
-    AIM_LOG_TRACE("Added Arp cache entry with ip: %{ipv4a}, mac: %{mac}",
-                  cache_entry->entry.ipv4, cache_entry->entry.mac.addr);
+    AIM_LOG_TRACE("Added Arp cache entry with ip: %{ipv4a}, mac: %{mac}, "
+                  "refcount: %d", cache_entry->entry.ipv4, cache_entry->entry.mac.addr,
+                  cache_entry->refcount);
 
     return INDIGO_ERROR_NONE;
 }
@@ -452,12 +460,19 @@ arpra_delete_cache_entry (uint32_t ipv4, of_mac_addr_t mac)
         return INDIGO_ERROR_NONE;
     }
 
-    AIM_LOG_TRACE("Deleted Arp cache entry with ip: %{ipv4a}, mac: %{mac}",
-                  cache_entry->entry.ipv4, cache_entry->entry.mac.addr);
+    --cache_entry->refcount;
+    if (cache_entry->refcount) {
+        AIM_LOG_TRACE("Decremented refcount for Arp cache entry with ip: "
+                      "%{ipv4a}, mac: %{mac} to refcount: %d",
+                      cache_entry->entry.ipv4, cache_entry->entry.mac.addr,
+                      cache_entry->refcount);
+    } else {
+        AIM_LOG_TRACE("Deleted Arp cache entry with ip: %{ipv4a}, mac: %{mac}",
+                      cache_entry->entry.ipv4, cache_entry->entry.mac.addr);
+        list_remove(&cache_entry->links);
+        ARPRA_FREE(cache_entry);
+    }
 
-    list_remove(&cache_entry->links);
-    ARPRA_FREE(cache_entry);
-    
     return INDIGO_ERROR_NONE;
 }
 

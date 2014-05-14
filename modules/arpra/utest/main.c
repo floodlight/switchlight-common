@@ -168,6 +168,12 @@ int aim_main (int argc, char* argv[])
     AIM_ASSERT(!memcmp(&mac, &mac2, sizeof(of_mac_addr_t)));
   
     /*
+     * Add multiple entries for same ip/mac in arp cache
+     */
+    arpra_add_cache_entry(0x1234, mac1);
+    arpra_add_cache_entry(0x1234, mac1);
+    
+    /*
      * Lookup a non-existent entry
      */ 
     AIM_ASSERT(arpra_lookup(0xabcd, &mac) == false);
@@ -181,7 +187,7 @@ int aim_main (int argc, char* argv[])
     arpra_create_send_packet_in(&octets, port_no);    
     
     /*
-     * Test if we actually received responses from icmpa
+     * Test if we actually received responses from arpra
      */
     AIM_ASSERT(arp_reply_received == true);
     arp_reply_received = false;
@@ -199,6 +205,15 @@ int aim_main (int argc, char* argv[])
     port_no = 30; 
     arpra_create_send_packet_in(&octets, port_no);
     AIM_ASSERT(arp_reply_received == false);
+
+    /*
+     * Remove duplicate instances of same ip/mac from arp cache
+     */
+    arpra_delete_cache_entry(0x1234, mac1);
+    AIM_ASSERT(arpra_lookup(0x1234, &mac) == true);
+
+    arpra_delete_cache_entry(0x1234, mac1);
+    AIM_ASSERT(arpra_lookup(0x1234, &mac) == true);
 
     /*
      * Delete entries from the arp cache

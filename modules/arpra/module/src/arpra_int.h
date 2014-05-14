@@ -53,6 +53,7 @@ typedef struct arp_info_s { /* arp_info */
 
 typedef struct arp_cache_entry_s { /* arp_cache_entry */
     arp_mapping_t entry;
+    uint32_t      refcount;
     list_links_t  links;
 } arp_cache_entry_t;
 
