@@ -282,6 +282,7 @@ free_and_return:
  * Send an ICMP message in response to below situation's
  * 1. TTL Expired
  * 2. Host Unreachable
+ * 3. Port Unreachable
  *
  * RFC 1122: 3.2.2 MUST send at least the IP header and 8 bytes of header.
  */
@@ -337,6 +338,10 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
         return false;
     }
 
+    if (AIM_LOG_CUSTOM_ENABLED(ICMPA_LOG_FLAG_PACKET)) {
+        ICMPA_LOG_PACKET("DUMPING INCOMING PACKET");
+        ppe_packet_dump(ppep, aim_log_pvs_get(&AIM_LOG_STRUCT));
+    }
     AIM_LOG_TRACE("Send ICMP message with type: %d, code: %d", type, code); 
 
     /*

@@ -32,6 +32,8 @@ aim_ratelimiter_t icmp_pktin_log_limiter;
 icmpa_packet_counter_t pkt_counters;
 icmpa_typecode_packet_counter_t port_pkt_counters[MAX_PORTS+1];
 
+#define is_ephemeral(p) (p >= 32768 && p <= 61000)
+
 /*
  * icmp_send_packet_out
  * 
@@ -91,6 +93,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
     ppe_packet_t               ppep;
     indigo_core_listener_result_t result = INDIGO_CORE_LISTENER_RESULT_PASS;
     uint32_t                   type, code;
+    uint32_t                   dest_ip, src_port, dest_port;
 
     debug_counter_inc(&pkt_counters.icmp_total_in_packets);
     if (!packet_in) return INDIGO_CORE_LISTENER_RESULT_PASS;
@@ -158,6 +161,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
             result = INDIGO_CORE_LISTENER_RESULT_DROP;
             ++port_pkt_counters[port_no].icmp_host_unreachable_packets;
         }
+        return result;
     } else if (match.fields.metadata & OFP_BSN_PKTIN_FLAG_TTL_EXPIRED) {
         AIM_LOG_TRACE("ICMP TTL Expired received on port: %d", port_no);
         type = ICMP_TIME_EXCEEDED;
@@ -166,8 +170,34 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
             result = INDIGO_CORE_LISTENER_RESULT_DROP;
             ++port_pkt_counters[port_no].icmp_time_exceeded_packets;    
         }
+        return result;
     }
 
+    /*
+     * To handle traceroute, we need to check for
+     * a) UDP Packet
+     * b) dest IP is Vrouter IP
+     * c) UDP src and dest ports are ephemeral
+     */
+    if (ppe_header_get(&ppep, PPE_HEADER_UDP) &&
+        ppe_header_get(&ppep, PPE_HEADER_IP4)) {
+        ppe_field_get(&ppep, PPE_FIELD_IP4_DST_ADDR, &dest_ip);
+        ppe_field_get(&ppep, PPE_FIELD_UDP_SRC_PORT, &src_port); 
+        ppe_field_get(&ppep, PPE_FIELD_UDP_DST_PORT, &dest_port); 
+
+        if (router_ip_check(dest_ip) && is_ephemeral(src_port) && 
+            is_ephemeral(dest_port)) {
+            AIM_LOG_TRACE("ICMP Port Unreachable received on port: %d",
+                          port_no);
+            type = ICMP_DEST_UNREACHABLE;
+            code = 3;
+            if (icmpa_send(&ppep, port_no, type, code)) {
+                result = INDIGO_CORE_LISTENER_RESULT_DROP;
+                ++port_pkt_counters[port_no].icmp_port_unreachable_packets;
+            }
+        }
+    }
+ 
     return result;
 }
 
