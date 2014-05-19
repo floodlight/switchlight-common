@@ -32,7 +32,16 @@ aim_ratelimiter_t icmp_pktin_log_limiter;
 icmpa_packet_counter_t pkt_counters;
 icmpa_typecode_packet_counter_t port_pkt_counters[MAX_PORTS+1];
 
-#define is_ephemeral(p) (p >= 32768 && p <= 61000)
+/*
+ * is_ephemeral
+ *
+ * Returns true if a given port is ephemeral, else returns false
+ */
+static bool
+is_ephemeral(uint32_t port) 
+{ 
+    return (port >= 32768 && port <= 61000);
+}
 
 /*
  * icmp_send_packet_out
@@ -93,7 +102,6 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
     ppe_packet_t               ppep;
     indigo_core_listener_result_t result = INDIGO_CORE_LISTENER_RESULT_PASS;
     uint32_t                   type, code;
-    uint32_t                   dest_ip, src_port, dest_port;
 
     debug_counter_inc(&pkt_counters.icmp_total_in_packets);
     if (!packet_in) return INDIGO_CORE_LISTENER_RESULT_PASS;
@@ -181,6 +189,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
      */
     if (ppe_header_get(&ppep, PPE_HEADER_UDP) &&
         ppe_header_get(&ppep, PPE_HEADER_IP4)) {
+        uint32_t dest_ip, src_port, dest_port;
         ppe_field_get(&ppep, PPE_FIELD_IP4_DST_ADDR, &dest_ip);
         ppe_field_get(&ppep, PPE_FIELD_UDP_SRC_PORT, &src_port); 
         ppe_field_get(&ppep, PPE_FIELD_UDP_DST_PORT, &dest_port); 
