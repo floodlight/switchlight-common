@@ -51,16 +51,18 @@ icmpa_show_portcounters__(ucli_context_t* uc, uint32_t port_no)
                     "PORT    OF port number\n"
                     "echo    Echo Requests\n"
                     "ttl     TTL Excedded\n"
-                    "host    Host Unreachable\n");
+                    "host    Host Unreachable\n"
+                    "port    Port Unreachable\n");
 
-        ucli_printf(uc, "PORT\techo\tttl\thost\n");
+        ucli_printf(uc, "PORT\techo\tttl\thost\tport\n");
         print_once = false;
     }
 
-    ucli_printf(uc, "%d\t%"PRId64"\t%"PRId64"\t%"PRId64"\n",
+    ucli_printf(uc, "%d\t%"PRId64"\t%"PRId64"\t%"PRId64"\t%"PRId64"\n",
                 port_no, port_pkt_counters[port_no].icmp_echo_packets, 
                 port_pkt_counters[port_no].icmp_time_exceeded_packets,
-                port_pkt_counters[port_no].icmp_host_unreachable_packets);
+                port_pkt_counters[port_no].icmp_host_unreachable_packets,
+                port_pkt_counters[port_no].icmp_port_unreachable_packets);
 }
 
 static ucli_status_t
