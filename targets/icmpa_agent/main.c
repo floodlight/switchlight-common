@@ -125,6 +125,7 @@ icmpa_create_send_packet_in (of_octets_t *of_octets, of_port_no_t in_port)
     }
 
     of_packet_in_total_len_set(of_packet_in, of_octets->bytes);
+    memset(&match, 0, sizeof(of_match_t));
     match.version = OF_VERSION_1_3;
     match.fields.in_port = in_port;
     OF_MATCH_MASK_IN_PORT_EXACT_SET(&match);
@@ -250,7 +251,6 @@ int main (int argc, char* argv[])
             printf("received_pkt on tap0 with %d bytes\n", of_octets.bytes);
             icmpa_create_send_packet_in(&of_octets, 10); 
         }
-
     }
     
     vpi_unref(vpi1);
