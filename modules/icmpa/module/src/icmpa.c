@@ -323,6 +323,13 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
         return false;
     }
 
+    /*
+     * Traceroute if destined to the VRouter IP, hence we should use 
+     * that as the src IP for Icmp Port Unreachable.
+     *
+     * For Icmp TTL Expired and ICMP Host Unreachable cases we need to 
+     * lookup the Vrouter IP based on the Vlan to use as src ip
+     */ 
     if (type == ICMP_DEST_UNREACHABLE && code == 3) {
         ppe_field_get(ppep, PPE_FIELD_IP4_DST_ADDR, &router_ip);
     } else {
