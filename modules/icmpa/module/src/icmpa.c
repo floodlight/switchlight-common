@@ -144,6 +144,8 @@ icmpa_build_pdu (ppe_packet_t *ppep_rx, of_octets_t *octets, uint32_t vlan_id,
     /*
      * Build the IP header 
      */
+    AIM_LOG_TRACE("Build IP header with src_ip: %{ipv4a}, dest_ip: %{ipv4a}",
+                  router_ip, dest_ip);
     ppe_build_ipv4_header(&ppep_tx, router_ip, dest_ip, ip_total_len, 1, 128);
 
     /*
@@ -321,11 +323,15 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
         return false;
     }
 
-    if (router_ip_table_lookup(vlan_id, &router_ip, &router_mac) < 0) {
-        AIM_LOG_ERROR("ICMPA: Router IP lookup failed for vlan: %d", vlan_id);
-        debug_counter_inc(&pkt_counters.icmp_internal_errors);
-        return false;
-    } 
+    if (type == ICMP_DEST_UNREACHABLE && code == 3) {
+        ppe_field_get(ppep, PPE_FIELD_IP4_DST_ADDR, &router_ip);
+    } else {
+        if (router_ip_table_lookup(vlan_id, &router_ip, &router_mac) < 0) {
+            AIM_LOG_ERROR("ICMPA: Router IP lookup failed for vlan: %d", vlan_id);
+            debug_counter_inc(&pkt_counters.icmp_internal_errors);
+            return false;
+        }
+    }    
 
     /*
      * MUST NOT send to a multicast/broadcast IP address.
