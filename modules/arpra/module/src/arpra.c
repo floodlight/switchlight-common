@@ -71,7 +71,7 @@ arp_cache_list(void)
  * Parse ARP packet and extract info 
  */
 static indigo_error_t
-arpra_parse_packet (ppe_packet_t *ppep, arp_info_t *info)
+arpra_parse_packet (ppe_packet_t *ppep, arp_info_t *info, bool vlan_tagged)
 {
     uint32_t tmp;    
 
@@ -81,11 +81,13 @@ arpra_parse_packet (ppe_packet_t *ppep, arp_info_t *info)
 
     ppe_wide_field_get(ppep, PPE_FIELD_ETHERNET_SRC_MAC, info->eth_src.addr);
 
-    ppe_field_get(ppep, PPE_FIELD_8021Q_VLAN, &tmp);
-    info->vlan_vid = tmp;
+    if (vlan_tagged) {
+        ppe_field_get(ppep, PPE_FIELD_8021Q_VLAN, &tmp);
+        info->vlan_vid = tmp;
 
-    ppe_field_get(ppep, PPE_FIELD_8021Q_PRI, &tmp);
-    info->vlan_pcp = tmp;
+        ppe_field_get(ppep, PPE_FIELD_8021Q_PRI, &tmp);
+        info->vlan_pcp = tmp;
+    }
 
     ppe_field_get(ppep, PPE_FIELD_ARP_HTYPE, &tmp);
     if (tmp != 1) {
@@ -158,7 +160,7 @@ arpra_lookup (uint32_t ipv4, of_mac_addr_t *mac)
  * Construct the arp response and send it out on specified port 
  */
 static void
-arpra_send_packet (arp_info_t *info, of_port_no_t port_no)
+arpra_send_packet (arp_info_t *info, of_port_no_t port_no, bool vlan_tagged)
 {
     ppe_packet_t ppep;
     uint8_t data[60];
@@ -171,10 +173,15 @@ arpra_send_packet (arp_info_t *info, of_port_no_t port_no)
     /* 
      * Set ethertypes before parsing 
      */
-    data[12] = 0x81;
-    data[13] = 0x00;
-    data[16] = 0x08;
-    data[17] = 0x06;
+    if (vlan_tagged) {
+        data[12] = 0x81;
+        data[13] = 0x00;
+        data[16] = 0x08;
+        data[17] = 0x06;
+    } else {
+        data[12] = 0x08;
+        data[13] = 0x06;
+    }
 
     if (ppe_parse(&ppep) < 0) {
         AIM_DIE("arpra_send_packet parsing failed");
@@ -190,12 +197,14 @@ arpra_send_packet (arp_info_t *info, of_port_no_t port_no)
         AIM_DIE("Failed to set PPE_FIELD_ETHERNET_SRC_MAC");
     }
 
-    if (ppe_field_set(&ppep, PPE_FIELD_8021Q_VLAN, info->vlan_vid) < 0) {
-        AIM_DIE("Failed to set PPE_FIELD_8021Q_VLAN");
-    }
+    if (vlan_tagged) {
+        if (ppe_field_set(&ppep, PPE_FIELD_8021Q_VLAN, info->vlan_vid) < 0) {
+            AIM_DIE("Failed to set PPE_FIELD_8021Q_VLAN");
+        }
 
-    if (ppe_field_set(&ppep, PPE_FIELD_8021Q_PRI, info->vlan_pcp) < 0) {
-        AIM_DIE("Failed to set PPE_FIELD_8021Q_PRI");
+        if (ppe_field_set(&ppep, PPE_FIELD_8021Q_PRI, info->vlan_pcp) < 0) {
+            AIM_DIE("Failed to set PPE_FIELD_8021Q_PRI");
+        }
     }
 
     if (ppe_field_set(&ppep, PPE_FIELD_ARP_OPERATION, info->operation) < 0) {
@@ -287,10 +296,12 @@ arpra_packet_in_handler (of_packet_in_t *packet_in)
     ppe_packet_t                  ppep;
     arp_info_t                    info;
     indigo_error_t                rv;
+    bool                          vlan_tagged;
 
     debug_counter_inc(&pkt_counters.total_in_packets);
     if (!packet_in) return INDIGO_CORE_LISTENER_RESULT_PASS;
 
+    ARPRA_MEMSET(&info, 0, sizeof(arp_info_t));
     of_packet_in_data_get(packet_in, &octets);
 
     /*
@@ -318,7 +329,11 @@ arpra_packet_in_handler (of_packet_in_t *packet_in)
     /*
      * Identify if this is an ARP Packet
      */
-    if (!ppe_header_get(&ppep, PPE_HEADER_8021Q)) {
+    if (ppe_header_get(&ppep, PPE_HEADER_8021Q)) {
+        vlan_tagged = true;
+    } else if (ppe_header_get(&ppep, PPE_HEADER_ETHERNET)) {
+        vlan_tagged = false;
+    } else {
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
@@ -326,7 +341,7 @@ arpra_packet_in_handler (of_packet_in_t *packet_in)
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
-    rv = arpra_parse_packet(&ppep, &info);
+    rv = arpra_parse_packet(&ppep, &info, vlan_tagged);
     if (rv < 0) {
         AIM_LOG_RL_ERROR(&arpra_pktin_log_limiter, os_time_monotonic(),
                          "ARPRA: not a valid ARP packet: %s", 
@@ -370,7 +385,7 @@ arpra_packet_in_handler (of_packet_in_t *packet_in)
            sizeof(reply_info.sender.mac));
     reply_info.operation = 2;
 
-    arpra_send_packet(&reply_info, port_no);
+    arpra_send_packet(&reply_info, port_no, vlan_tagged);
 
     return INDIGO_CORE_LISTENER_RESULT_DROP;
 }
