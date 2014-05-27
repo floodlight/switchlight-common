@@ -122,6 +122,11 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
         port_no = match.fields.in_port;
     }
 
+    if (port_no == OF_PORT_DEST_CONTROLLER) {
+        debug_counter_inc(&pkt_counters.icmp_total_passed_packets);
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
+    }
+
     if (port_no > MAX_PORTS) {
         AIM_LOG_ERROR("ICMPA: Port No: %d Out of Range %d", port_no, MAX_PORTS);
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
