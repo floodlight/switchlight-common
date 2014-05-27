@@ -68,7 +68,7 @@ icmpa_send_packet_out (of_octets_t *octets)
     AIM_TRUE_OR_DIE(action != NULL);
 
     of_packet_out_buffer_id_set(obj, -1);
-    of_packet_out_in_port_set(obj, OF_PORT_DEST_LOCAL);
+    of_packet_out_in_port_set(obj, OF_PORT_DEST_CONTROLLER);
     of_action_output_port_set(action, OF_PORT_DEST_USE_TABLE);
     of_list_append(list, action);
     of_object_delete(action);
@@ -120,6 +120,11 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
             return INDIGO_CORE_LISTENER_RESULT_PASS;
         }
         port_no = match.fields.in_port;
+    }
+
+    if (port_no == OF_PORT_DEST_CONTROLLER) {
+        debug_counter_inc(&pkt_counters.icmp_total_passed_packets);
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
     if (port_no > MAX_PORTS) {
