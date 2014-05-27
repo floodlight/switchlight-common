@@ -134,8 +134,10 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
     }
 
     /*
-     * Check the packet-in reasons in metadata 
-     * FIXME: Temporary fix, need to think of long term solution
+     * Check the packet-in reasons in metadata
+     *
+     * Icmp agent should not consume packets coming in due to L2 Src miss
+     * and Station Move.
      */
     if ((match.fields.metadata & OFP_BSN_PKTIN_FLAG_STATION_MOVE) ||
         (match.fields.metadata & OFP_BSN_PKTIN_FLAG_NEW_HOST)) {
