@@ -25,11 +25,10 @@
 indigo_error_t dhcpr_table_init();
 void dhcpr_table_finish();
 dhc_relay_t* dhcpr_get_dhcpr_entry_from_vlan_table(uint32_t vlan);
-void dhcpr_circuit_id_to_vlan(uint32_t *vlan, uint8_t *cir_id, int cir_id_len);
+int dhcpr_circuit_id_vlan_check(const uint32_t vlan, uint8_t *cir_id, int cir_id_len);
 void dhcpr_virtual_router_key_to_vlan(uint32_t *vlan, uint32_t vr_ip, uint8_t *vr_mac);
 
 int dhcpr_table_get_vlan_entry_count();
 int dhcpr_table_get_virtual_router_ip_entry_count();
-int dhcpr_table_get_circuit_id_entry_count();
 
 #endif /* DHCPR_TABLE_H_ */
