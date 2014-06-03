@@ -836,6 +836,15 @@ arpa_timer(void *cookie)
             debug_counter_inc(&idle_notification_counter);
         }
     }
+
+    /*
+     * Re-register timer sooner if there are expired entries remaining
+     */
+    if ((cur = timer_wheel_peek(timer_wheel, now))) {
+        (void) ind_soc_timer_event_register(arpa_timer, NULL, 100);
+    } else {
+        (void) ind_soc_timer_event_register(arpa_timer, NULL, 1000);
+    }
 }
 
 static void
