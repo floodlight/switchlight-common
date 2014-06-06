@@ -62,12 +62,23 @@ enum {
     DHCPRA_DUMP_ENABLE_ALL_PORTS  = -1
 };
 
+
+#if DEBUG_COUNTER_NAME_SIZE > 32
+#define DHCP_DB_CNT_NAME 32
+#else
+#define DHCP_DB_CNT_NAME DEBUG_COUNTER_NAME_SIZE
+#endif
+
 #define MAX_SYSTEM_PORT 96
 typedef struct {
     debug_counter_t dhcp_request;
     debug_counter_t dhcp_request_relay;
     debug_counter_t dhcp_reply;
     debug_counter_t dhcp_reply_relay;
+    char            dhcp_req_cnt_name[DHCP_DB_CNT_NAME];
+    char            dhcp_req_relay_cnt_name[DHCP_DB_CNT_NAME];
+    char            dhcp_rpl_cnt_name[DHCP_DB_CNT_NAME];
+    char            dhcp_rpl_relay_cnt_name[DHCP_DB_CNT_NAME];
 }dhcp_relay_stat_t;
 
 extern dhcp_relay_stat_t dhcp_stat_ports[MAX_SYSTEM_PORT+1];
