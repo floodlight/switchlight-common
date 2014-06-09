@@ -693,41 +693,41 @@ dhcpra_debug_counter_register()
     for (port_no = 0; port_no <=MAX_SYSTEM_PORT; port_no++) {
         dhcp_relay_stat_t *stat = &dhcp_stat_ports[port_no];
 
-        snprintf(stat->dhcp_req_cnt_name,
-                 DHCP_DB_CNT_NAME,
-                 "dhcpra.port:%d.dhcp_req", port_no);
+        snprintf(stat->dhcp_request_cnt_name,
+                 DEBUG_COUNTER_NAME_SIZE,
+                 "dhcpra.port:%d.dhcp_request", port_no);
 
         debug_counter_register(
             &stat->dhcp_request,
-            stat->dhcp_req_cnt_name,
+            stat->dhcp_request_cnt_name,
             "dhcp request recv'd on this port");
 
-        snprintf(stat->dhcp_req_relay_cnt_name,
-                 DHCP_DB_CNT_NAME,
-                 "dhcpra.port:%d.dhcp_req_relay", port_no);
+        snprintf(stat->dhcp_request_relay_cnt_name,
+                 DEBUG_COUNTER_NAME_SIZE,
+                 "dhcpra.port:%d.dhcp_request_relay", port_no);
 
         debug_counter_register(
             &stat->dhcp_request_relay,
-            stat->dhcp_req_relay_cnt_name,
+            stat->dhcp_request_relay_cnt_name,
             "dhcp request relayed from this port");
 
 
-        snprintf(stat->dhcp_rpl_cnt_name,
-                 DHCP_DB_CNT_NAME,
-                 "dhcpra.port:%d.dhcp_rpl", port_no);
+        snprintf(stat->dhcp_reply_cnt_name,
+                 DEBUG_COUNTER_NAME_SIZE,
+                 "dhcpra.port:%d.dhcp_reply", port_no);
 
         debug_counter_register(
             &stat->dhcp_reply,
-            stat->dhcp_rpl_cnt_name,
+            stat->dhcp_reply_cnt_name,
             "dhcp reply recv'd on this port");
 
-        snprintf(stat->dhcp_rpl_relay_cnt_name,
-                 DHCP_DB_CNT_NAME,
-                 "dhcpra.port:%d.dhcp_rpl_relay", port_no);
+        snprintf(stat->dhcp_reply_relay_cnt_name,
+                 DEBUG_COUNTER_NAME_SIZE,
+                 "dhcpra.port:%d.dhcp_reply_relay", port_no);
 
         debug_counter_register(
             &stat->dhcp_reply_relay,
-            stat->dhcp_rpl_relay_cnt_name,
+            stat->dhcp_reply_relay_cnt_name,
             "dhcp reply relayed from this port");
     }
 
