@@ -75,7 +75,7 @@ typedef struct icmpa_packet_counter_s { /* icmpa_packet_counter */
 typedef struct icmpa_typecode_packet_counter_s { /* icmpa_typecode_packet_counter */
     uint64_t         icmp_echo_packets;
     uint64_t         icmp_time_exceeded_packets;
-    uint64_t         icmp_host_unreachable_packets;
+    uint64_t         icmp_net_unreachable_packets;
     uint64_t         icmp_port_unreachable_packets;
 } icmpa_typecode_packet_counter_t;
 

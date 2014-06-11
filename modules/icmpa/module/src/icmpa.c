@@ -283,10 +283,13 @@ free_and_return:
  * 
  * Send an ICMP message in response to below situation's
  * 1. TTL Expired
- * 2. Host Unreachable
+ * 2. Net Unreachable
  * 3. Port Unreachable
  *
  * RFC 1122: 3.2.2 MUST send at least the IP header and 8 bytes of header.
+ *
+ * NOTE: Controller will try to resolve unreachable hosts by sending ARP, 
+ * If host is still not found then controller should send ICMP Host unreachable.
  */
 bool 
 icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type, 
@@ -327,7 +330,7 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
      * Traceroute if destined to the VRouter IP, hence we should use 
      * that as the src IP for Icmp Port Unreachable.
      *
-     * For Icmp TTL Expired and ICMP Host Unreachable cases we need to 
+     * For Icmp TTL Expired and ICMP Net Unreachable cases we need to 
      * lookup the Vrouter IP based on the Vlan to use as src ip
      */ 
     if (type == ICMP_DEST_UNREACHABLE && code == 3) {
