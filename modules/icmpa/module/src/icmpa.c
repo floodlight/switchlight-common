@@ -287,6 +287,9 @@ free_and_return:
  * 3. Port Unreachable
  *
  * RFC 1122: 3.2.2 MUST send at least the IP header and 8 bytes of header.
+ *
+ * NOTE: Controller will try to resolve unreachable hosts by sending ARP, 
+ * If host is still not found then controller should send ICMP Host unreachable.
  */
 bool 
 icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type, 
