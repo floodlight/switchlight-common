@@ -49,7 +49,6 @@ typedef struct {
 
 
 /* These are aux tables for other lookup purposes */
-BIGHASH_DEFINE_STATIC(dhcpr_circuit_table, 256); /* Circuit to vlan */
 BIGHASH_DEFINE_STATIC(dhcpr_vrouter_ip_table, 256); /* Virtual router ip to vlan */
 
 #define DHCPR_TABLE_DEBUG(fmt, ...)                       \
@@ -91,34 +90,6 @@ static bool
 is_valid_vlan_value (uint32_t vlan)
 {
     return (vlan <= VLAN_MAX);
-}
-
-static uint32_t
-hash_octet_key(of_octets_t *data)
-{
-    return murmur_hash(data->data, data->bytes, 0);
-}
-
-static bool
-is_key_equal(of_octets_t *k1, of_octets_t *k2)
-{
-    if (k1->bytes != k2->bytes) {
-        return false;
-    }
-
-    return memcmp(k1->data, k2->data, k1->bytes) == 0;
-}
-
-static dhc_relay_t *
-find_hash_entry_by_octet_id(bighash_table_t *table, of_octets_t *id)
-{
-    bighash_entry_t *e;
-    for (e = bighash_first(table, hash_octet_key(id)); e; e = bighash_next(e)) {
-        dhc_relay_t *te = container_of(e, circuit_hash_entry, dhc_relay_t);
-        if (is_key_equal(&te->opt_id.circuit_id, id))
-            return te;
-    }
-    return NULL;
 }
 
 /* 
@@ -317,20 +288,6 @@ dhcpr_add_entry_to_internal_tables(dhc_relay_t *entry)
         return INDIGO_ERROR_EXISTS;
     }
 
-    /* Circuit exist, then check and prepare a circuit hash entry */
-    if(entry->opt_id.circuit_id.data) {
-        /*
-         * Error: if circuit_id exists
-         * Vlan and circuit_id is a mapping 1:1
-         */
-        if(find_hash_entry_by_octet_id(&dhcpr_circuit_table, &entry->opt_id.circuit_id)) {
-            AIM_LOG_ERROR("Circuit id exists for vlan=%u", entry->internal_vlan_id);
-            return INDIGO_ERROR_EXISTS;
-        }
-
-        bighash_insert(&dhcpr_circuit_table, &entry->circuit_hash_entry, hash_octet_key(&entry->opt_id.circuit_id));
-    }
-
     bighash_insert(&dhcpr_vrouter_ip_table, &entry->vrouter_hash_entry, hash_vrouter_key(&vr_entry_key));
 
     dhcpr_vlan_table[entry->internal_vlan_id] = entry;
@@ -412,12 +369,7 @@ dhcpr_table_modify(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key, o
     de = find_hash_entry_by_virtual_router_key(&dhcpr_vrouter_ip_table, &vr_entry_key);
     AIM_TRUE_OR_DIE(de && de == entry, "table_modify");
 
-    if (entry->opt_id.circuit_id.bytes) {
-        de =  find_hash_entry_by_octet_id(&dhcpr_circuit_table, &entry->opt_id.circuit_id);
-        AIM_TRUE_OR_DIE(de && (de == entry));
-    }
-
-    /* 1. Validate and update circuit if necessary */
+    /* 1. Update circuit if necessary */
     if ((entry->opt_id.circuit_id.bytes == circuit_id.bytes) &&
                 (memcmp(entry->opt_id.circuit_id.data, circuit_id.data, circuit_id.bytes) == 0)) {
 
@@ -428,37 +380,14 @@ dhcpr_table_modify(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key, o
     } else {
         /* 2 circuits different, we need update circuit id */
 
-        /* Validate the new circuit and return error before making any change */
-        if(circuit_id.bytes) {
-            if((de = find_hash_entry_by_octet_id(&dhcpr_circuit_table, &circuit_id))) {
-                AIM_LOG_ERROR("CIRCUIT_ID: len=%d packet=%{data}",
-                                circuit_id.bytes,
-                                circuit_id.data, circuit_id.bytes);
-                AIM_LOG_ERROR("Vlan %u: new circuit id exists for vlan=%u",
-                                entry->internal_vlan_id, de->internal_vlan_id);
-
-                dhcpr_free_circuit_id(&circuit_id);
-                return INDIGO_ERROR_EXISTS;
-            }
-        }
-
         /* Remove old circuit if existing */
         if (entry->opt_id.circuit_id.bytes) {
-
-            bighash_remove(&dhcpr_circuit_table, &entry->circuit_hash_entry);
-
-            /* Free old circuit */
             dhcpr_free_circuit_id(&entry->opt_id.circuit_id);
         }
 
         /* Set to new value */
         entry->opt_id.circuit_id.bytes = circuit_id.bytes;
         entry->opt_id.circuit_id.data  = circuit_id.data;
-
-        /* Insert new circuit != 0 */
-        if(circuit_id.bytes) {
-            bighash_insert(&dhcpr_circuit_table, &entry->circuit_hash_entry, hash_octet_key(&entry->opt_id.circuit_id));
-        }
     }
 
     /* 2. Update gateway hash table if the key is changed */
@@ -491,12 +420,6 @@ dhcpr_table_delete(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key)
     AIM_TRUE_OR_DIE(de && de == entry, "table_delete");
     bighash_remove(&dhcpr_vrouter_ip_table, &entry->vrouter_hash_entry);
 
-    if(entry->opt_id.circuit_id.bytes) {
-        de = find_hash_entry_by_octet_id(&dhcpr_circuit_table, &entry->opt_id.circuit_id);
-        AIM_TRUE_OR_DIE(de && de == entry);
-        bighash_remove(&dhcpr_circuit_table, &entry->circuit_hash_entry);
-    }
-
     AIM_TRUE_OR_DIE(entry == dhcpr_vlan_table[entry->internal_vlan_id]);
     dhcpr_vlan_table[entry->internal_vlan_id] = NULL;
     dhcpr_vlan_entry_count--;
@@ -517,22 +440,6 @@ static const indigo_core_gentable_ops_t dhcpr_table_ops = {
     .del = dhcpr_table_delete,
     .get_stats = dhcpr_table_get_stats,
 };
-
-/* Set vlan to INVALID if can't find */
-void
-dhcpr_circuit_id_to_vlan(uint32_t *vlan, uint8_t *cir_id, int cir_id_len)
-{
-    dhc_relay_t *de = NULL;
-    of_octets_t   circuit_id;
-
-    *vlan = INVALID_VLAN;
-    circuit_id.data = cir_id;
-    circuit_id.bytes = cir_id_len;
-
-    de = find_hash_entry_by_octet_id(&dhcpr_circuit_table, &circuit_id);
-    if (de)
-        *vlan = de->internal_vlan_id;
-}
 
 /* Set vlan to INVALID if can't find */
 void
@@ -591,8 +498,29 @@ dhcpr_table_get_virtual_router_ip_entry_count()
     return bighash_entry_count(&dhcpr_vrouter_ip_table) ;
 }
 
+/*
+ * Return 0 if cir_id and vlan is valid
+ * return -1 for errors
+ */
 int
-dhcpr_table_get_circuit_id_entry_count()
+dhcpr_circuit_id_vlan_check(const uint32_t vlan, uint8_t *cir_id, int cir_id_len)
 {
-    return bighash_entry_count(&dhcpr_circuit_table);
+    dhc_relay_t *de = NULL;
+
+    if (!is_valid_vlan_value(vlan)) {
+        return -1;
+    }
+
+    de = dhcpr_vlan_table[vlan];
+    if (!de) {
+        return -1;
+    }
+
+    AIM_TRUE_OR_DIE(de->internal_vlan_id == vlan);
+    if ((de->opt_id.circuit_id.bytes == cir_id_len) &&
+            (memcmp(de->opt_id.circuit_id.data, cir_id, cir_id_len) == 0)) {
+        return 0;
+    } else {
+        return -1;
+    }
 }

@@ -23,7 +23,7 @@
 #include <debug_counter/debug_counter.h>
 
 int dhc_strip_relay_agent_options(struct dhcp_packet *packet,
-                                  uint32_t length, uint32_t *vlan);
+                                  uint32_t length, const uint32_t vlan);
 
 int dhc_add_relay_agent_options(struct dhcp_packet *packet,
                                 unsigned length, unsigned max_len,

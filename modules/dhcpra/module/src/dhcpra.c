@@ -275,7 +275,6 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len,
     uint8_t            host_mac_address[OF_MAC_ADDR_BYTES];
     uint32_t           dhcp_pkt_new_len;
     uint32_t           vlan_id  = INVALID_VLAN;
-    uint32_t           relay_agent_ip_to_vlan_id  = INVALID_VLAN;
     dhc_relay_t        *dc   = NULL;
     struct dhcp_packet *dhcp_pkt;
 
@@ -306,22 +305,11 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len,
         DHCPRA_MEMSET (host_mac_address, 0xff, sizeof(host_mac_address));
     }
 
-    /* Parse DCHP and strip option if any */
-    dhcp_pkt_new_len = dhc_strip_relay_agent_options(dhcp_pkt, dhcp_pkt_len, &vlan_id);
-    DHCPRA_DEBUG("dhcp_len %u, dhcp_new_len %u", dhcp_pkt_len, dhcp_pkt_new_len);
-
-    if (dhcp_pkt_new_len == 0) {
-        /* Option invalid: Drop packets */
-        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                         "Discard a malformed packet");
-        return 0;
-    }
-
     /* This vlan_id should exist */
-    dhcpr_virtual_router_key_to_vlan(&relay_agent_ip_to_vlan_id,
+    dhcpr_virtual_router_key_to_vlan(&vlan_id,
                                      relay_agent_ip,
                                      relay_mac_addr);
-    if (relay_agent_ip_to_vlan_id == INVALID_VLAN) {
+    if (vlan_id == INVALID_VLAN) {
         /*
          * Can't find vlan using relay_agent_ip. This dhcp pkt is out of date, drop it
          * This might happen when controller removed a configuration from relay agent
@@ -337,15 +325,18 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len,
         return 0;
     }
 
-    if (vlan_id == INVALID_VLAN) {
-        /* Option 82 doesn't exist, use relay_agent_ip_to_vlan_id */
-        vlan_id = relay_agent_ip_to_vlan_id;
-    } else {
-        /* Legality check */
-        AIM_TRUE_OR_DIE(vlan_id == relay_agent_ip_to_vlan_id,
-                        "vlan_id=%u != agentIP_to_vlan=%d, vr_ip=%x, %s",
-                        vlan_id, relay_agent_ip_to_vlan_id,
-                        relay_agent_ip, inet_ntoa(*(struct in_addr *)&relay_agent_ip));
+    /*
+     * Parse DCHP and strip option and validate option against vlan_id if any
+     * Return 0 if option is invalid.
+     */
+    dhcp_pkt_new_len = dhc_strip_relay_agent_options(dhcp_pkt, dhcp_pkt_len, vlan_id);
+    DHCPRA_DEBUG("dhcp_len %u, dhcp_new_len %u", dhcp_pkt_len, dhcp_pkt_new_len);
+
+    if (dhcp_pkt_new_len == 0) {
+        /* Option invalid: Drop packets */
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Discard a malformed packet");
+        return 0;
     }
 
     /* At this point, we should have a valid vlan */
@@ -701,41 +692,42 @@ dhcpra_debug_counter_register()
     /* Register dhcp debug counter */
     for (port_no = 0; port_no <=MAX_SYSTEM_PORT; port_no++) {
         dhcp_relay_stat_t *stat = &dhcp_stat_ports[port_no];
-        char counter_name_buf[DEBUG_COUNTER_NAME_SIZE];
 
-        snprintf(counter_name_buf,
+        snprintf(stat->dhcp_request_cnt_name,
                  DEBUG_COUNTER_NAME_SIZE,
                  "dhcpra.port:%d.dhcp_request", port_no);
 
-        debug_counter_register(&stat->dhcp_request,
-                               counter_name_buf,
-                               "dhcp request recv'd on this port");
+        debug_counter_register(
+            &stat->dhcp_request,
+            stat->dhcp_request_cnt_name,
+            "dhcp request recv'd on this port");
 
-        snprintf(counter_name_buf,
+        snprintf(stat->dhcp_request_relay_cnt_name,
                  DEBUG_COUNTER_NAME_SIZE,
                  "dhcpra.port:%d.dhcp_request_relay", port_no);
 
         debug_counter_register(
             &stat->dhcp_request_relay,
-            counter_name_buf,
+            stat->dhcp_request_relay_cnt_name,
             "dhcp request relayed from this port");
 
 
-        snprintf(counter_name_buf,
+        snprintf(stat->dhcp_reply_cnt_name,
                  DEBUG_COUNTER_NAME_SIZE,
                  "dhcpra.port:%d.dhcp_reply", port_no);
 
-        debug_counter_register(&stat->dhcp_reply,
-                               counter_name_buf,
-                               "dhcp reply recv'd on this port");
+        debug_counter_register(
+            &stat->dhcp_reply,
+            stat->dhcp_reply_cnt_name,
+            "dhcp reply recv'd on this port");
 
-        snprintf(counter_name_buf,
+        snprintf(stat->dhcp_reply_relay_cnt_name,
                  DEBUG_COUNTER_NAME_SIZE,
                  "dhcpra.port:%d.dhcp_reply_relay", port_no);
 
         debug_counter_register(
             &stat->dhcp_reply_relay,
-            counter_name_buf,
+            stat->dhcp_reply_relay_cnt_name,
             "dhcp reply relayed from this port");
     }
 

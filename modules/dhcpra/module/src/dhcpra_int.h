@@ -68,6 +68,10 @@ typedef struct {
     debug_counter_t dhcp_request_relay;
     debug_counter_t dhcp_reply;
     debug_counter_t dhcp_reply_relay;
+    char            dhcp_request_cnt_name[DEBUG_COUNTER_NAME_SIZE];
+    char            dhcp_request_relay_cnt_name[DEBUG_COUNTER_NAME_SIZE];
+    char            dhcp_reply_cnt_name[DEBUG_COUNTER_NAME_SIZE];
+    char            dhcp_reply_relay_cnt_name[DEBUG_COUNTER_NAME_SIZE];
 }dhcp_relay_stat_t;
 
 extern dhcp_relay_stat_t dhcp_stat_ports[MAX_SYSTEM_PORT+1];

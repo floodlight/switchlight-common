@@ -304,9 +304,12 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
  * --option is corrupt
  * --circuid_id is missing
  * --circuit_id is bogus
+ *
+ * Note: we no longer use circuit_id to find vlan
+ * So we use this to check if option is malformed or valid
  */
 static int
-find_vlan_by_agent_option(u_int8_t *buf, int len, uint32_t *vlan) {
+check_vlan_by_agent_option(u_int8_t *buf, int len, const uint32_t vlan) {
     int i = 0;
     u_int8_t *circuit_id = 0;
     unsigned circuit_id_len = 0;
@@ -340,12 +343,12 @@ find_vlan_by_agent_option(u_int8_t *buf, int len, uint32_t *vlan) {
         return -1;
     }
 
-    dhcpr_circuit_id_to_vlan(vlan, circuit_id, circuit_id_len);
-
-    if(*vlan != INVALID_VLAN)
+    if (dhcpr_circuit_id_vlan_check(vlan, circuit_id, circuit_id_len) == 0) {
         /* Successful */
         return 0;
+    }
 
+    /* Since we passed in the good vlan, the error must be bad circuit */
     AIM_LOG_ERROR("Bad Circuit");
     /* If we didn't get a match, the circuit ID was bogus. */
     debug_counter_inc(&dhc_relay_stat.reply_bad_circuit_id);
@@ -355,24 +358,22 @@ find_vlan_by_agent_option(u_int8_t *buf, int len, uint32_t *vlan) {
 
 
 /*
- * strip agent options and obtain vlan_id
+ * strip agent options check again vlan
  * Return 0: dhcp is corrupted: drop.
  * --If any option is corrupted
  * --If option 82 exists, but no circuit_id
- * --If option 82 exists, circuit_id exists, no vlan
+ * --If option 82 exists, circuit_id exists,
+ *   but the value is inconsistent with vlan
  *
  * Return length of dhcp pkt to be sent
  * */
 int
 dhc_strip_relay_agent_options(struct dhcp_packet *packet,
-                               uint32_t length, uint32_t *vlan) {
+                               uint32_t length, const uint32_t vlan) {
     int is_dhcp = 0;
     u_int8_t *op, *nextop, *sp, *max;
     int dhcp_agent_option = 0;
     int status;
-
-    /* In case we don't have option, this value is set */
-    *vlan = INVALID_VLAN;
 
     /* If there's no cookie, it's a bootp packet, so we should just
        forward it unchanged. */
@@ -423,7 +424,7 @@ dhc_strip_relay_agent_options(struct dhcp_packet *packet,
                 return 0;
             }
             
-            status = find_vlan_by_agent_option(op + 2, op[1], vlan);
+            status = check_vlan_by_agent_option(op + 2, op[1], vlan);
             if (status) {
                 /* 1) circuit_id opt is corrupted
                  * 2) circuit_id is missing

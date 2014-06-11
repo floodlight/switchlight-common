@@ -235,7 +235,6 @@ int fill_all_vlan_dhcpr_table_test()
     int k;
     int vlan_no;
     int vr_ip_no;
-    int cir_id_no;
 
     uint32_t      virtualRouterIP = 1;
     of_mac_addr_t mac = { .addr = {0x55, 0x16, 0xc7, 0x01, 0x02, 0x03} };
@@ -291,11 +290,8 @@ int fill_all_vlan_dhcpr_table_test()
 
     vlan_no = dhcpr_table_get_vlan_entry_count();
     vr_ip_no = dhcpr_table_get_virtual_router_ip_entry_count();
-    cir_id_no = dhcpr_table_get_circuit_id_entry_count();
     AIM_TRUE_OR_DIE(vlan_no  == num_of_vlan+1, "vlan=%u", vlan_no);
     AIM_TRUE_OR_DIE(vr_ip_no == num_of_vlan+1, "vr_ip_no=%u", vr_ip_no);
-    AIM_TRUE_OR_DIE(cir_id_no == (num_of_vlan/2),
-                                    "cir_id_no=%u", cir_id_no);
 
     printf("TEST:2 modify all\n");
     /* Modify 1/4:
@@ -380,11 +376,8 @@ int fill_all_vlan_dhcpr_table_test()
 
     vlan_no = dhcpr_table_get_vlan_entry_count();
     vr_ip_no = dhcpr_table_get_virtual_router_ip_entry_count();
-    cir_id_no = dhcpr_table_get_circuit_id_entry_count();
     AIM_TRUE_OR_DIE(vlan_no  == num_of_vlan+1, "vlan=%u", vlan_no);
     AIM_TRUE_OR_DIE(vr_ip_no == num_of_vlan+1, "vr_ip_no=%u", vr_ip_no);
-    AIM_TRUE_OR_DIE(cir_id_no == (num_of_vlan - num_of_vlan/2 + 1),
-                                    "cir_id_no=%u", cir_id_no);
 
     printf("TEST:3 delete all\n");
     for (k = 0; k<= num_of_vlan; k++) {
@@ -396,10 +389,8 @@ int fill_all_vlan_dhcpr_table_test()
     /* Delete all */
     vlan_no = dhcpr_table_get_vlan_entry_count();
     vr_ip_no = dhcpr_table_get_virtual_router_ip_entry_count();
-    cir_id_no = dhcpr_table_get_circuit_id_entry_count();
     AIM_TRUE_OR_DIE(vlan_no == 0);
     AIM_TRUE_OR_DIE(vr_ip_no == 0);
-    AIM_TRUE_OR_DIE(cir_id_no == 0);
 
     return 1;
 }
@@ -436,10 +427,9 @@ void add_entry_to_dhcpr_table()
             }
 
             /* Test 2: cir -> vlan */
-            dhcpr_circuit_id_to_vlan(&vlan, dummy_cir_id2.data,
-                                            dummy_cir_id2.bytes );
-            printf("circuit_id_to_vlan = %u\n", vlan);
-            AIM_TRUE_OR_DIE(vlan==1);
+            vlan = 1;
+            AIM_TRUE_OR_DIE(!dhcpr_circuit_id_vlan_check(vlan, dummy_cir_id2.data,
+                                                         dummy_cir_id2.bytes ));
 
             /* Test 3: routerip -> vlan */
             dhcpr_virtual_router_key_to_vlan(&vlan, vr_ip, dummy_dhcp_opt_info.vrouter_mac.addr);
@@ -474,22 +464,18 @@ void mod_entry_to_dhcpr_table()
                 &dummy_dhcp_opt_info.opt_id.circuit_id);
 
     ops->modify(table_priv, dhc_relay, key, value);
-    /* Test 2: cir -> vlan */
-    dhcpr_circuit_id_to_vlan(&vlan_ret, dummy_cir_id2.data,
-                                        dummy_cir_id2.bytes);
-    printf("circuit_id_to_vlan = %d\n", vlan_ret);
-    AIM_TRUE_OR_DIE(vlan_ret==INVALID_VLAN);
-
-    /* Test 3: routerip -> vlan */
+    /* Test 3: routerip -> vlan
+     * Invalid_vlan, no need to check against circuit
+     */
     dhcpr_virtual_router_key_to_vlan(&vlan_ret, dummy_dhcp_opt_info.vrouter_ip+1, dummy_dhcp_opt_info.vrouter_mac.addr);
     printf("router_ip_to_vlan = %d\n", vlan_ret);
     AIM_TRUE_OR_DIE(vlan_ret==INVALID_VLAN);
 
+
     /* Test 4: cir -> vlan */
-   dhcpr_circuit_id_to_vlan(&vlan_ret, dummy_dhcp_opt_info.opt_id.circuit_id.data,
-                                       dummy_dhcp_opt_info.opt_id.circuit_id.bytes );
-   printf("circuit_id_to_vlan = %d\n", vlan_ret);
-   AIM_TRUE_OR_DIE(vlan_ret==vlan_id);
+    vlan_ret = vlan_id;
+    AIM_TRUE_OR_DIE(!dhcpr_circuit_id_vlan_check(vlan_ret, dummy_dhcp_opt_info.opt_id.circuit_id.data,
+                                                 dummy_dhcp_opt_info.opt_id.circuit_id.bytes ));
 
    /* Test 5: routerip -> vlan */
    dhcpr_virtual_router_key_to_vlan(&vlan_ret, dummy_dhcp_opt_info.vrouter_ip, dummy_dhcp_opt_info.vrouter_mac.addr);
@@ -517,13 +503,10 @@ void del_entry_to_dhcpr_table()
     key = make_key(vlan_id);
 
     ops->del(table_priv, dhc_relay, key);
-    /* Test 2: cir -> vlan */
-    dhcpr_circuit_id_to_vlan(&vlan_ret, dummy_dhcp_opt_info.opt_id.circuit_id.data,
-                                    dummy_dhcp_opt_info.opt_id.circuit_id.bytes );
-    printf("circuit_id_to_vlan = %d\n", vlan_ret);
-    AIM_TRUE_OR_DIE(vlan_ret==INVALID_VLAN);
 
-    /* Test 3: routerip -> vlan */
+    /* Test 3: routerip -> vlan
+     * invalid vlan, no need to check circuit
+     */
     dhcpr_virtual_router_key_to_vlan(&vlan_ret, dummy_dhcp_opt_info.vrouter_ip, dummy_dhcp_opt_info.vrouter_mac.addr);
     printf("router_ip_to_vlan = %d\n", vlan_ret);
     AIM_TRUE_OR_DIE(vlan_ret==INVALID_VLAN);
