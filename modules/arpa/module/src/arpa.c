@@ -810,8 +810,11 @@ arpa_timer(void *cookie)
 {
     timer_wheel_entry_t *cur;
     indigo_time_t now = INDIGO_CURRENT_TIME;
+    int idle_notifications = 0; /* Limit the number of messages sent to the controller each tick */
 
-    while ((cur = timer_wheel_next(timer_wheel, now))) {
+    while (idle_notifications < 32 &&
+            !ind_soc_should_yield() &&
+            (cur = timer_wheel_next(timer_wheel, now))) {
         struct arp_entry *entry = container_of(cur, timer_entry, struct arp_entry);
 
         AIM_ASSERT(entry->timer_state != ARP_TIMER_STATE_NONE);
@@ -827,10 +830,20 @@ arpa_timer(void *cookie)
             debug_counter_inc(&broadcast_requery_counter);
         } else if (entry->timer_state == ARP_TIMER_STATE_IDLE_TIMEOUT) {
             arpa_send_idle_notification(entry);
+            idle_notifications++;
             entry->deadline = now + entry->value.idle_timeout;
             timer_wheel_insert(timer_wheel, &entry->timer_entry, entry->deadline);
             debug_counter_inc(&idle_notification_counter);
         }
+    }
+
+    /*
+     * Re-register timer sooner if there are expired entries remaining
+     */
+    if ((cur = timer_wheel_peek(timer_wheel, now))) {
+        (void) ind_soc_timer_event_register(arpa_timer, NULL, 100);
+    } else {
+        (void) ind_soc_timer_event_register(arpa_timer, NULL, 1000);
     }
 }
 
