@@ -35,9 +35,9 @@
 #define LACP_LONG_TIMEOUT_MS            90000
 #define LACP_CHURN_DETECTION_TIMEOUT_MS 60000
 
-#define LACP_PKT_BUF_SIZE               128  //Per LACP specification
+#define LACP_PKT_BUF_SIZE               124  //Per LACP specification
                                              //802.3ad-2000, Max LACPDU size
-                                             //is 124 Bytes + 4 Byte FCS.
+                                             //is 124 Bytes.
 
 #define PHY_PORT_COUNT                  1024
 
