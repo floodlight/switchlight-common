@@ -75,6 +75,8 @@ struct udp {
 #define UDP_HEADER_OFFSET      (DOT1Q_IP_HEADER_OFFSET + sizeof(struct ip))
 #define DHCP_HEADER_OFFSET     (UDP_HEADER_OFFSET + sizeof(struct udp))
 
+#define SYSTEM_VLAN 4094
+
 #define HEX_LEN 80
 #define PER_LINE 16
 static inline void
@@ -261,7 +263,7 @@ get_virtual_router_mac(dhc_relay_t *dc)
  * Using relay_agent_ip map, it gets the internal vlan which the dhcp client is on
  * Circuit_id is only optional and used for legality check only
  * */
-static int
+static indigo_core_listener_result_t
 dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, 
                         uint32_t relay_agent_ip,
                         uint8_t *relay_mac_addr,
@@ -285,14 +287,14 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len,
         AIM_LOG_RL_ERROR (&dhcpra_pktin_log_limiter, os_time_monotonic(),
                           "Discard packets with unsupported hw type=%d on port=%d",
                           dhcp_pkt->htype, port_no);
-        return 0;
+        return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
     if (dhcp_pkt->hlen != sizeof(host_mac_address)) {
         AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                          "Discard packets with unsupport hw len=%d on port=%d",
                          dhcp_pkt->hlen, port_no);
-        return 0;
+        return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
     if (!(dhcp_pkt->flags & htons(BOOTP_BROADCAST))) {
@@ -322,12 +324,12 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len,
                         ((uint8_t*)&relay_agent_ip)[2],
                         ((uint8_t*)&relay_agent_ip)[1],
                         ((uint8_t*)&relay_agent_ip)[0]);
-        return 0;
+        return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
     /*
      * Parse DCHP and strip option and validate option against vlan_id if any
-     * Return 0 if option is invalid.
+     * Drop packet-in if option is invalid.
      */
     dhcp_pkt_new_len = dhc_strip_relay_agent_options(dhcp_pkt, dhcp_pkt_len, vlan_id);
     DHCPRA_DEBUG("dhcp_len %u, dhcp_new_len %u", dhcp_pkt_len, dhcp_pkt_new_len);
@@ -336,7 +338,7 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len,
         /* Option invalid: Drop packets */
         AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                          "Discard a malformed packet");
-        return 0;
+        return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
     /* At this point, we should have a valid vlan */
@@ -382,7 +384,7 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len,
     /* Send out */
     debug_counter_inc(&dhcp_stat_ports[port_no].dhcp_reply_relay);
     dhcpra_send_pkt (&data_tx, port_no);
-    return 0;
+    return INDIGO_CORE_LISTENER_RESULT_DROP;
 }
 
 /*
@@ -393,7 +395,7 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len,
  * Use virtual_router_ip as relay_agent_ip
  * Circuit_id is only optional
  * */
-static int
+static indigo_core_listener_result_t
 dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
                           uint32_t vlan_pcp, of_port_no_t port_no,
                           int port_dump_data)
@@ -410,9 +412,9 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
     uint32_t            message_type = 0;
 
     if(!(dc = dhcpr_get_dhcpr_entry_from_vlan_table(vlan_id))){
-        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                         "Unsupported vlan_vid=%d on port=%d", vlan_id, port_no);
-        return 0;
+        AIM_LOG_RL_WARN(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                        "Unsupported DHCP vlan_vid=%d on port=%d", vlan_id, port_no);
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
     opt = &dc->opt_id;
@@ -424,14 +426,14 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
         AIM_LOG_RL_ERROR (&dhcpra_pktin_log_limiter, os_time_monotonic(),
                           "Discard packets with unsupported hw type=%d on port=%",
                           dhcp_pkt->htype, port_no);
-        return 0;
+        return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
     if (dhcp_pkt->hlen != sizeof(host_mac_address)) {
         AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                          "Discard packets with unsupport hw len=%d on port=%d",
                          dhcp_pkt->hlen, port_no);
-        return 0;
+        return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
     DHCPRA_MEMCPY(host_mac_address, dhcp_pkt->chaddr, OF_MAC_ADDR_BYTES);
@@ -441,7 +443,7 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
     } else {
         AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                          "Discard dhcp packet: dhcp hops %d > max_hop", dhcp_pkt->hops);
-        return 0;
+        return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
     /* If giaddr matches one of our addresses, ignore the packet */
@@ -449,7 +451,7 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
     if ((dhcp_pkt->giaddr.s_addr) == htonl(switch_ip)) {
         AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                          "Error boot request having giaddr == switch_ip");
-        return 0;
+        return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
     /* Always parse dhcp options to get message_type
@@ -465,7 +467,7 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
         /* Option or circuit corrupted */
         AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                          "Discard a malformed packet");
-        return 0;
+        return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
     /*
@@ -520,7 +522,7 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
     debug_counter_inc(&dhcp_stat_ports[port_no].dhcp_request_relay);
     dhcpra_send_pkt (&data_tx, port_no);
 
-    return 0;
+    return INDIGO_CORE_LISTENER_RESULT_DROP;
 }
 
 /*
@@ -630,6 +632,20 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     ppe_field_get(&ppep, PPE_FIELD_8021Q_VLAN, &vlan_vid);
     ppe_field_get(&ppep, PPE_FIELD_8021Q_PRI, &vlan_pcp);
 
+    /* Ignore and pass packet on system VLAN */
+    if (vlan_vid == SYSTEM_VLAN) {
+        AIM_LOG_RL_TRACE(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "ignoring packet on system VLAN %u", vlan_vid);
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
+    }
+
+    /* Ignore and drop packet on invalid VLANs */
+    if (vlan_vid == 0 || vlan_vid == 4095) {
+        AIM_LOG_RL_TRACE(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "ignoring packet on invalid VLAN %u", vlan_vid);
+        return INDIGO_CORE_LISTENER_RESULT_DROP;
+    }
+
     /* Copy dhcp pkt from pkt */
     dhcp_pkt_len = ppe_header_get(&ppep, PPE_HEADER_ETHERNET) + data.bytes 
                    - ppe_header_get(&ppep, PPE_HEADER_DHCP);
@@ -649,13 +665,8 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     switch (opcode) {
     case BOOTREQUEST:
         debug_counter_inc(&dhcp_stat_ports[port_no].dhcp_request);
-        /* If message_type = DHCPDISCOVER: forward to controller */
-        if (dhcpra_handle_bootrequest(&ldata, dhcp_pkt_len, vlan_vid, vlan_pcp,
-                                      port_no, port_dump_data)) {
-            DHCPRA_DEBUG("Forward REQUEST to controller");
-            return INDIGO_CORE_LISTENER_RESULT_PASS;
-        }
-        break;
+        return dhcpra_handle_bootrequest(&ldata, dhcp_pkt_len, vlan_vid, vlan_pcp,
+                                         port_no, port_dump_data);
     case BOOTREPLY:
         debug_counter_inc(&dhcp_stat_ports[port_no].dhcp_reply);
         /*
@@ -669,20 +680,14 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
         ppe_wide_field_get(&ppep, 
                            PPE_FIELD_ETHERNET_DST_MAC,
                            relay_mac_addr);
-        if (dhcpra_handle_bootreply(&ldata, dhcp_pkt_len, 
-                                    relay_agent_ip, relay_mac_addr, 
-                                    vlan_pcp, port_no, port_dump_data)) {
-            DHCPRA_DEBUG("Forward REPLY to controller");
-            return INDIGO_CORE_LISTENER_RESULT_PASS;
-        }
-        break;
+        return dhcpra_handle_bootreply(&ldata, dhcp_pkt_len,
+                                       relay_agent_ip, relay_mac_addr,
+                                       vlan_pcp, port_no, port_dump_data);
     default:
         AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                          "Unsupported opcode=%d", opcode);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
-
-    return INDIGO_CORE_LISTENER_RESULT_DROP;   
 }
 
 static void
