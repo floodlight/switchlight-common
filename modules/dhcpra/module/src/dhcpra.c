@@ -630,6 +630,20 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     ppe_field_get(&ppep, PPE_FIELD_8021Q_VLAN, &vlan_vid);
     ppe_field_get(&ppep, PPE_FIELD_8021Q_PRI, &vlan_pcp);
 
+    /* Ignore and pass packet on system VLAN */
+    if (vlan_vid == 4094) {
+        AIM_LOG_RL_TRACE(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "ignoring packet on system VLAN %u", vlan_vid);
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
+    }
+
+    /* Ignore and drop packet on invalid VLANs */
+    if (vlan_vid == 0 || vlan_vid == 4095) {
+        AIM_LOG_RL_TRACE(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "ignoring packet on invalid VLAN %u", vlan_vid);
+        return INDIGO_CORE_LISTENER_RESULT_DROP;
+    }
+
     /* Copy dhcp pkt from pkt */
     dhcp_pkt_len = ppe_header_get(&ppep, PPE_HEADER_ETHERNET) + data.bytes 
                    - ppe_header_get(&ppep, PPE_HEADER_DHCP);
