@@ -75,6 +75,8 @@ struct udp {
 #define UDP_HEADER_OFFSET      (DOT1Q_IP_HEADER_OFFSET + sizeof(struct ip))
 #define DHCP_HEADER_OFFSET     (UDP_HEADER_OFFSET + sizeof(struct udp))
 
+#define SYSTEM_VLAN 4094
+
 #define HEX_LEN 80
 #define PER_LINE 16
 static inline void
@@ -631,7 +633,7 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     ppe_field_get(&ppep, PPE_FIELD_8021Q_PRI, &vlan_pcp);
 
     /* Ignore and pass packet on system VLAN */
-    if (vlan_vid == 4094) {
+    if (vlan_vid == SYSTEM_VLAN) {
         AIM_LOG_RL_TRACE(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                          "ignoring packet on system VLAN %u", vlan_vid);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
