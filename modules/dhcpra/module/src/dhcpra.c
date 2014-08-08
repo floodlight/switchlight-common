@@ -411,6 +411,13 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
     uint8_t             host_mac_address[OF_MAC_ADDR_BYTES];
     uint32_t            message_type = 0;
 
+    /* Ignore and pass packet on system VLAN */
+    if (vlan_id == SYSTEM_VLAN) {
+        AIM_LOG_RL_TRACE(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "ignoring request packet on system VLAN %u", vlan_id);
+        return INDIGO_CORE_LISTENER_RESULT_PASS;
+    }
+
     if(!(dc = dhcpr_get_dhcpr_entry_from_vlan_table(vlan_id))){
         AIM_LOG_RL_WARN(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                         "Unsupported DHCP vlan_vid=%d on port=%d", vlan_id, port_no);
@@ -631,13 +638,6 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     /* Don't support PPE_FIELD_OUTER_8021Q_VLAN / PPE_FIELD_INNER_8021Q_VLAN */
     ppe_field_get(&ppep, PPE_FIELD_8021Q_VLAN, &vlan_vid);
     ppe_field_get(&ppep, PPE_FIELD_8021Q_PRI, &vlan_pcp);
-
-    /* Ignore and pass packet on system VLAN */
-    if (vlan_vid == SYSTEM_VLAN) {
-        AIM_LOG_RL_TRACE(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                         "ignoring packet on system VLAN %u", vlan_vid);
-        return INDIGO_CORE_LISTENER_RESULT_PASS;
-    }
 
     /* Ignore and drop packet on invalid VLANs */
     if (vlan_vid == 0 || vlan_vid == 4095) {
