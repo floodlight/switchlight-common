@@ -185,7 +185,7 @@ dhcpra_send_pkt (of_octets_t *octets, of_port_no_t port_no)
      /* Always use OF_VERSION_1_3 */
     uint32_t version  = OF_VERSION_1_3;
     uint32_t out_port = OF_PORT_DEST_USE_TABLE; /* (0xfffffff9) OFPP_TABLE */
-    uint32_t in_port  = OF_PORT_DEST_LOCAL;
+    uint32_t in_port  = OF_PORT_DEST_CONTROLLER;
 
     pkt_out = of_packet_out_new (version);
     if(!pkt_out){
