@@ -703,7 +703,7 @@ arpa_send_packet(struct arp_info *info)
 
     of_packet_out_t *obj = of_packet_out_new(OF_VERSION_1_3);
     of_packet_out_buffer_id_set(obj, -1);
-    of_packet_out_in_port_set(obj, OF_PORT_DEST_LOCAL);
+    of_packet_out_in_port_set(obj, OF_PORT_DEST_CONTROLLER);
 
     of_list_action_t *list = of_list_action_new(obj->version);
     of_action_output_t *action = of_action_output_new(list->version);
