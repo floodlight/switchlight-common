@@ -20,7 +20,7 @@
 /*
  * Implementation of Icmp Agent.
  *
- * This file contains code for icmp error msg generation and handling 
+ * This file contains code for icmp error msg generation and handling
  * icmp request msg's (ECHO, etc.)
  */
 
@@ -30,19 +30,19 @@
  * isBroadcastAddress
  *
  * Returns true if a given IPv4 address is a Broadcast IP;
- * else returns false 
+ * else returns false
  */
 bool
 isBroadcastAddress (uint32_t ip)
 {
-    return (ip == 0xffffffff);    
+    return (ip == 0xffffffff);
 }
 
 /*
  * isMulticastAddress
  *
- * Returns true if a given IPv4 address is a Multicast IP; 
- * else returns false 
+ * Returns true if a given IPv4 address is a Multicast IP;
+ * else returns false
  */
 bool
 isMulticastAddress (uint32_t ip)
@@ -53,7 +53,7 @@ isMulticastAddress (uint32_t ip)
 /*
  * isValidIP
  *
- * Returns false if a given IPv4 address is not Zero/Multicast/Broadcast; 
+ * Returns false if a given IPv4 address is not Zero/Multicast/Broadcast;
  * else returns true
  */
 bool
@@ -69,7 +69,7 @@ isValidIP (uint32_t ip)
 /*
  * icmpa_get_vlan_id
  *
- * Check if the packet has 802.1q header and extract the vlan id 
+ * Check if the packet has 802.1q header and extract the vlan id
  */
 static bool
 icmpa_get_vlan_id (ppe_packet_t *ppep, uint32_t *vlan_id, uint32_t *vlan_pcp)
@@ -89,13 +89,13 @@ icmpa_get_vlan_id (ppe_packet_t *ppep, uint32_t *vlan_id, uint32_t *vlan_pcp)
 
 /*
  * icmpa_build_pdu
- * 
+ *
  * Build an ICMP packet
  */
 static bool
 icmpa_build_pdu (ppe_packet_t *ppep_rx, of_octets_t *octets, uint32_t vlan_id,
-                 uint32_t vlan_pcp, uint32_t ip_total_len, uint32_t router_ip, 
-                 uint32_t type, uint32_t code, uint32_t hdr_data, 
+                 uint32_t vlan_pcp, uint32_t ip_total_len, uint32_t router_ip,
+                 uint32_t type, uint32_t code, uint32_t hdr_data,
                  uint8_t *icmp_data, uint32_t icmp_data_len)
 {
     ppe_packet_t               ppep_tx;
@@ -137,12 +137,12 @@ icmpa_build_pdu (ppe_packet_t *ppep_rx, of_octets_t *octets, uint32_t vlan_id,
 
     /*
      * Src IP = Router IP
-     * Dest IP = Get the Src IP and use it as the Dest IP 
+     * Dest IP = Get the Src IP and use it as the Dest IP
      */
     ppe_field_get(ppep_rx, PPE_FIELD_IP4_SRC_ADDR, &dest_ip);
 
     /*
-     * Build the IP header 
+     * Build the IP header
      */
     AIM_LOG_TRACE("Build IP header with src_ip: %{ipv4a}, dest_ip: %{ipv4a}",
                   router_ip, dest_ip);
@@ -166,13 +166,13 @@ icmpa_build_pdu (ppe_packet_t *ppep_rx, of_octets_t *octets, uint32_t vlan_id,
  * icmpa_reply
  *
  * Driving logic for building and sending reply messages.
- * Currently we are only handling ICMP ECHO Requests. 
+ * Currently we are only handling ICMP ECHO Requests.
  */
 bool
 icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
 {
     of_octets_t                octets_out;
-    uint32_t                   icmp_type; 
+    uint32_t                   icmp_type;
     uint32_t                   hdr_data;
     uint32_t                   ip_total_len, ip_hdr_size;
     uint32_t                   icmp_data_len;
@@ -182,15 +182,15 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
 
     if (!ppep) return false;
 
-    ppe_field_get(ppep, PPE_FIELD_ICMP_TYPE, &icmp_type); 
- 
+    ppe_field_get(ppep, PPE_FIELD_ICMP_TYPE, &icmp_type);
+
     /*
      * Check to make sure this is an ICMP ECHO Request
      */
     if (icmp_type != ICMP_ECHO_REQUEST) {
         AIM_LOG_TRACE("Not a ICMP ECHO Request Packet, type: %d", icmp_type);
         return false;
-    }  
+    }
 
     /*
      * We should never receive an untagged frame
@@ -198,18 +198,18 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
     if (!icmpa_get_vlan_id(ppep, &vlan_id, &vlan_pcp)) {
         AIM_LOG_ERROR("ICMPA: Received Untagged Packet_in");
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
-        return false;    
-    } 
+        return false;
+    }
 
     /*
      * Echo requests should always be destined to Router IP
      */
-    ppe_field_get(ppep, PPE_FIELD_IP4_DST_ADDR, &dest_ip); 
+    ppe_field_get(ppep, PPE_FIELD_IP4_DST_ADDR, &dest_ip);
     if (router_ip_check(dest_ip) == false) {
         AIM_LOG_TRACE("ICMPA: Echo request dest_ip: %{ipv4a} is not router IP",
                       dest_ip);
         return false;
-    } 
+    }
 
     /*
      * MUST NOT reply to a multicast/broadcast IP address.
@@ -241,7 +241,7 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
-    
+
     octets_out.data = (uint8_t *) ICMPA_MALLOC(ppep->size);
     if (octets_out.data == NULL) {
         AIM_LOG_ERROR("ICMPA: Failed to allocate memory for echo response");
@@ -253,7 +253,7 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
     octets_out.bytes = ppep->size;
     icmp_data_len = ip_total_len - ip_hdr_size - ICMP_HEADER_SIZE;
     if (!icmpa_build_pdu(ppep, &octets_out, vlan_id, vlan_pcp, ip_total_len,
-        dest_ip, ICMP_ECHO_REPLY, 0, hdr_data, 
+        dest_ip, ICMP_ECHO_REPLY, 0, hdr_data,
         ppe_fieldp_get(ppep, PPE_FIELD_ICMP_PAYLOAD), icmp_data_len)) {
         AIM_LOG_ERROR("ICMPA: icmpa_build_pdu failed");
         goto free_and_return;
@@ -266,7 +266,7 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
         goto free_and_return;
     } else {
         debug_counter_inc(&pkt_counters.icmp_total_out_packets);
-        AIM_LOG_TRACE("Successfully sent packet out the port: %d", port_no); 
+        AIM_LOG_TRACE("Successfully sent packet out the port: %d", port_no);
     }
 
     ICMPA_FREE(octets_out.data);
@@ -280,7 +280,7 @@ free_and_return:
 
 /*
  * icmpa_send
- * 
+ *
  * Send an ICMP message in response to below situation's
  * 1. TTL Expired
  * 2. Net Unreachable
@@ -288,17 +288,17 @@ free_and_return:
  *
  * RFC 1122: 3.2.2 MUST send at least the IP header and 8 bytes of header.
  *
- * NOTE: Controller will try to resolve unreachable hosts by sending ARP, 
+ * NOTE: Controller will try to resolve unreachable hosts by sending ARP,
  * If host is still not found then controller should send ICMP Host unreachable.
  */
-bool 
-icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type, 
+bool
+icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
             uint32_t code)
 {
     of_octets_t                octets_out;
-    uint8_t                    *ip_hdr = NULL; 
+    uint8_t                    *ip_hdr = NULL;
     uint32_t                   ip_total_len;
-    uint8_t                    data[ICMP_PKT_BUF_SIZE];    
+    uint8_t                    data[ICMP_PKT_BUF_SIZE];
     uint32_t                   vlan_id, vlan_pcp;
     uint32_t                   router_ip;
     of_mac_addr_t              router_mac;
@@ -307,7 +307,7 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
 
     if (!ppep) return false;
 
-    ICMPA_MEMSET(data, 0, ICMP_PKT_BUF_SIZE);   
+    ICMPA_MEMSET(data, 0, ICMP_PKT_BUF_SIZE);
 
     ip_hdr = ppe_header_get(ppep, PPE_HEADER_IP4);
     if (!ip_hdr) {
@@ -316,7 +316,7 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
-   
+
     /*
      * We should never receive an untagged frame
      */
@@ -327,12 +327,12 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
     }
 
     /*
-     * Traceroute if destined to the VRouter IP, hence we should use 
+     * Traceroute if destined to the VRouter IP, hence we should use
      * that as the src IP for Icmp Port Unreachable.
      *
-     * For Icmp TTL Expired and ICMP Net Unreachable cases we need to 
+     * For Icmp TTL Expired and ICMP Net Unreachable cases we need to
      * lookup the Vrouter IP based on the Vlan to use as src ip
-     */ 
+     */
     if (type == ICMP_DEST_UNREACHABLE && code == 3) {
         ppe_field_get(ppep, PPE_FIELD_IP4_DST_ADDR, &router_ip);
     } else {
@@ -341,7 +341,7 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
             debug_counter_inc(&pkt_counters.icmp_internal_errors);
             return false;
         }
-    }    
+    }
 
     /*
      * MUST NOT send to a multicast/broadcast IP address.
@@ -358,7 +358,7 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
         ICMPA_LOG_PACKET("DUMPING INCOMING PACKET");
         ppe_packet_dump(ppep, aim_log_pvs_get(&AIM_LOG_STRUCT));
     }
-    AIM_LOG_TRACE("Send ICMP message with type: %d, code: %d", type, code); 
+    AIM_LOG_TRACE("Send ICMP message with type: %d, code: %d", type, code);
 
     /*
      * Build the ICMP packet
@@ -371,14 +371,14 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
                       ip_total_len);
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
-    } 
+    }
 
-    if (!icmpa_build_pdu(ppep, &octets_out, vlan_id, vlan_pcp, IP_TOTAL_LEN, 
+    if (!icmpa_build_pdu(ppep, &octets_out, vlan_id, vlan_pcp, IP_TOTAL_LEN,
         router_ip, type, code, 0, ip_hdr, ICMP_DATA_LEN)) {
         AIM_LOG_ERROR("ICMPA: icmpa_build_pdu failed");
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
-    }        
+    }
 
     rv = icmpa_send_packet_out(&octets_out);
     if (rv < 0) {
