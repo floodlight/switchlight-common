@@ -33,7 +33,7 @@ icmpa_clear_portcounters__(ucli_context_t* uc, uint32_t port_no)
 {
     if (port_no > MAX_PORTS) return;
 
-    ICMPA_MEMSET(&port_pkt_counters[port_no], 0, 
+    ICMPA_MEMSET(&port_pkt_counters[port_no], 0,
                  sizeof(icmpa_typecode_packet_counter_t));
 }
 
@@ -43,8 +43,8 @@ icmpa_show_portcounters__(ucli_context_t* uc, uint32_t port_no)
     icmpa_typecode_packet_counter_t zero = {0};
 
     if (port_no > MAX_PORTS) return;
-    
-    if (memcmp(&zero, &port_pkt_counters[port_no], sizeof(zero)) == 0) return; 
+
+    if (memcmp(&zero, &port_pkt_counters[port_no], sizeof(zero)) == 0) return;
 
     if (print_once == true) {
         ucli_printf(uc,
@@ -59,7 +59,7 @@ icmpa_show_portcounters__(ucli_context_t* uc, uint32_t port_no)
     }
 
     ucli_printf(uc, "%d\t%"PRId64"\t%"PRId64"\t%"PRId64"\t%"PRId64"\n",
-                port_no, port_pkt_counters[port_no].icmp_echo_packets, 
+                port_no, port_pkt_counters[port_no].icmp_echo_packets,
                 port_pkt_counters[port_no].icmp_time_exceeded_packets,
                 port_pkt_counters[port_no].icmp_net_unreachable_packets,
                 port_pkt_counters[port_no].icmp_port_unreachable_packets);
@@ -73,13 +73,13 @@ icmpa_ucli_ucli__show_counters__(ucli_context_t* uc)
     UCLI_COMMAND_INFO(uc,
                       "counters", -1,
                       "$summary#Display the icmp packet counters."
-                      "$args#[Port]"); 
+                      "$args#[Port]");
 
     if (!icmpa_is_initialized()) return UCLI_STATUS_E_ERROR;
 
     if (uc->pargs->count != 1) {
         ucli_printf(uc, "*************DUMPING SYSTEM COUNTERS*************\n");
-        ucli_printf(uc, "TOTAL PACKETS RECV'D       : %" PRId64 "\n", 
+        ucli_printf(uc, "TOTAL PACKETS RECV'D       : %" PRId64 "\n",
                     debug_counter_get(&pkt_counters.icmp_total_in_packets));
         ucli_printf(uc, "TOTAL PACKETS SENT         : %" PRId64 "\n",
                     debug_counter_get(&pkt_counters.icmp_total_out_packets));
@@ -94,7 +94,7 @@ icmpa_ucli_ucli__show_counters__(ucli_context_t* uc)
         UCLI_ARGPARSE_OR_RETURN(uc, "i", &port);
         icmpa_show_portcounters__(uc, port);
     } else {
-        
+
         for (port = 0; port <= MAX_PORTS; port++) {
             icmpa_show_portcounters__(uc, port);
         }
@@ -113,7 +113,7 @@ icmpa_ucli_ucli__clear_counters__(ucli_context_t* uc)
                       "clear", -1,
                       "$summary#Clear the icmp packet counters."
                       "$args#[Port]");
- 
+
     if (!icmpa_is_initialized()) return UCLI_STATUS_E_ERROR;
 
     if (uc->pargs->count == 1) {
@@ -128,8 +128,8 @@ icmpa_ucli_ucli__clear_counters__(ucli_context_t* uc)
         for (port = 0; port <= MAX_PORTS; port++) {
             icmpa_clear_portcounters__(uc, port);
         }
-    }    
-    
+    }
+
     return UCLI_STATUS_OK;
 }
 
@@ -146,7 +146,7 @@ icmpa_ucli_ucli__config__(ucli_context_t* uc)
  * source file.
  *
  *****************************************************************************/
-static ucli_command_handler_f icmpa_ucli_ucli_handlers__[] = 
+static ucli_command_handler_f icmpa_ucli_ucli_handlers__[] =
 {
     icmpa_ucli_ucli__show_counters__,
     icmpa_ucli_ucli__clear_counters__,

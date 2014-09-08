@@ -41,15 +41,15 @@
  * ICMP Packet Structure
  ---------------------------------------------------------------------------
 | 6  | 6  |    4   | 2  |  20  |   8    | ECHO DATA - 32(Windows)/56(Linux) |
-|DMAC|SMAC|TAG|VLAN|TYPE|IP HDR|ICMP HDR| ICMP DATA - 28                    |  
+|DMAC|SMAC|TAG|VLAN|TYPE|IP HDR|ICMP HDR| ICMP DATA - 28                    |
  ---------------------------------------------------------------------------
 */
- 
-#define ICMP_PKT_BUF_SIZE   74 //18 + 20 + 8 + 28 
-#define ICMP_HEADER_SIZE    8   
-#define ICMP_DATA_LEN       28   
-#define IP_HEADER_SIZE      20   
-#define IP_TOTAL_LEN        56 //20 + 8 + 28 
+
+#define ICMP_PKT_BUF_SIZE   74 //18 + 20 + 8 + 28
+#define ICMP_HEADER_SIZE    8
+#define ICMP_DATA_LEN       28
+#define IP_HEADER_SIZE      20
+#define IP_TOTAL_LEN        56 //20 + 8 + 28
 
 #define ETHERTYPE_DOT1Q     0x8100
 
@@ -68,7 +68,7 @@ extern aim_ratelimiter_t icmp_pktin_log_limiter;
 typedef struct icmpa_packet_counter_s { /* icmpa_packet_counter */
     debug_counter_t  icmp_total_in_packets;
     debug_counter_t  icmp_total_out_packets;
-    debug_counter_t  icmp_total_passed_packets;    
+    debug_counter_t  icmp_total_passed_packets;
     debug_counter_t  icmp_internal_errors;
 } icmpa_packet_counter_t;
 
@@ -88,8 +88,9 @@ extern icmpa_typecode_packet_counter_t port_pkt_counters[MAX_PORTS+1];
  *
  *****************************************************************************/
 
-bool icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no);
-bool icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, 
+bool icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no,
+                  indigo_core_listener_result_t *result);
+bool icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no,
                  uint32_t type, uint32_t code);
 indigo_error_t icmpa_send_packet_out (of_octets_t *octets);
 

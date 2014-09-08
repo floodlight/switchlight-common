@@ -38,14 +38,14 @@ icmpa_typecode_packet_counter_t port_pkt_counters[MAX_PORTS+1];
  * Returns true if a given port is ephemeral, else returns false
  */
 static bool
-is_ephemeral(uint32_t port) 
-{ 
+is_ephemeral(uint32_t port)
+{
     return (port >= 32768 && port <= 61000);
 }
 
 /*
  * icmp_send_packet_out
- * 
+ *
  * Send the ICMP message out
  */
 indigo_error_t
@@ -89,7 +89,7 @@ icmpa_send_packet_out (of_octets_t *octets)
 }
 
 /*
- * icmp_packet_in_handler 
+ * icmp_packet_in_handler
  *
  * API for handling incoming packets
  */
@@ -157,12 +157,11 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
      * Identify if this is an Echo Request, destined to one of VRouter
      */
     if (ppe_header_get(&ppep, PPE_HEADER_ICMP)) {
-        if (icmpa_reply(&ppep, port_no)) {
-            result = INDIGO_CORE_LISTENER_RESULT_DROP;
+        if (icmpa_reply(&ppep, port_no, &result)) {
             ++port_pkt_counters[port_no].icmp_echo_packets;
             return result;
-        } 
-    }  
+        }
+    }
 
     /*
      * To handle traceroute, we need to check for
@@ -183,33 +182,33 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
                           port_no);
             type = ICMP_DEST_UNREACHABLE;
             code = 3;
+            result = INDIGO_CORE_LISTENER_RESULT_DROP;
             if (icmpa_send(&ppep, port_no, type, code)) {
-                result = INDIGO_CORE_LISTENER_RESULT_DROP;
                 ++port_pkt_counters[port_no].icmp_port_unreachable_packets;
                 return result;
             }
         }
     }
-  
+
     /*
      * Identify if the reason is valid for ICMP Agent to consume the packet
      */
     if (match.fields.metadata & OFP_BSN_PKTIN_FLAG_L3_MISS) {
-        AIM_LOG_TRACE("ICMP Dest Network Unreachable received on port: %d", 
+        AIM_LOG_TRACE("ICMP Dest Network Unreachable received on port: %d",
                       port_no);
         type = ICMP_DEST_UNREACHABLE;
         code = 0;
+        result = INDIGO_CORE_LISTENER_RESULT_DROP;
         if (icmpa_send(&ppep, port_no, type, code)) {
-            result = INDIGO_CORE_LISTENER_RESULT_DROP;
             ++port_pkt_counters[port_no].icmp_net_unreachable_packets;
         }
     } else if (match.fields.metadata & OFP_BSN_PKTIN_FLAG_TTL_EXPIRED) {
         AIM_LOG_TRACE("ICMP TTL Expired received on port: %d", port_no);
         type = ICMP_TIME_EXCEEDED;
         code = 0;
+        result = INDIGO_CORE_LISTENER_RESULT_DROP;
         if (icmpa_send(&ppep, port_no, type, code)) {
-            result = INDIGO_CORE_LISTENER_RESULT_DROP;
-            ++port_pkt_counters[port_no].icmp_time_exceeded_packets;    
+            ++port_pkt_counters[port_no].icmp_time_exceeded_packets;
         }
     }
 
@@ -257,7 +256,7 @@ icmpa_init (void)
                            "icmpa.icmp_internal_errors",
                            "Internal errors in icmpa");
 
-    ICMPA_MEMSET(&port_pkt_counters[0], 0, 
+    ICMPA_MEMSET(&port_pkt_counters[0], 0,
                  sizeof(icmpa_typecode_packet_counter_t) * (MAX_PORTS+1));
     aim_ratelimiter_init(&icmp_pktin_log_limiter, 1000*1000, 5, NULL);
 
