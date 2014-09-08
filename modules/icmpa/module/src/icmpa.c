@@ -169,7 +169,8 @@ icmpa_build_pdu (ppe_packet_t *ppep_rx, of_octets_t *octets, uint32_t vlan_id,
  * Currently we are only handling ICMP ECHO Requests.
  */
 bool
-icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
+icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no,
+             indigo_core_listener_result_t *result)
 {
     of_octets_t                octets_out;
     uint32_t                   icmp_type;
@@ -179,6 +180,8 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
     uint32_t                   vlan_id, vlan_pcp;
     uint32_t                   src_ip, dest_ip;
     indigo_error_t             rv;
+
+    *result = INDIGO_CORE_LISTENER_RESULT_DROP;
 
     if (!ppep) return false;
 
@@ -208,6 +211,7 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no)
     if (router_ip_check(dest_ip) == false) {
         AIM_LOG_TRACE("ICMPA: Echo request dest_ip: %{ipv4a} is not router IP",
                       dest_ip);
+        *result = INDIGO_CORE_LISTENER_RESULT_PASS;
         return false;
     }
 
