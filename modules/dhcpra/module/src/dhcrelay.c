@@ -156,7 +156,7 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
             case forward_untouched:
                 return length;
             case discard:
-                AIM_LOG_ERROR("Option 82 already existed");
+                AIM_LOG_INTERNAL("Option 82 already existed");
                 return 0;
             case forward_and_replace:
             default:
@@ -176,7 +176,7 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
              */
             nextop = op + op[1] + 2;
             if (nextop > max) {
-                AIM_LOG_ERROR("Option corrupted");
+                AIM_LOG_INTERNAL("Option corrupted");
                 return 0;
             }
             
@@ -215,7 +215,7 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
     /* Sanity check.  Had better not ever happen. */
     if((opt->circuit_id.bytes > 255) || (opt->circuit_id.bytes < 1)) {
         debug_counter_inc(&dhc_relay_stat.request_option_error);
-        AIM_LOG_ERROR("Circuid_id length(%u) out of range [1 - 255]",
+        AIM_LOG_INTERNAL("Circuid_id length(%u) out of range [1 - 255]",
                       opt->circuit_id.bytes);
         return 0;
     }
@@ -225,7 +225,7 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
     if (opt->remote_id.data) {
         if ((opt->remote_id.bytes >= 255) || (opt->remote_id.bytes <= 1)) {
             debug_counter_inc(&dhc_relay_stat.request_option_error);
-            AIM_LOG_ERROR("Remote_id length(%u) out of range [2 - 254]",
+            AIM_LOG_INTERNAL("Remote_id length(%u) out of range [2 - 254]",
                           opt->remote_id.bytes);
             return 0;
         }
@@ -237,7 +237,7 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
      */
     if ((optlen < 3) ||(optlen > 255)) {
         debug_counter_inc(&dhc_relay_stat.request_option_error);
-        AIM_LOG_ERROR("Total agent option length(%u) out of range [3 - 255]",
+        AIM_LOG_INTERNAL("Total agent option length(%u) out of range [3 - 255]",
                       optlen);
         return 0;
     }
@@ -272,7 +272,7 @@ dhc_add_relay_agent_options(struct dhcp_packet *packet,
         }
     } else {
         debug_counter_inc(&dhc_relay_stat.request_option_error);
-        AIM_LOG_ERROR("No room in packet (used %d of %d) for %d-byte relay agent option: omitted",
+        AIM_LOG_INTERNAL("No room in packet (used %d of %d) for %d-byte relay agent option: omitted",
                       (int) (sp - ((u_int8_t *) packet)),
                       (int) (max - ((u_int8_t *) packet)),
                       optlen + 3);
@@ -349,7 +349,7 @@ check_vlan_by_agent_option(u_int8_t *buf, int len, const uint32_t vlan) {
     }
 
     /* Since we passed in the good vlan, the error must be bad circuit */
-    AIM_LOG_ERROR("Bad Circuit");
+    AIM_LOG_INTERNAL("Bad Circuit");
     /* If we didn't get a match, the circuit ID was bogus. */
     debug_counter_inc(&dhc_relay_stat.reply_bad_circuit_id);
 
@@ -420,7 +420,7 @@ dhc_strip_relay_agent_options(struct dhcp_packet *packet,
              */
             nextop = op + op[1] + 2;
             if (nextop > max) {
-                AIM_LOG_ERROR("Option corrupted");
+                AIM_LOG_INTERNAL("Option corrupted");
                 return 0;
             }
             
@@ -446,7 +446,7 @@ dhc_strip_relay_agent_options(struct dhcp_packet *packet,
              */
             nextop = op + op[1] + 2;
             if (nextop > max) {
-                AIM_LOG_ERROR("Option corrupted");
+                AIM_LOG_INTERNAL("Option corrupted");
                 return 0;
             }
             
