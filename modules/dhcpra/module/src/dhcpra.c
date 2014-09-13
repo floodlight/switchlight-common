@@ -264,16 +264,16 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len,
     
     /* Only support Ethernet */
     if (dhcp_pkt->htype != HTYPE_ETHER) {
-        AIM_LOG_RL_INTERNAL(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                            "Discard packets with unsupported hw type=%d on port=%d",
-                            dhcp_pkt->htype, port_no);
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Discard packets with unsupported hw type=%d on port=%d",
+                         dhcp_pkt->htype, port_no);
         return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
     if (dhcp_pkt->hlen != sizeof(host_mac_address)) {
-        AIM_LOG_RL_INTERNAL(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                            "Discard packets with unsupport hw len=%d on port=%d",
-                            dhcp_pkt->hlen, port_no);
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Discard packets with unsupported hw len=%d on port=%d",
+                         dhcp_pkt->hlen, port_no);
         return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
@@ -316,8 +316,8 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len,
 
     if (dhcp_pkt_new_len == 0) {
         /* Option invalid: Drop packets */
-        AIM_LOG_RL_INTERNAL(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                            "Discard a malformed packet");
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Discard a malformed packet");
         return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
@@ -411,16 +411,16 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
 
     /* Only support Ethernet */
     if (dhcp_pkt->htype != HTYPE_ETHER) {
-        AIM_LOG_RL_INTERNAL(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                            "Discard packets with unsupported hw type=%d on port=%",
-                            dhcp_pkt->htype, port_no);
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Discard packets with unsupported hw type=%d on port=%",
+                         dhcp_pkt->htype, port_no);
         return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
     if (dhcp_pkt->hlen != sizeof(host_mac_address)) {
-        AIM_LOG_RL_INTERNAL(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                            "Discard packets with unsupport hw len=%d on port=%d",
-                            dhcp_pkt->hlen, port_no);
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Discard packets with unsupported hw len=%d on port=%d",
+                         dhcp_pkt->hlen, port_no);
         return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
@@ -429,16 +429,16 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
     if (dhcp_pkt->hops < max_hop_count) {
         dhcp_pkt->hops = dhcp_pkt->hops + 1;
     } else {
-        AIM_LOG_RL_INTERNAL(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                            "Discard dhcp packet: dhcp hops %d > max_hop", dhcp_pkt->hops);
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Discard dhcp packet: dhcp hops %d > max_hop", dhcp_pkt->hops);
         return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
     /* If giaddr matches one of our addresses, ignore the packet */
     switch_ip = get_virtual_router_ip(dc);
     if ((dhcp_pkt->giaddr.s_addr) == htonl(switch_ip)) {
-        AIM_LOG_RL_INTERNAL(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                            "Error boot request having giaddr == switch_ip");
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Error boot request having giaddr == switch_ip");
         return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
@@ -453,8 +453,8 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
 
     if (dhcp_pkt_new_len == 0) {
         /* Option or circuit corrupted */
-        AIM_LOG_RL_INTERNAL(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                            "Discard a malformed packet");
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Discard a malformed packet");
         return INDIGO_CORE_LISTENER_RESULT_DROP;
     }
 
@@ -570,8 +570,8 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     ppe_packet_init(&ppep, data.data, data.bytes);
     
     if (ppe_parse(&ppep) < 0) {
-        AIM_LOG_RL_INTERNAL(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                            "Packet parsing failed. packet=%{data}", data.data, data.bytes);
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Packet parsing failed. packet=%{data}", data.data, data.bytes);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
@@ -606,15 +606,15 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     }
 
     if (data.bytes > OUT_PKT_BUF_SIZE) {
-        AIM_LOG_RL_INTERNAL(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                            "DHCP Packet too big len=%l", data.bytes);
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "DHCP Packet too big len=%l", data.bytes);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
     if(!ppe_header_get(&ppep, PPE_HEADER_8021Q)) {
         /* Only support single tag x8100, don't support double tag x9100 */
-        AIM_LOG_RL_INTERNAL(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                            "DHCP Packet with unsupported VLAN tag");
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "DHCP Packet with unsupported VLAN tag");
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
@@ -667,8 +667,8 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
                                        relay_agent_ip, relay_mac_addr,
                                        vlan_pcp, port_no, port_dump_data);
     default:
-        AIM_LOG_RL_INTERNAL(&dhcpra_pktin_log_limiter, os_time_monotonic(),
-                            "Unsupported opcode=%d", opcode);
+        AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
+                         "Unsupported opcode=%d", opcode);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 }
