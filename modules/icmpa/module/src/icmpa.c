@@ -341,7 +341,13 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
         ppe_field_get(ppep, PPE_FIELD_IP4_DST_ADDR, &router_ip);
     } else {
         if (router_ip_table_lookup(vlan_id, &router_ip, &router_mac) < 0) {
-            AIM_LOG_ERROR("ICMPA: Router IP lookup failed for vlan: %d", vlan_id);
+            if (vlan_id == SYSTEM_VLAN) {
+                AIM_LOG_TRACE("ICMPA: Router IP lookup failed for System vlan");
+            } else {
+                AIM_LOG_ERROR("ICMPA: Router IP lookup failed for vlan: %u",
+                              vlan_id);
+            }
+
             debug_counter_inc(&pkt_counters.icmp_internal_errors);
             return false;
         }
