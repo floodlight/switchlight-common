@@ -63,6 +63,8 @@
 
 #define MAX_PORTS               256
 
+#define SYSTEM_VLAN             4094
+
 extern aim_ratelimiter_t icmp_pktin_log_limiter;
 
 typedef struct icmpa_packet_counter_s { /* icmpa_packet_counter */
