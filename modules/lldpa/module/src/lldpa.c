@@ -122,7 +122,8 @@ lldpa_port_enable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *p
     indigo_error_t rv;
     
     if ((rv = lldpa_pkt_data_set(pkt, data)) == INDIGO_ERROR_NONE) {
-        if ((rv = ind_soc_timer_event_register(cb, port, interval_ms))
+        if ((rv = ind_soc_timer_event_register_with_priority(cb, port, interval_ms,
+                                                             IND_SOC_HIGH_PRIORITY))
                 == INDIGO_ERROR_NONE) {
             pkt->interval_ms = interval_ms;
         } else {
@@ -500,7 +501,8 @@ lldpa_update_rx_timeout(lldpa_port_t *port)
 {
     indigo_error_t rv;
     LLDPA_DEBUG("Using reset timer");
-    if ((rv = ind_soc_timer_event_register(lldpdu_timeout_rx, port, port->rx_pkt.interval_ms)) !=
+    if ((rv = ind_soc_timer_event_register_with_priority(lldpdu_timeout_rx, port, port->rx_pkt.interval_ms,
+                                                         IND_SOC_HIGH_PRIORITY)) !=
             INDIGO_ERROR_NONE) {
         AIM_LOG_ERROR("Port %u failed to register %s",port->port_no, indigo_strerror(rv));
     }
