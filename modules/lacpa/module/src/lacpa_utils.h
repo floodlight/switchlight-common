@@ -30,7 +30,7 @@ lacpa_register_system_counters (void)
 {
     debug_counter_register(&lacpa_system.debug_info.lacp_total_in_packets,
                            "lacpa.lacp_total_in_packets",
-                           "Packet-ins recv'd by lacpa"); 
+                           "Packet-ins recv'd by lacpa");
     debug_counter_register(&lacpa_system.debug_info.lacp_system_in_packets,
                            "lacpa.lacp_system_in_packets",
                            "Lacp packets recv'd by lacpa");
@@ -42,7 +42,7 @@ lacpa_register_system_counters (void)
                            "Set request msgs recv'd by lacpa");
     debug_counter_register(&lacpa_system.debug_info.lacp_controller_stats_requests,
                            "lacpa.lacp_controller_stats_requests",
-                           "Stats request msgs recv'd by lacpa");  
+                           "Stats request msgs recv'd by lacpa");
 }
 
 /*
@@ -56,9 +56,9 @@ lacpa_unregister_system_counters (void)
     debug_counter_unregister(&lacpa_system.debug_info.lacp_system_out_packets);
     debug_counter_unregister(&lacpa_system.debug_info.lacp_controller_set_requests);
     debug_counter_unregister(&lacpa_system.debug_info.lacp_controller_stats_requests);
-}    
+}
 
-/* 
+/*
  * lacpa_clear_system_counters
  */
 static inline void
@@ -220,7 +220,7 @@ lacpa_build_pdu (ppe_packet_t *ppep, lacpa_port_t *port)
                   DEFAULT_ACTOR_PARTNER_INFO_LEN);
     ppe_field_set(ppep, PPE_FIELD_LACP_ACTOR_SYS_PRI,
                   port->actor.sys_priority);
-    ppe_wide_field_set(ppep, PPE_FIELD_LACP_ACTOR_SYS, 
+    ppe_wide_field_set(ppep, PPE_FIELD_LACP_ACTOR_SYS,
                        port->actor.sys_mac.addr);
     ppe_field_set(ppep, PPE_FIELD_LACP_ACTOR_KEY, port->actor.key);
     ppe_field_set(ppep, PPE_FIELD_LACP_ACTOR_PORT_PRI,
@@ -237,7 +237,7 @@ lacpa_build_pdu (ppe_packet_t *ppep, lacpa_port_t *port)
                   DEFAULT_ACTOR_PARTNER_INFO_LEN);
     ppe_field_set(ppep, PPE_FIELD_LACP_PARTNER_SYS_PRI,
                   port->partner.sys_priority);
-    ppe_wide_field_set(ppep, PPE_FIELD_LACP_PARTNER_SYS, 
+    ppe_wide_field_set(ppep, PPE_FIELD_LACP_PARTNER_SYS,
                        port->partner.sys_mac.addr);
     ppe_field_set(ppep, PPE_FIELD_LACP_PARTNER_KEY, port->partner.key);
     ppe_field_set(ppep, PPE_FIELD_LACP_PARTNER_PORT_PRI,
