@@ -220,7 +220,8 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no,
      */
     ppe_field_get(ppep, PPE_FIELD_IP4_SRC_ADDR, &src_ip);
     if (!isValidIP(src_ip)) {
-        AIM_LOG_ERROR("ICMPA: Echo request src_ip: %{ipv4a} not valid", src_ip);
+        AIM_LOG_ERROR("ICMPA: Echo request src_ip %{ipv4a} not valid"
+                      "(zero/multicast/broadcast)", src_ip);
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
@@ -240,8 +241,8 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no,
 
     ip_hdr_size *= 4;
     if (ip_hdr_size > IP_HEADER_SIZE) {
-        AIM_LOG_ERROR("ICMPA: IP Options set as ip header size: %d is more "
-                      "than 20 Bytes", ip_hdr_size);
+        AIM_LOG_ERROR("ICMPA: IP options set as ip header size %d is more "
+                      "than 20 bytes", ip_hdr_size);
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
@@ -358,8 +359,8 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
      */
     ppe_field_get(ppep, PPE_FIELD_IP4_SRC_ADDR, &src_ip);
     if (!isValidIP(src_ip)) {
-        AIM_LOG_ERROR("ICMPA: src_ip: %{ipv4a} in original ip packet not valid",
-                      src_ip);
+        AIM_LOG_ERROR("ICMPA: src_ip %{ipv4a} in original ip packet not valid"
+                      "(zero/multicast/broadcast)", src_ip);
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
@@ -377,7 +378,7 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
     octets_out.bytes = ICMP_PKT_BUF_SIZE;
     ppe_field_get(ppep, PPE_FIELD_IP4_TOTAL_LENGTH, &ip_total_len);
     if (ip_total_len < ICMP_DATA_LEN) {
-        AIM_LOG_ERROR("ICMPA: IP Total len: %d is less than required 28 Bytes",
+        AIM_LOG_ERROR("ICMPA: IP total len %d is less than required 28 bytes",
                       ip_total_len);
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
