@@ -117,7 +117,7 @@ icmpa_build_pdu (ppe_packet_t *ppep_rx, of_octets_t *octets, uint32_t vlan_id,
     octets->data[16] = PPE_ETHERTYPE_IP4 >> 8;
     octets->data[17] = PPE_ETHERTYPE_IP4 & 0xFF;
     if (ppe_parse(&ppep_tx) < 0) {
-        AIM_LOG_ERROR("ICMPA: Packet_out parsing failed after IPv4 header");
+        AIM_LOG_INTERNAL("ICMPA: Packet_out parsing failed after IPv4 header");
         return false;
     }
 
@@ -199,7 +199,7 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no,
      * We should never receive an untagged frame
      */
     if (!icmpa_get_vlan_id(ppep, &vlan_id, &vlan_pcp)) {
-        AIM_LOG_ERROR("ICMPA: Received Untagged Packet_in");
+        AIM_LOG_INTERNAL("ICMPA: Received Untagged Packet_in");
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
@@ -248,7 +248,7 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no,
 
     octets_out.data = (uint8_t *) ICMPA_MALLOC(ppep->size);
     if (octets_out.data == NULL) {
-        AIM_LOG_ERROR("ICMPA: Failed to allocate memory for echo response");
+        AIM_LOG_INTERNAL("ICMPA: Failed to allocate memory for echo response");
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
@@ -259,14 +259,14 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no,
     if (!icmpa_build_pdu(ppep, &octets_out, vlan_id, vlan_pcp, ip_total_len,
         dest_ip, ICMP_ECHO_REPLY, 0, hdr_data,
         ppe_fieldp_get(ppep, PPE_FIELD_ICMP_PAYLOAD), icmp_data_len)) {
-        AIM_LOG_ERROR("ICMPA: icmpa_build_pdu failed");
+        AIM_LOG_INTERNAL("ICMPA: icmpa_build_pdu failed");
         goto free_and_return;
     }
 
     rv = icmpa_send_packet_out(&octets_out);
     if (rv < 0) {
-        AIM_LOG_ERROR("ICMPA: Send packet_out failed for port: %d, reason: %s",
-                      port_no, indigo_strerror(rv));
+        AIM_LOG_INTERNAL("ICMPA: Send packet_out failed for port: %d, reason: %s",
+                         port_no, indigo_strerror(rv));
         goto free_and_return;
     } else {
         debug_counter_inc(&pkt_counters.icmp_total_out_packets);
@@ -325,7 +325,7 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
      * We should never receive an untagged frame
      */
     if (!icmpa_get_vlan_id(ppep, &vlan_id, &vlan_pcp)) {
-        AIM_LOG_ERROR("ICMPA: Received Untagged Packet_in");
+        AIM_LOG_INTERNAL("ICMPA: Received Untagged Packet_in");
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
@@ -385,15 +385,15 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
 
     if (!icmpa_build_pdu(ppep, &octets_out, vlan_id, vlan_pcp, IP_TOTAL_LEN,
         router_ip, type, code, 0, ip_hdr, ICMP_DATA_LEN)) {
-        AIM_LOG_ERROR("ICMPA: icmpa_build_pdu failed");
+        AIM_LOG_INTERNAL("ICMPA: icmpa_build_pdu failed");
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     }
 
     rv = icmpa_send_packet_out(&octets_out);
     if (rv < 0) {
-        AIM_LOG_ERROR("ICMPA: Send packet_out failed for port: %d, reason: %s",
-                      port_no, indigo_strerror(rv));
+        AIM_LOG_INTERNAL("ICMPA: Send packet_out failed for port: %d, reason: %s",
+                         port_no, indigo_strerror(rv));
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return false;
     } else {
