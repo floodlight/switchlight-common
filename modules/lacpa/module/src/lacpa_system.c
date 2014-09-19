@@ -65,7 +65,7 @@ lacpa_init (void)
 
     lacpa_system.ports = (lacpa_port_t *) LACPA_MALLOC(ports_size);
     if (lacpa_system.ports == NULL) {
-        AIM_LOG_ERROR("Failed to allocate resources for ports..");
+        AIM_LOG_INTERNAL("Failed to allocate resources for ports..");
         return INDIGO_ERROR_RESOURCE;
     }
 
@@ -120,7 +120,7 @@ lacpa_port_t *
 lacpa_find_port (uint32_t port_no)
 {
     if (port_no > PHY_PORT_COUNT) {
-        AIM_LOG_ERROR("Port No: %d Out of Range %d", port_no, PHY_PORT_COUNT);
+        AIM_LOG_INTERNAL("Port No: %d Out of Range %d", port_no, PHY_PORT_COUNT);
         return NULL;
     }
 

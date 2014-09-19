@@ -476,8 +476,8 @@ lacpa_transmit (lacpa_port_t *port)
     if (!port) return;
 
     if (!port->lacp_enabled) {
-        AIM_LOG_ERROR("LACPDU-Tx-FAILED - Agent is Disabled on port: %d",
-                      port->actor.port_no);
+        AIM_LOG_INTERNAL("LACPDU-Tx-FAILED - Agent is Disabled on port: %d",
+                         port->actor.port_no);
         return;
     }
 
@@ -498,8 +498,8 @@ lacpa_transmit (lacpa_port_t *port)
     data[14] = PPE_SLOW_PROTOCOL_LACP;
 
     if (ppe_parse(&ppep) < 0) {
-        AIM_LOG_ERROR("Packet_out parsing failed. packet=%{data}",
-                      data, LACP_PKT_BUF_SIZE);
+        AIM_LOG_INTERNAL("Packet_out parsing failed. packet=%{data}",
+                         data, LACP_PKT_BUF_SIZE);
         return;
     }
 
@@ -515,8 +515,8 @@ lacpa_transmit (lacpa_port_t *port)
      * Build the rest of the LACP packet
      */
     if (!lacpa_build_pdu(&ppep, port)) {
-        AIM_LOG_ERROR("Packet sending failed for port: %d",
-                      port->actor.port_no);
+        AIM_LOG_INTERNAL("Packet sending failed for port: %d",
+                         port->actor.port_no);
         return;
     }
 

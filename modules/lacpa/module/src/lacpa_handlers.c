@@ -125,15 +125,15 @@ lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets)
     of_object_delete(list);
 
     if (of_packet_out_data_set(obj, octets) < 0) {
-        AIM_LOG_ERROR("Failed to set data on packet out");
+        AIM_LOG_INTERNAL("Failed to set data on packet out");
         of_packet_out_delete(obj);
         return;
     }
 
     rv = indigo_fwd_packet_out(obj);
     if (rv < 0) {
-        AIM_LOG_ERROR("Failed to send packet out the port: %d, reason: %s",
-                      port->actor.port_no, indigo_strerror(rv));
+        AIM_LOG_INTERNAL("Failed to send packet out the port: %d, reason: %s",
+                         port->actor.port_no, indigo_strerror(rv));
     } else {
         AIM_LOG_TRACE("Successfully sent packet out the port: %d",
                       port->actor.port_no);
@@ -189,7 +189,7 @@ lacpa_packet_in_handler (of_packet_in_t *packet_in)
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     } else {
         if (of_packet_in_match_get(packet_in, &match) < 0) {
-            AIM_LOG_ERROR("match get failed");
+            AIM_LOG_INTERNAL("match get failed");
             return INDIGO_CORE_LISTENER_RESULT_PASS;
         }
         port_no = match.fields.in_port;
@@ -213,7 +213,7 @@ lacpa_packet_in_handler (of_packet_in_t *packet_in)
      * Retrieve the information from the LACP packet
      */
     if (!lacpa_parse_pdu(&ppep, &pdu)) {
-        AIM_LOG_ERROR("Packet parsing failed on port: %d", port_no);
+        AIM_LOG_INTERNAL("Packet parsing failed on port: %d", port_no);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
@@ -402,7 +402,7 @@ lacpa_controller_msg_handler (indigo_cxn_id_t cxn, of_object_t *obj)
     indigo_core_listener_result_t result = INDIGO_CORE_LISTENER_RESULT_PASS;
 
     if (!lacpa_is_initialized()) {
-        AIM_LOG_ERROR("LACPA module uninitalized");
+        AIM_LOG_INTERNAL("LACPA module uninitalized");
         return result;
     }
 

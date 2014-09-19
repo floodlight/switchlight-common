@@ -81,8 +81,8 @@ lacpa_start_current_while_timer (lacpa_port_t *port)
                                      port, LACPA_IS_STATE_LACP_TIMEOUT(
                                      port->actor.state)? LACP_SHORT_TIMEOUT_MS:
                                      LACP_LONG_TIMEOUT_MS) < 0) {
-        AIM_LOG_ERROR("Failed to register timer for port %d",
-                      port->actor.port_no);
+        AIM_LOG_INTERNAL("Failed to register timer for port %d",
+                         port->actor.port_no);
     }
 }
 
@@ -141,8 +141,8 @@ lacpa_start_churn_detection_timer (lacpa_port_t *port)
 
     if (ind_soc_timer_event_register(lacpa_churn_expiration_timer_cb, port,
                                      LACP_CHURN_DETECTION_TIMEOUT_MS) < 0) {
-        AIM_LOG_ERROR("Failed to register timer for port %d",
-                      port->actor.port_no);
+        AIM_LOG_INTERNAL("Failed to register timer for port %d",
+                         port->actor.port_no);
         return;
     }
 
@@ -207,8 +207,8 @@ lacpa_start_periodic_timer (lacpa_port_t * port)
                                      port->partner.state)?
                                      LACP_FAST_PERIODIC_TIMEOUT_MS :
                                      LACP_SLOW_PERIODIC_TIMEOUT_MS) < 0) {
-        AIM_LOG_ERROR("Failed to register timer for port %d",
-                      port->actor.port_no);
+        AIM_LOG_INTERNAL("Failed to register timer for port %d",
+                         port->actor.port_no);
     }
 }
 
