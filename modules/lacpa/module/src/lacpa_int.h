@@ -120,6 +120,7 @@
     (_state & LACPA_STATE_EXPIRED)
 
 extern aim_ratelimiter_t lacpa_pktin_log_limiter;
+extern aim_ratelimiter_t lacpa_parse_log_limiter;
 
 /******************************************************************************
  *

@@ -30,6 +30,7 @@
 lacpa_system_t lacpa_system;
 bool lacp_system_initialized = false;
 aim_ratelimiter_t lacpa_pktin_log_limiter;
+aim_ratelimiter_t lacpa_parse_log_limiter;
 
 /*
  * lacpa_is_initialized
@@ -61,6 +62,7 @@ lacpa_init (void)
     ports_size = sizeof(lacpa_port_t) * (PHY_PORT_COUNT+1);
     lacpa_system.lacp_active_port_count = 0;
     aim_ratelimiter_init(&lacpa_pktin_log_limiter, 1000*1000, 5, NULL);
+    aim_ratelimiter_init(&lacpa_parse_log_limiter, 1000*1000, 5, NULL);
     lacpa_register_system_counters();
 
     lacpa_system.ports = (lacpa_port_t *) LACPA_MALLOC(ports_size);

@@ -213,7 +213,8 @@ lacpa_packet_in_handler (of_packet_in_t *packet_in)
      * Retrieve the information from the LACP packet
      */
     if (!lacpa_parse_pdu(&ppep, &pdu)) {
-        AIM_LOG_INTERNAL("Packet parsing failed on port: %d", port_no);
+        AIM_LOG_RL_WARN(&lacpa_parse_log_limiter, os_time_monotonic(),
+                        "Packet parsing failed on port: %d", port_no);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
