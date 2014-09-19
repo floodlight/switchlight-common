@@ -720,7 +720,7 @@ arpa_send_packet(struct arp_info *info)
 
     indigo_error_t rv = indigo_fwd_packet_out(obj);
     if (rv < 0) {
-        AIM_LOG_ERROR("Failed to inject ARP reply: %s", indigo_strerror(rv));
+        AIM_LOG_INTERNAL("Failed to inject ARP reply: %s", indigo_strerror(rv));
         debug_counter_inc(&pktout_failure_counter);
     }
 
