@@ -175,7 +175,7 @@ lldpdu_timeout_rx(void *cookie)
 
     timeout_msg = of_bsn_pdu_rx_timeout_new(version);
     if(!timeout_msg){
-        AIM_LOG_ERROR("Failed to allocate timeout msg");
+        AIM_LOG_INTERNAL("Failed to allocate timeout msg");
         return;
     }
 
@@ -206,14 +206,14 @@ lldpdu_periodic_tx(void *cookie)
 
     pkt_out = of_packet_out_new (version);
     if(!pkt_out){
-        AIM_LOG_ERROR("Failed to allocate packet out");
+        AIM_LOG_INTERNAL("Failed to allocate packet out");
         return;
     }
 
     action = of_action_output_new(version);
     if(!action){
         of_packet_out_delete(pkt_out);
-        AIM_LOG_ERROR("Failed to allocation action");
+        AIM_LOG_INTERNAL("Failed to allocation action");
         return;
     }
     of_action_output_port_set(action, port->port_no);
@@ -222,7 +222,7 @@ lldpdu_periodic_tx(void *cookie)
     if(!list){
         of_packet_out_delete(pkt_out);
         of_object_delete(action);
-        AIM_LOG_ERROR("Failed to allocate action list");
+        AIM_LOG_INTERNAL("Failed to allocate action list");
         return;
     }
 
@@ -244,7 +244,7 @@ lldpdu_periodic_tx(void *cookie)
     if ((rv = indigo_fwd_packet_out(pkt_out)) == INDIGO_ERROR_NONE)
         port->tx_pkt_out_cnt++;
     else {
-        AIM_LOG_ERROR("Fwd pkt out failed %s", indigo_strerror(rv));
+        AIM_LOG_INTERNAL("Fwd pkt out failed %s", indigo_strerror(rv));
     }
     /* Fwding pkt out HAS to delete obj */
     of_packet_out_delete(pkt_out);
@@ -318,7 +318,7 @@ rx_reply_to_ctrl:
     /* 3. Setup reply */
     rx_reply = of_bsn_pdu_rx_reply_new(rx_req->version);
     if(!rx_reply){
-        AIM_LOG_ERROR("Failed to allocate rx_reply");
+        AIM_LOG_INTERNAL("Failed to allocate rx_reply");
         return;
     }
     of_bsn_pdu_rx_reply_xid_set     (rx_reply, xid);
@@ -406,7 +406,7 @@ tx_reply_to_ctrl:
     /* 3. Setup reply  */
     tx_reply = of_bsn_pdu_tx_reply_new(tx_req->version);
     if(!tx_reply){
-        AIM_LOG_ERROR("Failed to allocate tx reply");
+        AIM_LOG_INTERNAL("Failed to allocate tx reply");
         return;
     }
 
@@ -535,7 +535,7 @@ lldpa_handle_pkt (of_packet_in_t *packet_in)
         LLDPA_DEBUG("port %u pkt in version %d", port_no, packet_in->version);
     } else {
         if (of_packet_in_match_get(packet_in, &match) < 0) {
-            AIM_LOG_ERROR("match get failed");
+            AIM_LOG_INTERNAL("match get failed");
             return ret;
         }
         port_no = match.fields.in_port;
@@ -544,7 +544,7 @@ lldpa_handle_pkt (of_packet_in_t *packet_in)
 
     port = lldpa_find_port(port_no);
     if (!port) {
-        AIM_LOG_ERROR("LLDPA port out of range %u", port_no);
+        AIM_LOG_INTERNAL("LLDPA port out of range %u", port_no);
         return ret;
     }
 
@@ -589,7 +589,7 @@ lldpa_system_init()
         if (port)
             port->port_no = i;
         else
-            AIM_LOG_ERROR("Port %d not existing", i);
+            AIM_LOG_INTERNAL("Port %d not existing", i);
     }
 
     indigo_core_message_listener_register(lldpa_handle_msg);
@@ -612,6 +612,6 @@ lldpa_system_finish()
         if (port)
             lldpa_disable_tx_rx(port);
         else
-            AIM_LOG_ERROR("Port %d not existing", i);
+            AIM_LOG_INTERNAL("Port %d not existing", i);
     }
 }
