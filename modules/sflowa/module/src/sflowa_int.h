@@ -28,7 +28,6 @@
 #include <sflowa/sflowa_config.h>
 #include <sflowa/sflowa.h>
 #include <loci/loci.h>
-#include <indigo/indigo.h>
 #include <indigo/of_state_manager.h>
 #include <AIM/aim_list.h>
 

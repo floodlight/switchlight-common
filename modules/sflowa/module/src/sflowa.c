@@ -27,6 +27,7 @@
 #include <AIM/aim.h>
 #include <debug_counter/debug_counter.h>
 #include <OS/os_time.h>
+#include <BigList/biglist.h>
 #include "sflowa_int.h"
 #include "sflowa_log.h"
 
@@ -41,6 +42,7 @@ static uint64_t start_time;
 
 static sflow_sampler_entry_t sampler_entries[MAX_PORTS+1];
 static LIST_DEFINE(sflow_collector_cache);
+static biglist_t *sample_rate_handlers;
 
 /*
  * sflowa_init
@@ -72,13 +74,58 @@ sflowa_init(void)
 }
 
 /*
+ * sflowa_sampling_rate_handler_register
+ *
+ * Documented in sflowa.h
+ */
+indigo_error_t
+sflowa_sampling_rate_handler_register(sflowa_sampling_rate_handler_f fn)
+{
+    if (biglist_find(sample_rate_handlers, fn)) {
+        return INDIGO_ERROR_EXISTS;
+    }
+
+    sample_rate_handlers = biglist_append(sample_rate_handlers, fn);
+
+    return INDIGO_ERROR_NONE;
+}
+
+/*
+ * sflowa_sampling_rate_handler_unregister
+ *
+ * Documented in sflowa.h
+ */
+void
+sflowa_sampling_rate_handler_unregister(sflowa_sampling_rate_handler_f fn)
+{
+    sample_rate_handlers = biglist_remove(sample_rate_handlers, fn);
+}
+
+/*
+ * sflow_sampling_rate_notify
+ *
+ * Notify handlers about the change in sampling rate
+ */
+static void
+sflow_sampling_rate_notify(of_port_no_t port_no, uint32_t sampling_rate)
+{
+    biglist_t *cur;
+    sflowa_sampling_rate_handler_f fn;
+
+    BIGLIST_FOREACH_DATA(cur, sample_rate_handlers,
+                         sflowa_sampling_rate_handler_f, fn) {
+        fn(port_no, sampling_rate);
+    }
+}
+
+/*
  * sflow_collector_cache_list
  *
  * Return a list of sflow collector entries
  *
  * The list is through the 'links' field of sflow_collector_cache_entry_t.
  */
-list_head_t *
+static list_head_t *
 sflow_collector_cache_list(void)
 {
     return &sflow_collector_cache;
@@ -454,7 +501,6 @@ sflow_collector_get_stats(void *table_priv, void *entry_priv,
         of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
         of_bsn_tlv_tx_bytes_value_set(&tlv, entry->stats.tx_bytes);
     }
-
 }
 
 static const indigo_core_gentable_ops_t sflow_collector_ops = {
@@ -587,6 +633,10 @@ sflow_sampler_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs,
 
     *entry_priv = entry;
 
+    /*
+     * Send notifications to enable sampling on this port
+     */
+    sflow_sampling_rate_notify(port_no, entry->value.sampling_rate);
     return INDIGO_ERROR_NONE;
 }
 
@@ -621,8 +671,9 @@ sflow_sampler_modify(void *table_priv, void *entry_priv,
     entry->value = value;
 
     /*
-     * Todo: Notify about the change in sampling rate on this port
+     * Notify about the change in sampling rate on this port
      */
+    sflow_sampling_rate_notify(port_no, entry->value.sampling_rate);
 
     return INDIGO_ERROR_NONE;
 }
@@ -650,9 +701,10 @@ sflow_sampler_delete(void *table_priv, void *entry_priv,
 
     /*
      * Set the sampling rate to 0 to disable sampling on this port
-     * Todo: Send notifications to disable sampling on this port
+     * Send notifications to disable sampling on this port
      */
     SFLOWA_MEMSET(entry, 0, sizeof(*entry));
+    sflow_sampling_rate_notify(port_no, 0);
 
     return INDIGO_ERROR_NONE;
 }
