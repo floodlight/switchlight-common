@@ -30,6 +30,7 @@
 #include <loci/loci.h>
 #include <indigo/indigo.h>
 #include <indigo/of_state_manager.h>
+#include <AIM/aim_list.h>
 
 #define MAX_PORTS            256
 
@@ -66,5 +67,13 @@ typedef struct sflow_sampler_entry_value_s { /* sflow_sampler_entry_value */
 typedef struct sflow_sampler_entry_s { /* sflow_sampler_entry */
     sflow_sampler_entry_value_t value;
 } sflow_sampler_entry_t;
+
+typedef struct sflow_collector_cache_entry_s { /* sflow_collector_cache_entry */
+    slow_collector_entry_t entry;
+    list_links_t  links;
+} sflow_collector_cache_entry_t;
+
+sflow_collector_cache_entry_t*
+sflow_collector_cache_find(sflow_collector_entry_key_t key);
 
 #endif /* __SFLOWA_INT_H__ */

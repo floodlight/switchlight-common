@@ -71,6 +71,25 @@ indigo_core_gentable_register(
     *gentable = (void *)1;
 }
 
+static void
+verify_cache(slow_collector_entry_t entry)
+{
+    sflow_collector_cache_entry_t *cache_entry = sflow_collector_cache_find(entry.key);
+
+    AIM_ASSERT(cache_entry != NULL, "Collector entry with key: 0x%x missing from cache",
+               entry.key.collector_ip);
+    AIM_ASSERT(!memcmp(&cache_entry->entry, &entry, sizeof(slow_collector_entry_t)),
+               "Mismatch in Collector entry with key: 0x%x", entry.key.collector_ip);
+}
+
+static void
+verify_no_cache(slow_collector_entry_t entry)
+{
+    sflow_collector_cache_entry_t *cache_entry = sflow_collector_cache_find(entry.key);
+
+    AIM_ASSERT(cache_entry == NULL);
+}
+
 static of_list_bsn_tlv_t *
 make_key_collector(uint32_t dst_ip)
 {
@@ -158,6 +177,12 @@ test_sflow_collector_table()
     of_object_delete(key);
     of_object_delete(value);
 
+    /*
+     * Verify entry got added to collector cache
+     */
+    verify_cache(collector_entry_1);
+    verify_no_cache(collector_entry_2);
+
     key = make_key_collector(collector_entry_2.key.collector_ip);
     value = make_value(collector_entry_2.value.vlan_id,
                        collector_entry_2.value.agent_mac,
@@ -172,6 +197,9 @@ test_sflow_collector_table()
                "Error in collector table add: %s\n", indigo_strerror(rv));
 
     of_object_delete(value);
+
+    verify_cache(collector_entry_1);
+    verify_cache(collector_entry_2);
 
     /*
      * Test modify
@@ -189,6 +217,9 @@ test_sflow_collector_table()
                value)) == INDIGO_ERROR_NONE,
                "Error in collector table modify: %s\n", indigo_strerror(rv));
 
+    verify_cache(collector_entry_1);
+    verify_cache(collector_entry_2);
+
     of_object_delete(value);
 
     /*
@@ -200,12 +231,18 @@ test_sflow_collector_table()
 
     of_object_delete(key);
 
+    verify_cache(collector_entry_1);
+    verify_no_cache(collector_entry_2);
+
     key = make_key_collector(collector_entry_1.key.collector_ip);
     AIM_ASSERT((rv = ops_collector->del(table_priv_collector, entry_priv_1, key))
                == INDIGO_ERROR_NONE,
                "Error in collector table delete: %s\n", indigo_strerror(rv));
 
     of_object_delete(key);
+
+    verify_no_cache(collector_entry_1);
+    verify_no_cache(collector_entry_2);
 }
 
 static of_list_bsn_tlv_t *
