@@ -575,6 +575,7 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu, lacpa_event_t event)
     if (!port) return;
 
     lacpa_machine_t prev_state = port->lacp_state;
+    of_port_no_t port_no = port->actor.port_no;
     port->debug_info.lacp_event = event;
 
     switch (event) {
@@ -584,7 +585,6 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu, lacpa_event_t event)
         lacpa_stop_periodic_timer(port);
         lacpa_stop_churn_detection_timer(port);
         lacpa_stop_current_while_timer(port);
-        lacpa_system.lacp_active_port_count--;
         LACPA_MEMSET(port, 0, sizeof(lacpa_port_t));
         break;
 
@@ -596,6 +596,7 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu, lacpa_event_t event)
          * Set Actor's LACP_ACTIVITY, LACP_TIMEOUT and AGGREGATION
          * to default values
          */
+        port->actor.state = 0;
         LACPA_SET_STATE_LACP_ACTIVITY(port->actor.state);
         LACPA_SET_STATE_LACP_TIMEOUT(port->actor.state);
         LACPA_SET_STATE_AGGREGATION(port->actor.state);
@@ -604,7 +605,6 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu, lacpa_event_t event)
         lacpa_transmit(port);
         lacpa_start_periodic_timer(port);
         lacpa_start_current_while_timer(port);
-        lacpa_system.lacp_active_port_count++;
         break;
 
     case LACPA_EVENT_PDU_RECEIVED:
@@ -631,16 +631,16 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu, lacpa_event_t event)
          */
         if (!port->is_converged && (prev_error == port->error) &&
             !port->churn_detection_running) {
-            AIM_LOG_TRACE("Starting Churn Detection timer for port: %d, "
+            AIM_LOG_TRACE("Starting Churn Detection timer for port: %u, "
                           "is_converged: %d, prev_error: %{lacpa_error}, "
-                          "new_error: %{lacpa_error}", port->actor.port_no,
+                          "new_error: %{lacpa_error}", port_no,
                           port->is_converged, prev_error, port->error);
             lacpa_start_churn_detection_timer(port);
         } else if (port->churn_detection_running && (port->is_converged ||
                    (prev_error != port->error))) {
-            AIM_LOG_TRACE("Stopping Churn Detection timer for port: %d, "
+            AIM_LOG_TRACE("Stopping Churn Detection timer for port: %u, "
                           "is_converged: %d, prev_error: %{lacpa_error}, "
-                          "new_error: %{lacpa_error}", port->actor.port_no,
+                          "new_error: %{lacpa_error}", port_no,
                           port->is_converged, prev_error, port->error);
             lacpa_stop_churn_detection_timer(port);
         }
@@ -687,8 +687,8 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu, lacpa_event_t event)
         break;
     }
 
-    AIM_LOG_TRACE("State change for Port: %d, Event: %{lacpa_event}, Prev: "
+    AIM_LOG_TRACE("State change for Port: %u, Event: %{lacpa_event}, Prev: "
                   "%{lacpa_machine}, New: %{lacpa_machine}",
-                  port->actor.port_no, port->debug_info.lacp_event, prev_state,
+                  port_no, port->debug_info.lacp_event, prev_state,
                   port->lacp_state);
 }
