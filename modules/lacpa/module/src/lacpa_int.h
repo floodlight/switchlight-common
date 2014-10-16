@@ -178,7 +178,6 @@ typedef struct lacpa_system_debug_s { /* lacpa_system_debug */
 } lacpa_system_debug_t;
 
 typedef struct lacpa_system_s { /* lacpa_system */
-    uint32_t             lacp_active_port_count;
     lacpa_system_debug_t debug_info;
     lacpa_port_t         *ports;
 } lacpa_system_t;

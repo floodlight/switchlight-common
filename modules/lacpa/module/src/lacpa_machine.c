@@ -584,7 +584,6 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu, lacpa_event_t event)
         lacpa_stop_periodic_timer(port);
         lacpa_stop_churn_detection_timer(port);
         lacpa_stop_current_while_timer(port);
-        lacpa_system.lacp_active_port_count--;
         LACPA_MEMSET(port, 0, sizeof(lacpa_port_t));
         break;
 
@@ -604,7 +603,6 @@ lacpa_machine (lacpa_port_t *port, lacpa_pdu_t *pdu, lacpa_event_t event)
         lacpa_transmit(port);
         lacpa_start_periodic_timer(port);
         lacpa_start_current_while_timer(port);
-        lacpa_system.lacp_active_port_count++;
         break;
 
     case LACPA_EVENT_PDU_RECEIVED:
