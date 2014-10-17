@@ -32,7 +32,7 @@ static void *table_priv_sampler;
 static uint32_t current_port_no;
 static uint32_t current_sampling_rate;
 
-static const slow_collector_entry_t collector_entry_1 = {
+static const sflow_collector_entry_t collector_entry_1 = {
     .key.collector_ip = 0xc0a80101, //192.168.1.1
     .value.vlan_id = 7,
     .value.agent_mac = { .addr = {0x55, 0x16, 0xc7, 0x01, 0x02, 0x03} },
@@ -42,7 +42,7 @@ static const slow_collector_entry_t collector_entry_1 = {
     .value.collector_udp_dport = 6343,
     .value.sub_agent_id = 1,
 };
-static slow_collector_entry_t collector_entry_2 = {
+static sflow_collector_entry_t collector_entry_2 = {
     .key.collector_ip = 0x0a0a0505, //10.10.5.5
     .value.vlan_id = 2,
     .value.agent_mac = { .addr = {0x55, 0x16, 0xc7, 0x01, 0x02, 0x03} },
@@ -74,18 +74,18 @@ indigo_core_gentable_register(
 }
 
 static void
-verify_cache(slow_collector_entry_t entry)
+verify_cache(sflow_collector_entry_t entry)
 {
     sflow_collector_cache_entry_t *cache_entry = sflow_collector_cache_find(entry.key);
 
     AIM_ASSERT(cache_entry != NULL, "Collector entry with key: 0x%x missing from cache",
                entry.key.collector_ip);
-    AIM_ASSERT(!memcmp(&cache_entry->entry, &entry, sizeof(slow_collector_entry_t)),
+    AIM_ASSERT(!memcmp(&cache_entry->entry, &entry, sizeof(sflow_collector_entry_t)),
                "Mismatch in Collector entry with key: 0x%x", entry.key.collector_ip);
 }
 
 static void
-verify_no_cache(slow_collector_entry_t entry)
+verify_no_cache(sflow_collector_entry_t entry)
 {
     sflow_collector_cache_entry_t *cache_entry = sflow_collector_cache_find(entry.key);
 

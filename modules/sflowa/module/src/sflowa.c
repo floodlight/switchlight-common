@@ -134,7 +134,7 @@ sflow_collector_cache_list(void)
 /*
  * sflow_collector_cache_find
  *
- * API to find if an slow_collector_entry_t exists in the collector cache
+ * API to find if an sflow_collector_entry_t exists in the collector cache
  */
 sflow_collector_cache_entry_t*
 sflow_collector_cache_find(sflow_collector_entry_key_t key)
@@ -155,9 +155,9 @@ sflow_collector_cache_find(sflow_collector_entry_key_t key)
 /*
  * sflow_collector_cache_add
  *
- * API to add an slow_collector_entry_t in the collector cache
+ * API to add an sflow_collector_entry_t in the collector cache
  */
-static slow_collector_entry_t *
+static sflow_collector_entry_t *
 sflow_collector_cache_add(sflow_collector_entry_key_t key,
                           sflow_collector_entry_value_t value)
 {
@@ -175,7 +175,7 @@ sflow_collector_cache_add(sflow_collector_entry_key_t key,
 /*
  * sflow_collector_cache_delete
  *
- * API to delete an slow_collector_entry_t from the collector cache
+ * API to delete an sflow_collector_entry_t from the collector cache
  */
 static void
 sflow_collector_cache_delete(sflow_collector_entry_key_t key)
@@ -193,7 +193,7 @@ sflow_collector_cache_delete(sflow_collector_entry_key_t key)
 /*
  * sflow_collector_parse_key
  *
- * Parse key for slow_collector table entry from tlv list
+ * Parse key for sflow_collector table entry from tlv list
  */
 static indigo_error_t
 sflow_collector_parse_key(of_list_bsn_tlv_t *tlvs,
@@ -229,7 +229,7 @@ sflow_collector_parse_key(of_list_bsn_tlv_t *tlvs,
 /*
  * sflow_collector_parse_value
  *
- * Parse values for slow_collector table entry from tlv list
+ * Parse values for sflow_collector table entry from tlv list
  */
 static indigo_error_t
 sflow_collector_parse_value(of_list_bsn_tlv_t *tlvs,
@@ -352,7 +352,7 @@ sflow_collector_parse_value(of_list_bsn_tlv_t *tlvs,
 /*
  * sflow_collector_add
  *
- * Add a new entry to slow_collector table
+ * Add a new entry to sflow_collector table
  */
 static indigo_error_t
 sflow_collector_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs,
@@ -361,7 +361,7 @@ sflow_collector_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs,
     indigo_error_t rv;
     sflow_collector_entry_key_t key;
     sflow_collector_entry_value_t value;
-    slow_collector_entry_t *entry;
+    sflow_collector_entry_t *entry;
 
     if (!sflowa_initialized) return INDIGO_ERROR_INIT;
 
@@ -397,7 +397,7 @@ sflow_collector_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs,
 /*
  * sflow_collector_modify
  *
- * Modify a existing entry in slow_collector table
+ * Modify a existing entry in sflow_collector table
  */
 static indigo_error_t
 sflow_collector_modify(void *table_priv, void *entry_priv,
@@ -405,7 +405,7 @@ sflow_collector_modify(void *table_priv, void *entry_priv,
 {
     indigo_error_t rv;
     sflow_collector_entry_value_t value;
-    slow_collector_entry_t *entry = entry_priv;
+    sflow_collector_entry_t *entry = entry_priv;
 
     if (!sflowa_initialized) return INDIGO_ERROR_INIT;
 
@@ -441,13 +441,13 @@ sflow_collector_modify(void *table_priv, void *entry_priv,
 /*
  * sflow_collector_delete
  *
- * Remove a entry from slow_collector table
+ * Remove a entry from sflow_collector table
  */
 static indigo_error_t
 sflow_collector_delete(void *table_priv, void *entry_priv,
                        of_list_bsn_tlv_t *key_tlvs)
 {
-    slow_collector_entry_t *entry = entry_priv;
+    sflow_collector_entry_t *entry = entry_priv;
 
     if (!sflowa_initialized) return INDIGO_ERROR_INIT;
 
@@ -473,13 +473,13 @@ sflow_collector_delete(void *table_priv, void *entry_priv,
 /*
  * sflow_collector_get_stats
  *
- * Return the stats related with a entry in slow_collector table
+ * Return the stats related with a entry in sflow_collector table
  */
 static void
 sflow_collector_get_stats(void *table_priv, void *entry_priv,
                           of_list_bsn_tlv_t *key, of_list_bsn_tlv_t *stats)
 {
-    slow_collector_entry_t *entry = entry_priv;
+    sflow_collector_entry_t *entry = entry_priv;
 
     if (!sflowa_initialized) return;
 
@@ -513,7 +513,7 @@ static const indigo_core_gentable_ops_t sflow_collector_ops = {
 /*
  * sflow_sampler_parse_key
  *
- * Parse key for slow_sampler table entry from tlv list
+ * Parse key for sflow_sampler table entry from tlv list
  */
 static indigo_error_t
 sflow_sampler_parse_key(of_list_bsn_tlv_t *tlvs, of_port_no_t *port_no)
@@ -551,7 +551,7 @@ sflow_sampler_parse_key(of_list_bsn_tlv_t *tlvs, of_port_no_t *port_no)
 /*
  * sflow_sampler_parse_value
  *
- * Parse values for slow_sampler table entry from tlv list
+ * Parse values for sflow_sampler table entry from tlv list
  */
 static indigo_error_t
 sflow_sampler_parse_value(of_list_bsn_tlv_t *tlvs,
@@ -602,7 +602,7 @@ sflow_sampler_parse_value(of_list_bsn_tlv_t *tlvs,
 /*
  * sflow_sampler_add
  *
- * Add a new entry to slow_sampler table
+ * Add a new entry to sflow_sampler table
  */
 static indigo_error_t
 sflow_sampler_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs,
@@ -643,7 +643,7 @@ sflow_sampler_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs,
 /*
  * sflow_sampler_modify
  *
- * Modify a existing entry in slow_sampler table
+ * Modify a existing entry in sflow_sampler table
  */
 static indigo_error_t
 sflow_sampler_modify(void *table_priv, void *entry_priv,
@@ -681,7 +681,7 @@ sflow_sampler_modify(void *table_priv, void *entry_priv,
 /*
  * sflow_sampler_delete
  *
- * Remove a entry from slow_sampler table
+ * Remove a entry from sflow_sampler table
  */
 static indigo_error_t
 sflow_sampler_delete(void *table_priv, void *entry_priv,

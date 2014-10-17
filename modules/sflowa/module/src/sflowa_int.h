@@ -52,11 +52,11 @@ typedef struct sflow_collector_entry_stats_s { /* sflow_collector_entry_stats */
     uint64_t tx_bytes;
 } sflow_collector_entry_stats_t;
 
-typedef struct slow_collector_entry_s { /* slow_collector_entry */
+typedef struct sflow_collector_entry_s { /* sflow_collector_entry */
     sflow_collector_entry_key_t key;
     sflow_collector_entry_value_t value;
     sflow_collector_entry_stats_t stats;
-} slow_collector_entry_t;
+} sflow_collector_entry_t;
 
 typedef struct sflow_sampler_entry_value_s { /* sflow_sampler_entry_value */
     uint32_t sampling_rate;
@@ -68,7 +68,7 @@ typedef struct sflow_sampler_entry_s { /* sflow_sampler_entry */
 } sflow_sampler_entry_t;
 
 typedef struct sflow_collector_cache_entry_s { /* sflow_collector_cache_entry */
-    slow_collector_entry_t entry;
+    sflow_collector_entry_t entry;
     list_links_t  links;
 } sflow_collector_cache_entry_t;
 
