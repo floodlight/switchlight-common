@@ -299,8 +299,6 @@ sflow_collector_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs,
     sflow_collector_entry_value_t value;
     sflow_collector_entry_t *entry;
 
-    if (!sflowa_initialized) return INDIGO_ERROR_INIT;
-
     rv = sflow_collector_parse_key(key_tlvs, &key);
     if (rv < 0) {
         return rv;
@@ -347,8 +345,6 @@ sflow_collector_modify(void *table_priv, void *entry_priv,
     sflow_collector_entry_value_t value;
     sflow_collector_entry_t *entry = entry_priv;
 
-    if (!sflowa_initialized) return INDIGO_ERROR_INIT;
-
     rv = sflow_collector_parse_value(value_tlvs, &value);
     if (rv < 0) {
         return rv;
@@ -387,8 +383,6 @@ sflow_collector_delete(void *table_priv, void *entry_priv,
 {
     sflow_collector_entry_t *entry = entry_priv;
 
-    if (!sflowa_initialized) return INDIGO_ERROR_INIT;
-
     AIM_LOG_TRACE("Delete collector table entry, collector_ip: %{ipv4a} -> vlan_id:"
                   " %u, agent_mac: %{mac}, agent_ip: %{ipv4a}, agent_udp_sport:"
                   " %u, collector_mac: %{mac}, collector_udp_dport: %u, "
@@ -417,8 +411,6 @@ sflow_collector_get_stats(void *table_priv, void *entry_priv,
                           of_list_bsn_tlv_t *key, of_list_bsn_tlv_t *stats)
 {
     sflow_collector_entry_t *entry = entry_priv;
-
-    if (!sflowa_initialized) return;
 
     /* tx_packets */
     {
@@ -548,8 +540,6 @@ sflow_sampler_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs,
     sflow_sampler_entry_key_t key;
     sflow_sampler_entry_value_t value;
 
-    if (!sflowa_initialized) return INDIGO_ERROR_INIT;
-
     rv = sflow_sampler_parse_key(key_tlvs, &key);
     if (rv < 0) {
         return rv;
@@ -590,8 +580,6 @@ sflow_sampler_modify(void *table_priv, void *entry_priv,
     sflow_sampler_entry_value_t value;
     sflow_sampler_entry_t *entry = entry_priv;
 
-    if (!sflowa_initialized) return INDIGO_ERROR_INIT;
-
     rv = sflow_sampler_parse_value(value_tlvs, &value);
     if (rv < 0) {
         return rv;
@@ -623,8 +611,6 @@ sflow_sampler_delete(void *table_priv, void *entry_priv,
                      of_list_bsn_tlv_t *key_tlvs)
 {
     sflow_sampler_entry_t *entry = entry_priv;
-
-    if (!sflowa_initialized) return INDIGO_ERROR_INIT;
 
     AIM_LOG_TRACE("Delete sampler table entry, port: %u -> sampling_rate: %u, "
                   "header_size: %u", entry->key.port_no,
