@@ -41,7 +41,7 @@ static bool sflowa_initialized = false;
 static uint64_t start_time;
 
 static sflow_sampler_entry_t sampler_entries[MAX_PORTS+1];
-static LIST_DEFINE(sflow_collector_cache);
+static LIST_DEFINE(sflow_collectors);
 static biglist_t *sample_rate_handlers;
 
 /*
@@ -119,75 +119,16 @@ sflow_sampling_rate_notify(of_port_no_t port_no, uint32_t sampling_rate)
 }
 
 /*
- * sflow_collector_cache_list
+ * sflow_collectors_list
  *
  * Return a list of sflow collector entries
  *
- * The list is through the 'links' field of sflow_collector_cache_entry_t.
+ * The list is through the 'links' field of sflow_collector_entry_t.
  */
-static list_head_t *
-sflow_collector_cache_list(void)
+list_head_t *
+sflow_collectors_list(void)
 {
-    return &sflow_collector_cache;
-}
-
-/*
- * sflow_collector_cache_find
- *
- * API to find if an sflow_collector_entry_t exists in the collector cache
- */
-sflow_collector_cache_entry_t*
-sflow_collector_cache_find(sflow_collector_entry_key_t key)
-{
-    list_head_t *cache = sflow_collector_cache_list();
-    list_links_t *cur;
-    LIST_FOREACH(cache, cur) {
-        sflow_collector_cache_entry_t *cache_entry = container_of(cur, links,
-                                                     sflow_collector_cache_entry_t);
-        if (cache_entry->entry.key.collector_ip == key.collector_ip) {
-            return cache_entry;
-        }
-    }
-
-    return NULL;
-}
-
-/*
- * sflow_collector_cache_add
- *
- * API to add an sflow_collector_entry_t in the collector cache
- */
-static sflow_collector_entry_t *
-sflow_collector_cache_add(sflow_collector_entry_key_t key,
-                          sflow_collector_entry_value_t value)
-{
-    sflow_collector_cache_entry_t *cache_entry = aim_zmalloc(sizeof(*cache_entry));
-    cache_entry->entry.key = key;
-    cache_entry->entry.value = value;
-    list_push(&sflow_collector_cache, &cache_entry->links);
-
-    AIM_LOG_TRACE("Added collector cache entry with key: %{ipv4a}",
-                  cache_entry->entry.key.collector_ip);
-
-    return &cache_entry->entry;
-}
-
-/*
- * sflow_collector_cache_delete
- *
- * API to delete an sflow_collector_entry_t from the collector cache
- */
-static void
-sflow_collector_cache_delete(sflow_collector_entry_key_t key)
-{
-    sflow_collector_cache_entry_t *cache_entry = sflow_collector_cache_find(key);
-    AIM_ASSERT(cache_entry, "collector entry with key: %{ipv4a} missing from cache",
-               key.collector_ip);
-
-    AIM_LOG_TRACE("Deleted collector cache entry with key: %{ipv4a}",
-                  cache_entry->entry.key.collector_ip);
-    list_remove(&cache_entry->links);
-    aim_free(cache_entry);
+    return &sflow_collectors;
 }
 
 /*
@@ -375,10 +316,14 @@ sflow_collector_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs,
         return rv;
     }
 
+    entry = aim_zmalloc(sizeof(*entry));
+    entry->key = key;
+    entry->value = value;
+
     /*
      * Add this entry to a list to be used later for sending a sflow datagram out
      */
-    entry = sflow_collector_cache_add(key, value);
+    list_push(&sflow_collectors, &entry->links);
 
     AIM_LOG_TRACE("Add collector table entry, collector_ip: %{ipv4a} -> vlan_id:"
                   " %u, agent_mac: %{mac}, agent_ip: %{ipv4a}, agent_udp_sport:"
@@ -461,7 +406,8 @@ sflow_collector_delete(void *table_priv, void *entry_priv,
     /*
      * Delete this entry from the list
      */
-    sflow_collector_cache_delete(entry->key);
+    list_remove(&entry->links);
+    aim_free(entry);
 
     return INDIGO_ERROR_NONE;
 }

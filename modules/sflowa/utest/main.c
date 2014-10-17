@@ -73,23 +73,40 @@ indigo_core_gentable_register(
     *gentable = (void *)1;
 }
 
-static void
-verify_cache(sflow_collector_entry_t entry)
+static sflow_collector_entry_t*
+sflow_collectors_list_find(sflow_collector_entry_key_t key)
 {
-    sflow_collector_cache_entry_t *cache_entry = sflow_collector_cache_find(entry.key);
+    list_head_t *list = sflow_collectors_list();
+    list_links_t *cur;
+    LIST_FOREACH(list, cur) {
+        sflow_collector_entry_t *entry = container_of(cur, links,
+                                                      sflow_collector_entry_t);
+        if (entry->key.collector_ip == key.collector_ip) {
+            return entry;
+        }
+    }
 
-    AIM_ASSERT(cache_entry != NULL, "Collector entry with key: 0x%x missing from cache",
-               entry.key.collector_ip);
-    AIM_ASSERT(!memcmp(&cache_entry->entry, &entry, sizeof(sflow_collector_entry_t)),
-               "Mismatch in Collector entry with key: 0x%x", entry.key.collector_ip);
+    return NULL;
 }
 
 static void
-verify_no_cache(sflow_collector_entry_t entry)
+verify_entry_present(sflow_collector_entry_t test_entry)
 {
-    sflow_collector_cache_entry_t *cache_entry = sflow_collector_cache_find(entry.key);
+    sflow_collector_entry_t *entry = sflow_collectors_list_find(test_entry.key);
 
-    AIM_ASSERT(cache_entry == NULL);
+    AIM_ASSERT(entry != NULL, "Collector entry with key: 0x%x missing from list",
+               test_entry.key.collector_ip);
+    AIM_ASSERT(!memcmp(&entry->value, &test_entry.value,
+               sizeof(sflow_collector_entry_value_t)),
+               "Mismatch in Collector entry value");
+}
+
+static void
+verify_entry_absent(sflow_collector_entry_t test_entry)
+{
+    sflow_collector_entry_t *entry = sflow_collectors_list_find(test_entry.key);
+
+    AIM_ASSERT(entry == NULL);
 }
 
 static of_list_bsn_tlv_t *
@@ -180,10 +197,10 @@ test_sflow_collector_table(void)
     of_object_delete(value);
 
     /*
-     * Verify entry got added to collector cache
+     * Verify entry got added to collectors list
      */
-    verify_cache(collector_entry_1);
-    verify_no_cache(collector_entry_2);
+    verify_entry_present(collector_entry_1);
+    verify_entry_absent(collector_entry_2);
 
     key = make_key_collector(collector_entry_2.key.collector_ip);
     value = make_value(collector_entry_2.value.vlan_id,
@@ -200,8 +217,8 @@ test_sflow_collector_table(void)
 
     of_object_delete(value);
 
-    verify_cache(collector_entry_1);
-    verify_cache(collector_entry_2);
+    verify_entry_present(collector_entry_1);
+    verify_entry_present(collector_entry_2);
 
     /*
      * Test modify
@@ -219,8 +236,8 @@ test_sflow_collector_table(void)
                value)) == INDIGO_ERROR_NONE,
                "Error in collector table modify: %s\n", indigo_strerror(rv));
 
-    verify_cache(collector_entry_1);
-    verify_cache(collector_entry_2);
+    verify_entry_present(collector_entry_1);
+    verify_entry_present(collector_entry_2);
 
     of_object_delete(value);
 
@@ -233,8 +250,8 @@ test_sflow_collector_table(void)
 
     of_object_delete(key);
 
-    verify_cache(collector_entry_1);
-    verify_no_cache(collector_entry_2);
+    verify_entry_present(collector_entry_1);
+    verify_entry_absent(collector_entry_2);
 
     key = make_key_collector(collector_entry_1.key.collector_ip);
     AIM_ASSERT((rv = ops_collector->del(table_priv_collector, entry_priv_1, key))
@@ -243,8 +260,8 @@ test_sflow_collector_table(void)
 
     of_object_delete(key);
 
-    verify_no_cache(collector_entry_1);
-    verify_no_cache(collector_entry_2);
+    verify_entry_absent(collector_entry_1);
+    verify_entry_absent(collector_entry_2);
 }
 
 static of_list_bsn_tlv_t *

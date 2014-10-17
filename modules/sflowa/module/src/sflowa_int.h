@@ -56,6 +56,7 @@ typedef struct sflow_collector_entry_s { /* sflow_collector_entry */
     sflow_collector_entry_key_t key;
     sflow_collector_entry_value_t value;
     sflow_collector_entry_stats_t stats;
+    list_links_t  links;
 } sflow_collector_entry_t;
 
 typedef struct sflow_sampler_entry_key_s { /* sflow_sampler_entry_key */
@@ -77,7 +78,6 @@ typedef struct sflow_collector_cache_entry_s { /* sflow_collector_cache_entry */
     list_links_t  links;
 } sflow_collector_cache_entry_t;
 
-sflow_collector_cache_entry_t*
-sflow_collector_cache_find(sflow_collector_entry_key_t key);
+list_head_t *sflow_collectors_list(void);
 
 #endif /* __SFLOWA_INT_H__ */
