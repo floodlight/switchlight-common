@@ -61,11 +61,11 @@ sflowa_init(void)
      */
     start_time = os_time_monotonic();
 
-    AIM_LOG_INFO("init");
+    AIM_LOG_TRACE("init");
 
     indigo_core_gentable_register("sflow_collector", &sflow_collector_ops, NULL, 4, 4,
                                   &sflow_collector_table);
-    indigo_core_gentable_register("sflow_sampler", &sflow_sampler_ops, NULL, 1, 1,
+    indigo_core_gentable_register("sflow_sampler", &sflow_sampler_ops, NULL, MAX_PORTS, 128,
                                   &sflow_sampler_table);
 
     sflowa_initialized = true;
@@ -213,13 +213,13 @@ sflow_collector_parse_key(of_list_bsn_tlv_t *tlvs,
         of_bsn_tlv_ipv4_dst_value_get(&tlv.ipv4_dst, &key->collector_ip);
     } else {
         AIM_LOG_ERROR("expected ipv4_dst key TLV, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_class_name(&tlv.header));
         return INDIGO_ERROR_PARAM;
     }
 
     if (of_list_bsn_tlv_next(tlvs, &tlv) == 0) {
         AIM_LOG_ERROR("expected end of key list, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_class_name(&tlv.header));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -249,7 +249,7 @@ sflow_collector_parse_value(of_list_bsn_tlv_t *tlvs,
         of_bsn_tlv_vlan_vid_value_get(&tlv.vlan_vid, &value->vlan_id);
     } else {
         AIM_LOG_ERROR("expected vlan value TLV, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_class_name(&tlv.header));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -264,7 +264,7 @@ sflow_collector_parse_value(of_list_bsn_tlv_t *tlvs,
         of_bsn_tlv_eth_src_value_get(&tlv.eth_src, &value->agent_mac);
     } else {
         AIM_LOG_ERROR("expected eth_src value TLV, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_class_name(&tlv.header));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -278,7 +278,7 @@ sflow_collector_parse_value(of_list_bsn_tlv_t *tlvs,
         of_bsn_tlv_ipv4_src_value_get(&tlv.ipv4_src, &value->agent_ip);
     } else {
         AIM_LOG_ERROR("expected ipv4_src value TLV, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_class_name(&tlv.header));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -292,7 +292,7 @@ sflow_collector_parse_value(of_list_bsn_tlv_t *tlvs,
         of_bsn_tlv_udp_src_value_get(&tlv.udp_src, &value->agent_udp_sport);
     } else {
         AIM_LOG_ERROR("expected udp_src value TLV, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_class_name(&tlv.header));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -306,7 +306,7 @@ sflow_collector_parse_value(of_list_bsn_tlv_t *tlvs,
         of_bsn_tlv_eth_dst_value_get(&tlv.eth_dst, &value->collector_mac);
     } else {
         AIM_LOG_ERROR("expected eth_dst value TLV, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_class_name(&tlv.header));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -321,7 +321,7 @@ sflow_collector_parse_value(of_list_bsn_tlv_t *tlvs,
                                      &value->collector_udp_dport);
     } else {
         AIM_LOG_ERROR("expected udp_dst value TLV, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_class_name(&tlv.header));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -335,14 +335,14 @@ sflow_collector_parse_value(of_list_bsn_tlv_t *tlvs,
         of_bsn_tlv_sub_agent_id_value_get(&tlv.sub_agent_id,
                                           &value->sub_agent_id);
     } else {
-        AIM_LOG_ERROR("expected udp_dst value TLV, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+        AIM_LOG_ERROR("expected sub_agent_id value TLV, instead got %s",
+                      of_class_name(&tlv.header));
         return INDIGO_ERROR_PARAM;
     }
 
     if (of_list_bsn_tlv_next(tlvs, &tlv) == 0) {
         AIM_LOG_ERROR("expected end of value list, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_class_name(&tlv.header));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -409,8 +409,6 @@ sflow_collector_modify(void *table_priv, void *entry_priv,
 
     if (!sflowa_initialized) return INDIGO_ERROR_INIT;
 
-    AIM_ASSERT(entry, "Attempted to modify a NULL entry in collector table");
-
     rv = sflow_collector_parse_value(value_tlvs, &value);
     if (rv < 0) {
         return rv;
@@ -451,8 +449,6 @@ sflow_collector_delete(void *table_priv, void *entry_priv,
 
     if (!sflowa_initialized) return INDIGO_ERROR_INIT;
 
-    AIM_ASSERT(entry, "Attempted to delete a NULL entry from collector table");
-
     AIM_LOG_TRACE("Delete collector table entry, collector_ip: %{ipv4a} -> vlan_id:"
                   " %u, agent_mac: %{mac}, agent_ip: %{ipv4a}, agent_udp_sport:"
                   " %u, collector_mac: %{mac}, collector_udp_dport: %u, "
@@ -482,9 +478,6 @@ sflow_collector_get_stats(void *table_priv, void *entry_priv,
     sflow_collector_entry_t *entry = entry_priv;
 
     if (!sflowa_initialized) return;
-
-    AIM_ASSERT(entry, "Attempted to request stats from collector table "
-               "for NULL entry");
 
     /* tx_packets */
     {
@@ -516,9 +509,11 @@ static const indigo_core_gentable_ops_t sflow_collector_ops = {
  * Parse key for sflow_sampler table entry from tlv list
  */
 static indigo_error_t
-sflow_sampler_parse_key(of_list_bsn_tlv_t *tlvs, of_port_no_t *port_no)
+sflow_sampler_parse_key(of_list_bsn_tlv_t *tlvs, sflow_sampler_entry_key_t *key)
 {
     of_bsn_tlv_t tlv;
+
+    SFLOWA_MEMSET(key, 0, sizeof(*key));
 
     if (of_list_bsn_tlv_first(tlvs, &tlv) < 0) {
         AIM_LOG_ERROR("empty key list");
@@ -527,21 +522,21 @@ sflow_sampler_parse_key(of_list_bsn_tlv_t *tlvs, of_port_no_t *port_no)
 
     /* port */
     if (tlv.header.object_id == OF_BSN_TLV_PORT) {
-        of_bsn_tlv_port_value_get(&tlv.port, port_no);
+        of_bsn_tlv_port_value_get(&tlv.port, &key->port_no);
     } else {
         AIM_LOG_ERROR("expected port key TLV, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_class_name(&tlv.header));
         return INDIGO_ERROR_PARAM;
     }
 
-    if (*port_no > MAX_PORTS) {
-        AIM_LOG_ERROR("Port out of range (%u)", *port_no);
+    if (key->port_no > MAX_PORTS) {
+        AIM_LOG_ERROR("Port out of range (%u)", key->port_no);
         return INDIGO_ERROR_PARAM;
     }
 
     if (of_list_bsn_tlv_next(tlvs, &tlv) == 0) {
         AIM_LOG_ERROR("expected end of key list, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_class_name(&tlv.header));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -572,7 +567,7 @@ sflow_sampler_parse_value(of_list_bsn_tlv_t *tlvs,
                                            &value->sampling_rate);
     } else {
         AIM_LOG_ERROR("expected sampling_rate value TLV, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_class_name(&tlv.header));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -586,13 +581,13 @@ sflow_sampler_parse_value(of_list_bsn_tlv_t *tlvs,
         of_bsn_tlv_header_size_value_get(&tlv.header_size, &value->header_size);
     } else {
         AIM_LOG_ERROR("expected header_size value TLV, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_class_name(&tlv.header));
         return INDIGO_ERROR_PARAM;
     }
 
     if (of_list_bsn_tlv_next(tlvs, &tlv) == 0) {
         AIM_LOG_ERROR("expected end of value list, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_class_name(&tlv.header));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -609,12 +604,12 @@ sflow_sampler_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs,
                   of_list_bsn_tlv_t *value_tlvs, void **entry_priv)
 {
     indigo_error_t rv;
-    of_port_no_t port_no;
+    sflow_sampler_entry_key_t key;
     sflow_sampler_entry_value_t value;
 
     if (!sflowa_initialized) return INDIGO_ERROR_INIT;
 
-    rv = sflow_sampler_parse_key(key_tlvs, &port_no);
+    rv = sflow_sampler_parse_key(key_tlvs, &key);
     if (rv < 0) {
         return rv;
     }
@@ -624,11 +619,12 @@ sflow_sampler_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs,
         return rv;
     }
 
-    sflow_sampler_entry_t *entry = &sampler_entries[port_no];
+    sflow_sampler_entry_t *entry = &sampler_entries[key.port_no];
+    entry->key = key;
     entry->value = value;
 
     AIM_LOG_TRACE("Add sampler table entry, port: %u -> sampling_rate: %u, "
-                  "header_size: %u", port_no,
+                  "header_size: %u", entry->key.port_no,
                   entry->value.sampling_rate, entry->value.header_size);
 
     *entry_priv = entry;
@@ -636,7 +632,7 @@ sflow_sampler_add(void *table_priv, of_list_bsn_tlv_t *key_tlvs,
     /*
      * Send notifications to enable sampling on this port
      */
-    sflow_sampling_rate_notify(port_no, entry->value.sampling_rate);
+    sflow_sampling_rate_notify(entry->key.port_no, entry->value.sampling_rate);
     return INDIGO_ERROR_NONE;
 }
 
@@ -650,7 +646,6 @@ sflow_sampler_modify(void *table_priv, void *entry_priv,
                      of_list_bsn_tlv_t *key_tlvs, of_list_bsn_tlv_t *value_tlvs)
 {
     indigo_error_t rv;
-    of_port_no_t port_no;
     sflow_sampler_entry_value_t value;
     sflow_sampler_entry_t *entry = entry_priv;
 
@@ -661,10 +656,9 @@ sflow_sampler_modify(void *table_priv, void *entry_priv,
         return rv;
     }
 
-    port_no = entry - sampler_entries;
     AIM_LOG_TRACE("Modify sampler table entry, port: %u -> from sampling_rate: "
                   "%u, header_size: %u to sampling_rate: %u, header_size: %u",
-                  port_no, entry->value.sampling_rate,
+                  entry->key.port_no, entry->value.sampling_rate,
                   entry->value.header_size, value.sampling_rate,
                   value.header_size);
 
@@ -673,7 +667,7 @@ sflow_sampler_modify(void *table_priv, void *entry_priv,
     /*
      * Notify about the change in sampling rate on this port
      */
-    sflow_sampling_rate_notify(port_no, entry->value.sampling_rate);
+    sflow_sampling_rate_notify(entry->key.port_no, entry->value.sampling_rate);
 
     return INDIGO_ERROR_NONE;
 }
@@ -688,23 +682,19 @@ sflow_sampler_delete(void *table_priv, void *entry_priv,
                      of_list_bsn_tlv_t *key_tlvs)
 {
     sflow_sampler_entry_t *entry = entry_priv;
-    of_port_no_t port_no;
 
     if (!sflowa_initialized) return INDIGO_ERROR_INIT;
 
-    AIM_ASSERT(entry, "Attempted to delete a NULL entry from sampler table");
-
-    port_no = entry - sampler_entries;
     AIM_LOG_TRACE("Delete sampler table entry, port: %u -> sampling_rate: %u, "
-                  "header_size: %u", port_no,
+                  "header_size: %u", entry->key.port_no,
                   entry->value.sampling_rate, entry->value.header_size);
 
     /*
      * Set the sampling rate to 0 to disable sampling on this port
      * Send notifications to disable sampling on this port
      */
+    sflow_sampling_rate_notify(entry->key.port_no, 0);
     SFLOWA_MEMSET(entry, 0, sizeof(*entry));
-    sflow_sampling_rate_notify(port_no, 0);
 
     return INDIGO_ERROR_NONE;
 }

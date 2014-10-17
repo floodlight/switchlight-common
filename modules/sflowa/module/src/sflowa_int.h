@@ -58,12 +58,17 @@ typedef struct sflow_collector_entry_s { /* sflow_collector_entry */
     sflow_collector_entry_stats_t stats;
 } sflow_collector_entry_t;
 
+typedef struct sflow_sampler_entry_key_s { /* sflow_sampler_entry_key */
+    of_port_no_t port_no;
+} sflow_sampler_entry_key_t;
+
 typedef struct sflow_sampler_entry_value_s { /* sflow_sampler_entry_value */
     uint32_t sampling_rate;
     uint32_t header_size;
 } sflow_sampler_entry_value_t;
 
 typedef struct sflow_sampler_entry_s { /* sflow_sampler_entry */
+    sflow_sampler_entry_key_t key;
     sflow_sampler_entry_value_t value;
 } sflow_sampler_entry_t;
 
