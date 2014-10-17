@@ -352,14 +352,7 @@ test_sflow_sampler_table(void)
 }
 
 static void
-handler0(uint32_t port_no, uint32_t sampling_rate)
-{
-    AIM_ASSERT(port_no == current_port_no, "Mismatch in port");
-    AIM_ASSERT(sampling_rate == current_sampling_rate, "Mismatch in sampling rate");
-}
-
-static void
-handler1(uint32_t port_no, uint32_t sampling_rate)
+handler(uint32_t port_no, uint32_t sampling_rate)
 {
     AIM_ASSERT(port_no == current_port_no, "Mismatch in port");
     AIM_ASSERT(sampling_rate == current_sampling_rate, "Mismatch in sampling rate");
@@ -368,18 +361,12 @@ handler1(uint32_t port_no, uint32_t sampling_rate)
 static void
 test_sampling_rate_handlers(void)
 {
-    indigo_error_t rv;
-
-    /* Register 2 handlers */
-    AIM_ASSERT((rv = sflowa_sampling_rate_handler_register(
-               (sflowa_sampling_rate_handler_f)handler0)) == INDIGO_ERROR_NONE);
-    AIM_ASSERT((rv = sflowa_sampling_rate_handler_register(
-               (sflowa_sampling_rate_handler_f)handler1)) == INDIGO_ERROR_NONE);
+    /* Register a sampling_rate handler fn */
+    sflowa_sampling_rate_handler_register(handler);
 
     test_sflow_sampler_table();
 
-    sflowa_sampling_rate_handler_unregister(handler0);
-    sflowa_sampling_rate_handler_unregister(handler1);
+    sflowa_sampling_rate_handler_unregister(handler);
 }
 
 int aim_main(int argc, char* argv[])

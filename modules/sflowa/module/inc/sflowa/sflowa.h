@@ -50,8 +50,7 @@ typedef void (*sflowa_sampling_rate_handler_f)(of_port_no_t port_no,
  * @brief Register application specific handler for sampling rate update
  * @param fn Application specific handler for sampling rate update
  */
-indigo_error_t sflowa_sampling_rate_handler_register(sflowa_sampling_rate_handler_f
-                                                     fn);
+void sflowa_sampling_rate_handler_register(sflowa_sampling_rate_handler_f fn);
 
 /**
  * @brief Deregister application specific handler for sampling rate update

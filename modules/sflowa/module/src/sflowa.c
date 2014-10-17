@@ -27,7 +27,6 @@
 #include <AIM/aim.h>
 #include <debug_counter/debug_counter.h>
 #include <OS/os_time.h>
-#include <BigList/biglist.h>
 #include "sflowa_int.h"
 #include "sflowa_log.h"
 
@@ -42,7 +41,8 @@ static uint64_t start_time;
 
 static sflow_sampler_entry_t sampler_entries[MAX_PORTS+1];
 static LIST_DEFINE(sflow_collectors);
-static biglist_t *sample_rate_handlers;
+
+static sflowa_sampling_rate_handler_f sflowa_sampling_rate_handler;
 
 /*
  * sflowa_init
@@ -63,12 +63,13 @@ sflowa_init(void)
 
     AIM_LOG_TRACE("init");
 
-    indigo_core_gentable_register("sflow_collector", &sflow_collector_ops, NULL, 4, 4,
-                                  &sflow_collector_table);
-    indigo_core_gentable_register("sflow_sampler", &sflow_sampler_ops, NULL, MAX_PORTS, 128,
-                                  &sflow_sampler_table);
+    indigo_core_gentable_register("sflow_collector", &sflow_collector_ops, NULL,
+                                  4, 4, &sflow_collector_table);
+    indigo_core_gentable_register("sflow_sampler", &sflow_sampler_ops, NULL,
+                                  MAX_PORTS, 128, &sflow_sampler_table);
 
     sflowa_initialized = true;
+    sflowa_sampling_rate_handler = NULL;
 
     return INDIGO_ERROR_NONE;
 }
@@ -78,16 +79,10 @@ sflowa_init(void)
  *
  * Documented in sflowa.h
  */
-indigo_error_t
+void
 sflowa_sampling_rate_handler_register(sflowa_sampling_rate_handler_f fn)
 {
-    if (biglist_find(sample_rate_handlers, fn)) {
-        return INDIGO_ERROR_EXISTS;
-    }
-
-    sample_rate_handlers = biglist_append(sample_rate_handlers, fn);
-
-    return INDIGO_ERROR_NONE;
+    sflowa_sampling_rate_handler = fn;
 }
 
 /*
@@ -98,23 +93,23 @@ sflowa_sampling_rate_handler_register(sflowa_sampling_rate_handler_f fn)
 void
 sflowa_sampling_rate_handler_unregister(sflowa_sampling_rate_handler_f fn)
 {
-    sample_rate_handlers = biglist_remove(sample_rate_handlers, fn);
+    if (sflowa_sampling_rate_handler != fn) {
+        return;
+    }
+
+    sflowa_sampling_rate_handler = NULL;
 }
 
 /*
  * sflow_sampling_rate_notify
  *
- * Notify handlers about the change in sampling rate
+ * Notify handler about the change in sampling rate
  */
 static void
 sflow_sampling_rate_notify(of_port_no_t port_no, uint32_t sampling_rate)
 {
-    biglist_t *cur;
-    sflowa_sampling_rate_handler_f fn;
-
-    BIGLIST_FOREACH_DATA(cur, sample_rate_handlers,
-                         sflowa_sampling_rate_handler_f, fn) {
-        fn(port_no, sampling_rate);
+    if (sflowa_sampling_rate_handler != NULL) {
+        (*sflowa_sampling_rate_handler)(port_no, sampling_rate);
     }
 }
 
