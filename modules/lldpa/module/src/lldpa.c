@@ -30,6 +30,8 @@
 #include <lldpa/lldpa.h>
 #include "lldpa_int.h"
 
+#define LLDP_SLOT_NUM  0
+
 #define LLDPA_DEBUG(fmt, ...)                       \
             AIM_LOG_TRACE(fmt, ##__VA_ARGS__)
 static indigo_error_t  lldpa_pkt_data_set(lldpa_pkt_t *lpkt, of_octets_t *data);
@@ -182,7 +184,10 @@ lldpdu_timeout_rx(void *cookie)
     /* Set port number */
     of_bsn_pdu_rx_timeout_port_no_set (timeout_msg, port->port_no);
 
-    LLDPA_DEBUG("Send async msg");
+    /* Set slot number */
+    of_bsn_pdu_rx_timeout_slot_num_set (timeout_msg, LLDP_SLOT_NUM);
+
+    LLDPA_DEBUG("Send rx timeout async msg");
     /* Send to controller, don't delete when send to controller */
     indigo_cxn_send_async_message(timeout_msg);
 
@@ -324,9 +329,10 @@ rx_reply_to_ctrl:
     of_bsn_pdu_rx_reply_xid_set     (rx_reply, xid);
     of_bsn_pdu_rx_reply_port_no_set (rx_reply, port_no);
     of_bsn_pdu_rx_reply_status_set  (rx_reply, status_failed);
+    of_bsn_pdu_rx_reply_slot_num_set(rx_reply, LLDP_SLOT_NUM);
 
-    LLDPA_DEBUG("Port %u: sends a RX_reply to ctrl, version %u",
-                port_no, rx_req->version);
+    LLDPA_DEBUG("Port %u: sends a RX_reply to ctrl, status %s, version %u",
+                port_no, status_failed? "Failed" : "Success", rx_req->version);
     /* 4. Send to controller, don't delete obj */
     indigo_cxn_send_controller_message(cxn_id, rx_reply);
 
@@ -413,9 +419,10 @@ tx_reply_to_ctrl:
     of_bsn_pdu_tx_reply_xid_set     (tx_reply, xid);
     of_bsn_pdu_tx_reply_port_no_set (tx_reply, port_no);
     of_bsn_pdu_tx_reply_status_set  (tx_reply, status_failed);
+    of_bsn_pdu_tx_reply_slot_num_set(tx_reply, LLDP_SLOT_NUM);
 
-    LLDPA_DEBUG("Port %u: sends  a TX_reply to ctrl, version %u",
-                port_no, tx_req->version);
+    LLDPA_DEBUG("Port %u: sends  a TX_reply to ctrl, status %s, version %u",
+                port_no, status_failed? "Failed" : "Success", tx_req->version);
     /* 4. Send to controller, don't delete obj */
     indigo_cxn_send_controller_message(cxn_id, tx_reply);
 
