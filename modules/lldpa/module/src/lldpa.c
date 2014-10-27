@@ -266,7 +266,6 @@ rx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req)
     of_port_no_t port_no;
     uint32_t     timeout_ms;
     of_octets_t  data;
-    uint8_t      slot_num;
 
     of_bsn_pdu_rx_reply_t *rx_reply = NULL;
     uint32_t              status_failed = 0;
@@ -276,14 +275,6 @@ rx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req)
     of_bsn_pdu_rx_request_timeout_ms_get(rx_req, &timeout_ms);
     of_bsn_pdu_rx_request_data_get      (rx_req, &data);
     of_bsn_pdu_rx_request_port_no_get   (rx_req, &port_no);
-    of_bsn_pdu_rx_request_slot_num_get  (rx_req, &slot_num);
-
-    /* Only support slot_num 0 at this time */
-    if (slot_num) {
-        status_failed = 1;
-        AIM_LOG_ERROR("Req_Rx Port %u, slot_num %d not supported", port_no, slot_num);
-        goto rx_reply_to_ctrl;
-    }
 
     if (timeout_ms && !data.data) {
         status_failed = 1;
@@ -351,7 +342,6 @@ tx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *tx_req)
     of_port_no_t port_no;
     uint32_t     tx_interval_ms;
     of_octets_t  data;
-    uint8_t      slot_num;
 
     /* tx_reply info */
     of_bsn_pdu_tx_reply_t *tx_reply = NULL;
@@ -362,14 +352,6 @@ tx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *tx_req)
     of_bsn_pdu_tx_request_tx_interval_ms_get(tx_req, &tx_interval_ms);
     of_bsn_pdu_tx_request_data_get          (tx_req, &data);
     of_bsn_pdu_tx_request_port_no_get       (tx_req, &port_no);
-    of_bsn_pdu_tx_request_slot_num_get      (tx_req, &slot_num);
-
-    /* Only support slot_num 0 at this time */
-    if (slot_num) {
-        status_failed = 1;
-        AIM_LOG_ERROR("Req_Tx Port %u, Slot_num %d not supported", port_no, slot_num);
-        goto tx_reply_to_ctrl;
-    }
 
     if (tx_interval_ms && !data.data) {
         status_failed = 1;
@@ -433,12 +415,19 @@ indigo_core_listener_result_t
 lldpa_handle_msg (indigo_cxn_id_t cxn_id, of_object_t *msg)
 {
     indigo_core_listener_result_t ret = INDIGO_CORE_LISTENER_RESULT_PASS;
+    uint8_t slot_num;
 
     if(!msg)
         return ret;
 
     switch (msg->object_id) {
     case OF_BSN_PDU_RX_REQUEST:
+        of_bsn_pdu_rx_request_slot_num_get(msg, &slot_num);
+        if (slot_num != LLDP_SLOT_NUM) {
+            LLDPA_DEBUG("Received rx request with slot_num: %u", slot_num);
+            return ret;
+        }
+
         /* Count msg in */
         lldpa_port_sys.total_msg_in_cnt++;
         rx_request_handle(cxn_id, msg);
@@ -446,6 +435,12 @@ lldpa_handle_msg (indigo_cxn_id_t cxn_id, of_object_t *msg)
         break;
 
     case OF_BSN_PDU_TX_REQUEST:
+        of_bsn_pdu_tx_request_slot_num_get(msg, &slot_num);
+        if (slot_num != LLDP_SLOT_NUM) {
+            LLDPA_DEBUG("Received tx request with slot_num: %u", slot_num);
+            return ret;
+        }
+
         /* Count msg in */
         lldpa_port_sys.total_msg_in_cnt++;
         tx_request_handle(cxn_id, msg);
