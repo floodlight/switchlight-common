@@ -30,12 +30,14 @@
 #include <lldpa/lldpa.h>
 #include "lldpa_int.h"
 
+#define LLDP_SLOT_NUM  0
+
 #define LLDPA_DEBUG(fmt, ...)                       \
             AIM_LOG_TRACE(fmt, ##__VA_ARGS__)
 static indigo_error_t  lldpa_pkt_data_set(lldpa_pkt_t *lpkt, of_octets_t *data);
 static void lldpa_pkt_data_free (lldpa_pkt_t *lpkt);
 static indigo_error_t lldpa_port_disable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *port);
-static indigo_error_t lldpa_port_enable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *port, 
+static indigo_error_t lldpa_port_enable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *port,
                                         of_octets_t *data, uint32_t interval_ms);
 static void  lldpa_disable_tx_rx(lldpa_port_t *lldpa);
 static void lldpdu_timeout_rx(void *cookie);
@@ -79,14 +81,14 @@ lldpa_pkt_data_set(lldpa_pkt_t *lpkt, of_octets_t *data)
     if (lpkt->data.data) {
         return INDIGO_ERROR_PARAM;
     }
-    
+
     lpkt->data.data = LLDPA_MALLOC(data->bytes);
     if (!lpkt->data.data)
         return INDIGO_ERROR_RESOURCE;
-    
+
     lpkt->data.bytes = data->bytes;
     LLDPA_MEMCPY(lpkt->data.data, data->data, data->bytes);
-   
+
     return INDIGO_ERROR_NONE;
 }
 
@@ -111,7 +113,7 @@ lldpa_port_disable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *
     if ((rv = ind_soc_timer_event_unregister(cb, port)) == INDIGO_ERROR_NONE) {
         pkt->interval_ms = 0;
         lldpa_pkt_data_free(pkt);
-    } 
+    }
     return rv;
 }
 
@@ -120,7 +122,7 @@ lldpa_port_enable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *p
                   of_octets_t *data, uint32_t interval_ms)
 {
     indigo_error_t rv;
-    
+
     if ((rv = lldpa_pkt_data_set(pkt, data)) == INDIGO_ERROR_NONE) {
         if ((rv = ind_soc_timer_event_register_with_priority(cb, port, interval_ms,
                                                              IND_SOC_HIGH_PRIORITY))
@@ -182,7 +184,10 @@ lldpdu_timeout_rx(void *cookie)
     /* Set port number */
     of_bsn_pdu_rx_timeout_port_no_set (timeout_msg, port->port_no);
 
-    LLDPA_DEBUG("Send async msg");
+    /* Set slot number */
+    of_bsn_pdu_rx_timeout_slot_num_set (timeout_msg, LLDP_SLOT_NUM);
+
+    LLDPA_DEBUG("Send rx timeout async msg");
     /* Send to controller, don't delete when send to controller */
     indigo_cxn_send_async_message(timeout_msg);
 
@@ -261,7 +266,6 @@ rx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req)
     of_port_no_t port_no;
     uint32_t     timeout_ms;
     of_octets_t  data;
-    uint8_t      slot_num;
 
     of_bsn_pdu_rx_reply_t *rx_reply = NULL;
     uint32_t              status_failed = 0;
@@ -271,14 +275,6 @@ rx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req)
     of_bsn_pdu_rx_request_timeout_ms_get(rx_req, &timeout_ms);
     of_bsn_pdu_rx_request_data_get      (rx_req, &data);
     of_bsn_pdu_rx_request_port_no_get   (rx_req, &port_no);
-    of_bsn_pdu_rx_request_slot_num_get  (rx_req, &slot_num);
-
-    /* Only support slot_num 0 at this time */
-    if (slot_num) {
-        status_failed = 1;
-        AIM_LOG_ERROR("Req_Rx Port %u, slot_num %d not supported", port_no, slot_num);
-        goto rx_reply_to_ctrl;
-    }
 
     if (timeout_ms && !data.data) {
         status_failed = 1;
@@ -302,7 +298,7 @@ rx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req)
             goto rx_reply_to_ctrl;
         }
     }
-    
+
     AIM_TRUE_OR_DIE(!port->rx_pkt.interval_ms && !port->rx_pkt.data.data);
 
     /* 2. Set up new rx_pkt, timer */
@@ -324,9 +320,10 @@ rx_reply_to_ctrl:
     of_bsn_pdu_rx_reply_xid_set     (rx_reply, xid);
     of_bsn_pdu_rx_reply_port_no_set (rx_reply, port_no);
     of_bsn_pdu_rx_reply_status_set  (rx_reply, status_failed);
+    of_bsn_pdu_rx_reply_slot_num_set(rx_reply, LLDP_SLOT_NUM);
 
-    LLDPA_DEBUG("Port %u: sends a RX_reply to ctrl, version %u", 
-                port_no, rx_req->version);
+    LLDPA_DEBUG("Port %u: sends a RX_reply to ctrl, status %s, version %u",
+                port_no, status_failed? "Failed" : "Success", rx_req->version);
     /* 4. Send to controller, don't delete obj */
     indigo_cxn_send_controller_message(cxn_id, rx_reply);
 
@@ -345,7 +342,6 @@ tx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *tx_req)
     of_port_no_t port_no;
     uint32_t     tx_interval_ms;
     of_octets_t  data;
-    uint8_t      slot_num;
 
     /* tx_reply info */
     of_bsn_pdu_tx_reply_t *tx_reply = NULL;
@@ -356,14 +352,6 @@ tx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *tx_req)
     of_bsn_pdu_tx_request_tx_interval_ms_get(tx_req, &tx_interval_ms);
     of_bsn_pdu_tx_request_data_get          (tx_req, &data);
     of_bsn_pdu_tx_request_port_no_get       (tx_req, &port_no);
-    of_bsn_pdu_tx_request_slot_num_get      (tx_req, &slot_num);
-
-    /* Only support slot_num 0 at this time */
-    if (slot_num) {
-        status_failed = 1;
-        AIM_LOG_ERROR("Req_Tx Port %u, Slot_num %d not supported", port_no, slot_num);
-        goto tx_reply_to_ctrl;
-    }
 
     if (tx_interval_ms && !data.data) {
         status_failed = 1;
@@ -376,7 +364,7 @@ tx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *tx_req)
         AIM_LOG_ERROR("Port %u doesn't exist", port_no);
         goto tx_reply_to_ctrl;
     }
-    
+
     port->tx_req_cnt++;
 
     /* 1. unreg old timer, delete old data */
@@ -413,9 +401,10 @@ tx_reply_to_ctrl:
     of_bsn_pdu_tx_reply_xid_set     (tx_reply, xid);
     of_bsn_pdu_tx_reply_port_no_set (tx_reply, port_no);
     of_bsn_pdu_tx_reply_status_set  (tx_reply, status_failed);
+    of_bsn_pdu_tx_reply_slot_num_set(tx_reply, LLDP_SLOT_NUM);
 
-    LLDPA_DEBUG("Port %u: sends  a TX_reply to ctrl, version %u",
-                port_no, tx_req->version);
+    LLDPA_DEBUG("Port %u: sends  a TX_reply to ctrl, status %s, version %u",
+                port_no, status_failed? "Failed" : "Success", tx_req->version);
     /* 4. Send to controller, don't delete obj */
     indigo_cxn_send_controller_message(cxn_id, tx_reply);
 
@@ -426,12 +415,19 @@ indigo_core_listener_result_t
 lldpa_handle_msg (indigo_cxn_id_t cxn_id, of_object_t *msg)
 {
     indigo_core_listener_result_t ret = INDIGO_CORE_LISTENER_RESULT_PASS;
+    uint8_t slot_num;
 
     if(!msg)
         return ret;
 
     switch (msg->object_id) {
     case OF_BSN_PDU_RX_REQUEST:
+        of_bsn_pdu_rx_request_slot_num_get(msg, &slot_num);
+        if (slot_num != LLDP_SLOT_NUM) {
+            LLDPA_DEBUG("Received rx request with slot_num: %u", slot_num);
+            return ret;
+        }
+
         /* Count msg in */
         lldpa_port_sys.total_msg_in_cnt++;
         rx_request_handle(cxn_id, msg);
@@ -439,6 +435,12 @@ lldpa_handle_msg (indigo_cxn_id_t cxn_id, of_object_t *msg)
         break;
 
     case OF_BSN_PDU_TX_REQUEST:
+        of_bsn_pdu_tx_request_slot_num_get(msg, &slot_num);
+        if (slot_num != LLDP_SLOT_NUM) {
+            LLDPA_DEBUG("Received tx request with slot_num: %u", slot_num);
+            return ret;
+        }
+
         /* Count msg in */
         lldpa_port_sys.total_msg_in_cnt++;
         tx_request_handle(cxn_id, msg);
@@ -479,7 +481,7 @@ lldpa_rx_pkt_is_expected(lldpa_port_t *port, of_octets_t *data)
         port->rx_pkt_mismatched_len++;
         return ret;
     }
-        
+
     if (memcmp(port->rx_pkt.data.data, data->data, data->bytes) == 0) {
         LLDPA_DEBUG("Port %u: MATCHED\n", port->port_no);
         ret = 1;
@@ -582,7 +584,7 @@ lldpa_system_init()
 
     AIM_LOG_INFO("init");
 
-    lldpa_port_sys.lldpa_total_of_ports = sizeof(lldpa_port_sys.lldpa_ports) / 
+    lldpa_port_sys.lldpa_total_of_ports = sizeof(lldpa_port_sys.lldpa_ports) /
                                               sizeof(lldpa_port_sys.lldpa_ports[0]);
     for (i=0; i < lldpa_port_sys.lldpa_total_of_ports; i++) {
         port = lldpa_find_port(i);
