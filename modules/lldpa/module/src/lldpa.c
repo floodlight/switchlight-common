@@ -35,7 +35,7 @@
 static indigo_error_t  lldpa_pkt_data_set(lldpa_pkt_t *lpkt, of_octets_t *data);
 static void lldpa_pkt_data_free (lldpa_pkt_t *lpkt);
 static indigo_error_t lldpa_port_disable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *port);
-static indigo_error_t lldpa_port_enable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *port, 
+static indigo_error_t lldpa_port_enable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *port,
                                         of_octets_t *data, uint32_t interval_ms);
 static void  lldpa_disable_tx_rx(lldpa_port_t *lldpa);
 static void lldpdu_timeout_rx(void *cookie);
@@ -79,14 +79,14 @@ lldpa_pkt_data_set(lldpa_pkt_t *lpkt, of_octets_t *data)
     if (lpkt->data.data) {
         return INDIGO_ERROR_PARAM;
     }
-    
+
     lpkt->data.data = LLDPA_MALLOC(data->bytes);
     if (!lpkt->data.data)
         return INDIGO_ERROR_RESOURCE;
-    
+
     lpkt->data.bytes = data->bytes;
     LLDPA_MEMCPY(lpkt->data.data, data->data, data->bytes);
-   
+
     return INDIGO_ERROR_NONE;
 }
 
@@ -111,7 +111,7 @@ lldpa_port_disable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *
     if ((rv = ind_soc_timer_event_unregister(cb, port)) == INDIGO_ERROR_NONE) {
         pkt->interval_ms = 0;
         lldpa_pkt_data_free(pkt);
-    } 
+    }
     return rv;
 }
 
@@ -120,7 +120,7 @@ lldpa_port_enable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *p
                   of_octets_t *data, uint32_t interval_ms)
 {
     indigo_error_t rv;
-    
+
     if ((rv = lldpa_pkt_data_set(pkt, data)) == INDIGO_ERROR_NONE) {
         if ((rv = ind_soc_timer_event_register_with_priority(cb, port, interval_ms,
                                                              IND_SOC_HIGH_PRIORITY))
@@ -302,7 +302,7 @@ rx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req)
             goto rx_reply_to_ctrl;
         }
     }
-    
+
     AIM_TRUE_OR_DIE(!port->rx_pkt.interval_ms && !port->rx_pkt.data.data);
 
     /* 2. Set up new rx_pkt, timer */
@@ -325,7 +325,7 @@ rx_reply_to_ctrl:
     of_bsn_pdu_rx_reply_port_no_set (rx_reply, port_no);
     of_bsn_pdu_rx_reply_status_set  (rx_reply, status_failed);
 
-    LLDPA_DEBUG("Port %u: sends a RX_reply to ctrl, version %u", 
+    LLDPA_DEBUG("Port %u: sends a RX_reply to ctrl, version %u",
                 port_no, rx_req->version);
     /* 4. Send to controller, don't delete obj */
     indigo_cxn_send_controller_message(cxn_id, rx_reply);
@@ -376,7 +376,7 @@ tx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *tx_req)
         AIM_LOG_ERROR("Port %u doesn't exist", port_no);
         goto tx_reply_to_ctrl;
     }
-    
+
     port->tx_req_cnt++;
 
     /* 1. unreg old timer, delete old data */
@@ -479,7 +479,7 @@ lldpa_rx_pkt_is_expected(lldpa_port_t *port, of_octets_t *data)
         port->rx_pkt_mismatched_len++;
         return ret;
     }
-        
+
     if (memcmp(port->rx_pkt.data.data, data->data, data->bytes) == 0) {
         LLDPA_DEBUG("Port %u: MATCHED\n", port->port_no);
         ret = 1;
@@ -582,7 +582,7 @@ lldpa_system_init()
 
     AIM_LOG_INFO("init");
 
-    lldpa_port_sys.lldpa_total_of_ports = sizeof(lldpa_port_sys.lldpa_ports) / 
+    lldpa_port_sys.lldpa_total_of_ports = sizeof(lldpa_port_sys.lldpa_ports) /
                                               sizeof(lldpa_port_sys.lldpa_ports[0]);
     for (i=0; i < lldpa_port_sys.lldpa_total_of_ports; i++) {
         port = lldpa_find_port(i);
