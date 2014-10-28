@@ -393,6 +393,14 @@ lacpa_get_stats (void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key,
         of_bsn_tlv_convergence_status_value_set(&tlv, !port->is_converged);
     }
 
+    /* Actor state */
+    {
+        of_bsn_tlv_actor_state_t tlv;
+        of_bsn_tlv_actor_state_init(&tlv, stats->version, -1, 1);
+        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_bsn_tlv_actor_state_value_set(&tlv, port->actor.state);
+    }
+
     /* Partner system priority */
     {
         of_bsn_tlv_partner_system_priority_t tlv;
@@ -433,6 +441,14 @@ lacpa_get_stats (void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key,
         of_bsn_tlv_partner_key_init(&tlv, stats->version, -1, 1);
         of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
         of_bsn_tlv_partner_key_value_set(&tlv, port->partner.key);
+    }
+
+    /* Partner state */
+    {
+        of_bsn_tlv_partner_state_t tlv;
+        of_bsn_tlv_partner_state_init(&tlv, stats->version, -1, 1);
+        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_bsn_tlv_partner_state_value_set(&tlv, port->partner.state);
     }
 }
 
