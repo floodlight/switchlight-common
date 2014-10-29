@@ -31,8 +31,6 @@
 #include <indigo/of_state_manager.h>
 #include <AIM/aim_list.h>
 
-#define MAX_PORTS            256
-
 typedef struct sflow_collector_entry_key_s { /* sflow_collector_entry_key */
     uint32_t collector_ip;
 } sflow_collector_entry_key_t;

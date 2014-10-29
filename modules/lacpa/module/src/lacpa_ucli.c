@@ -62,7 +62,7 @@ lacpa_ucli_ucli__clear_lacp_counters__(ucli_context_t* uc)
     } else {
         lacpa_clear_system_counters();
 
-        for (port = 0; port <= PHY_PORT_COUNT; port++) {
+        for (port = 0; port <= LACPA_CONFIG_OF_PORTS_MAX; port++) {
             lacpa_clear_port_counters__(uc, port);
         }
     }
@@ -165,7 +165,7 @@ lacpa_ucli_ucli__show_lacp_portstate__(ucli_context_t* uc)
         lacpa_show_portstate__(uc, port);
     } else {
 
-        for (port = 0; port <= PHY_PORT_COUNT; port++) {
+        for (port = 0; port <= LACPA_CONFIG_OF_PORTS_MAX; port++) {
             lacpa_show_portstate__(uc, port);
         }
     }
@@ -244,7 +244,7 @@ lacpa_ucli_ucli__show_lacp_portstats__(ucli_context_t* uc)
         lacpa_show_portstats__(uc, port);
     } else {
 
-        for (port = 0; port <= PHY_PORT_COUNT; port++) {
+        for (port = 0; port <= LACPA_CONFIG_OF_PORTS_MAX; port++) {
             lacpa_show_portstats__(uc, port);
         }
     }

@@ -39,7 +39,7 @@ static const indigo_core_gentable_ops_t sflow_sampler_ops;
 static bool sflowa_initialized = false;
 static uint64_t start_time;
 
-static sflow_sampler_entry_t sampler_entries[MAX_PORTS+1];
+static sflow_sampler_entry_t sampler_entries[SFLOWA_CONFIG_OF_PORTS_MAX+1];
 static LIST_DEFINE(sflow_collectors);
 
 static sflowa_sampling_rate_handler_f sflowa_sampling_rate_handler;
@@ -66,7 +66,8 @@ sflowa_init(void)
     indigo_core_gentable_register("sflow_collector", &sflow_collector_ops, NULL,
                                   4, 4, &sflow_collector_table);
     indigo_core_gentable_register("sflow_sampler", &sflow_sampler_ops, NULL,
-                                  MAX_PORTS, 128, &sflow_sampler_table);
+                                  SFLOWA_CONFIG_OF_PORTS_MAX, 128,
+                                  &sflow_sampler_table);
 
     sflowa_initialized = true;
     sflowa_sampling_rate_handler = NULL;
@@ -462,7 +463,7 @@ sflow_sampler_parse_key(of_list_bsn_tlv_t *tlvs, sflow_sampler_entry_key_t *key)
         return INDIGO_ERROR_PARAM;
     }
 
-    if (key->port_no > MAX_PORTS) {
+    if (key->port_no > SFLOWA_CONFIG_OF_PORTS_MAX) {
         AIM_LOG_ERROR("Port out of range (%u)", key->port_no);
         return INDIGO_ERROR_PARAM;
     }

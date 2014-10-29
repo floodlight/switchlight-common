@@ -39,8 +39,6 @@
                                              //802.3ad-2000, Max LACPDU size
                                              //is 124 Bytes.
 
-#define PHY_PORT_COUNT                  1024
-
 #define DEFAULT_LACP_VERSION            1
 
 #define DEFAULT_ACTOR_INFO              0x01

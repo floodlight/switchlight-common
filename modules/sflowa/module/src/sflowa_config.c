@@ -45,6 +45,11 @@ sflowa_config_settings_t sflowa_config_settings[] =
 #else
 { SFLOWA_CONFIG_INCLUDE_UCLI(__sflowa_config_STRINGIFY_NAME), "__undefined__" },
 #endif
+#ifdef SFLOWA_CONFIG_OF_PORTS_MAX
+    { __sflowa_config_STRINGIFY_NAME(SFLOWA_CONFIG_OF_PORTS_MAX), __sflowa_config_STRINGIFY_VALUE(SFLOWA_CONFIG_OF_PORTS_MAX) },
+#else
+{ SFLOWA_CONFIG_OF_PORTS_MAX(__sflowa_config_STRINGIFY_NAME), "__undefined__" },
+#endif
     { NULL, NULL }
 };
 #undef __sflowa_config_STRINGIFY_VALUE

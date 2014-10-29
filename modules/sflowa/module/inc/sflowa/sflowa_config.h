@@ -17,6 +17,8 @@
 #include <sflowa_custom_config.h>
 #endif
 
+#include <slshared/slshared_config.h>
+
 /* <auto.start.cdefs(SFLOWA_CONFIG_HEADER).header> */
 #include <AIM/aim.h>
 /**
@@ -87,6 +89,16 @@
 
 #ifndef SFLOWA_CONFIG_INCLUDE_UCLI
 #define SFLOWA_CONFIG_INCLUDE_UCLI 0
+#endif
+
+/**
+ * SFLOWA_CONFIG_OF_PORTS_MAX
+ *
+ * Maximum number of OF ports. */
+
+
+#ifndef SFLOWA_CONFIG_OF_PORTS_MAX
+#define SFLOWA_CONFIG_OF_PORTS_MAX SLSHARED_CONFIG_OF_PORT_MAX
 #endif
 
 

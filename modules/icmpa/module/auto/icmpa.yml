@@ -39,7 +39,10 @@ cdefs: &cdefs
     default: ICMPA_CONFIG_PORTING_STDLIB
 - ICMPA_CONFIG_INCLUDE_UCLI:
     doc: "Include generic uCli support."
-    default: 1 
+    default: 1
+- ICMPA_CONFIG_OF_PORTS_MAX:
+    doc: "Maximum number of OF ports."
+    default: SLSHARED_CONFIG_OF_PORT_MAX
 
 icmpa_log_types: &icmpa_log_types
 - packet

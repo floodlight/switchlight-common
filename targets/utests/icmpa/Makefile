@@ -23,6 +23,7 @@ TEST_MODULE := icmpa
 DEPENDMODULES := AIM PPE IOF loci indigo OS SocketManager cjson \
                  BigList Configuration murmur OFConnectionManager BigHash \
                  router_ip_table uCli debug_counter timer_wheel BigRing
+DEPENDMODULE_HEADERS := slshared
 
 GLOBAL_CFLAGS += -DINDIGO_LINUX_LOGGING
 GLOBAL_CFLAGS += -DINDIGO_LINUX_TIME

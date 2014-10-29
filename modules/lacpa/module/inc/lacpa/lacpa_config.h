@@ -36,6 +36,8 @@
 #include <lacpa_custom_config.h>
 #endif
 
+#include <slshared/slshared_config.h>
+
 /* <auto.start.cdefs(LACPA_CONFIG_HEADER).header> */
 #include <AIM/aim.h>
 /**
@@ -106,6 +108,16 @@
 
 #ifndef LACPA_CONFIG_INCLUDE_UCLI
 #define LACPA_CONFIG_INCLUDE_UCLI 1
+#endif
+
+/**
+ * LACPA_CONFIG_OF_PORTS_MAX
+ *
+ * Maximum number of OF ports. */
+
+
+#ifndef LACPA_CONFIG_OF_PORTS_MAX
+#define LACPA_CONFIG_OF_PORTS_MAX SLSHARED_CONFIG_OF_PORT_MAX
 #endif
 
 

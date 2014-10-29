@@ -1,0 +1,16 @@
+###############################################################################
+#
+# slshared Autogeneration Definitions.
+#
+###############################################################################
+
+cdefs: &cdefs
+- SLSHARED_CONFIG_OF_PORT_MAX:
+    doc: "Maximum OF port number range for all agents."
+    default: 512
+
+definitions:
+  cdefs:
+    SLSHARED_CONFIG_HEADER:
+      defs: *cdefs
+      basename: slshared_config

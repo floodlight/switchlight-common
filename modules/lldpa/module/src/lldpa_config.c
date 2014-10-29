@@ -59,6 +59,11 @@ lldpa_config_settings_t lldpa_config_settings[] =
 #else
 { LLDPA_CONFIG_INCLUDE_UCLI(__lldpa_config_STRINGIFY_NAME), "__undefined__" },
 #endif
+#ifdef LLDPA_CONFIG_OF_PORTS_MAX
+    { __lldpa_config_STRINGIFY_NAME(LLDPA_CONFIG_OF_PORTS_MAX), __lldpa_config_STRINGIFY_VALUE(LLDPA_CONFIG_OF_PORTS_MAX) },
+#else
+{ LLDPA_CONFIG_OF_PORTS_MAX(__lldpa_config_STRINGIFY_NAME), "__undefined__" },
+#endif
     { NULL, NULL }
 };
 #undef __lldpa_config_STRINGIFY_VALUE
