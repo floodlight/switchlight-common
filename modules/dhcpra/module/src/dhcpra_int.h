@@ -33,7 +33,7 @@
 #define DHCPRA_DEBUG(fmt, ...)                       \
             AIM_LOG_TRACE(fmt, ##__VA_ARGS__)
 
-/* 
+/*
  * Information about opt.
  * For option 82, Circuit ID and Remote ID are popular used
  * Currently BSN uses only Circuit ID
@@ -41,7 +41,7 @@
  */
 typedef struct opt_info {
     of_octets_t circuit_id;
-    of_octets_t remote_id;  
+    of_octets_t remote_id;
 } opt_info_t;
 
 typedef struct {
@@ -62,7 +62,6 @@ enum {
     DHCPRA_DUMP_ENABLE_ALL_PORTS  = -1
 };
 
-#define MAX_SYSTEM_PORT 96
 typedef struct {
     debug_counter_t dhcp_request;
     debug_counter_t dhcp_request_relay;
@@ -74,6 +73,6 @@ typedef struct {
     char            dhcp_reply_relay_cnt_name[DEBUG_COUNTER_NAME_SIZE];
 }dhcp_relay_stat_t;
 
-extern dhcp_relay_stat_t dhcp_stat_ports[MAX_SYSTEM_PORT+1];
+extern dhcp_relay_stat_t dhcp_stat_ports[DHCPRA_CONFIG_OF_PORTS_MAX+1];
 
 #endif /* __DHCPRA_INT_H__ */

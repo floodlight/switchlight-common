@@ -59,6 +59,11 @@ icmpa_config_settings_t icmpa_config_settings[] =
 #else
 { ICMPA_CONFIG_INCLUDE_UCLI(__icmpa_config_STRINGIFY_NAME), "__undefined__" },
 #endif
+#ifdef ICMPA_CONFIG_OF_PORTS_MAX
+    { __icmpa_config_STRINGIFY_NAME(ICMPA_CONFIG_OF_PORTS_MAX), __icmpa_config_STRINGIFY_VALUE(ICMPA_CONFIG_OF_PORTS_MAX) },
+#else
+{ ICMPA_CONFIG_OF_PORTS_MAX(__icmpa_config_STRINGIFY_NAME), "__undefined__" },
+#endif
     { NULL, NULL }
 };
 #undef __icmpa_config_STRINGIFY_VALUE

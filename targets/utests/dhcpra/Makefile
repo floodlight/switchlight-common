@@ -23,6 +23,7 @@ TEST_MODULE := dhcpra
 DEPENDMODULES := AIM PPE IOF loci indigo OS SocketManager cjson \
                  BigList Configuration murmur OFConnectionManager BigHash uCli \
                  debug_counter timer_wheel BigRing
+DEPENDMODULE_HEADERS := slshared
 
 GLOBAL_CFLAGS += -DAIM_CONFIG_INCLUDE_MODULES_INIT=1
 GLOBAL_CFLAGS += -DAIM_CONFIG_INCLUDE_MAIN=1

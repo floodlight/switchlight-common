@@ -39,6 +39,9 @@ cdefs: &cdefs
 - LACPA_CONFIG_INCLUDE_UCLI:
     doc: "Include generic uCli support."
     default: 1
+- LACPA_CONFIG_OF_PORTS_MAX:
+    doc: "Maximum number of OF ports."
+    default: SLSHARED_CONFIG_OF_PORT_MAX
 
 state: &state
 - AGENT_STOPPED
@@ -118,7 +121,7 @@ definitions:
     lacpa:
       flags: *lacpa_log_types
       prefix: LACPA_LOG_FLAG_
-     
+
   xenum:
     LACPA_ENUMERATION_ENTRY:
       members: *enums

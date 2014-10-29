@@ -321,7 +321,7 @@ lacpa_get_port_stats_handle (indigo_cxn_id_t cxn,
      * Loop over all the port's in the system with lacp enabled and
      * send their stats info to the controller in a packed msg
      */
-    for (i = 0; i <= PHY_PORT_COUNT; i++) {
+    for (i = 0; i <= LACPA_CONFIG_OF_PORTS_MAX; i++) {
         port = lacpa_find_port(i);
 
         if (port && port->lacp_enabled) {

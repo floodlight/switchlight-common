@@ -36,6 +36,8 @@
 #include <icmpa_custom_config.h>
 #endif
 
+#include <slshared/slshared_config.h>
+
 /* <auto.start.cdefs(ICMPA_CONFIG_HEADER).header> */
 #include <AIM/aim.h>
 /**
@@ -106,6 +108,16 @@
 
 #ifndef ICMPA_CONFIG_INCLUDE_UCLI
 #define ICMPA_CONFIG_INCLUDE_UCLI 1
+#endif
+
+/**
+ * ICMPA_CONFIG_OF_PORTS_MAX
+ *
+ * Maximum number of OF ports. */
+
+
+#ifndef ICMPA_CONFIG_OF_PORTS_MAX
+#define ICMPA_CONFIG_OF_PORTS_MAX SLSHARED_CONFIG_OF_PORT_MAX
 #endif
 
 
