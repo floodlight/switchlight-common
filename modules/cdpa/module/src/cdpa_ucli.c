@@ -117,7 +117,7 @@ cdpa_ucli_ucli__show_cdpa_portcounters__(ucli_context_t* uc)
         UCLI_ARGPARSE_OR_RETURN(uc, "i", &port);
         cdpa_show_portcounters__(uc, port);
     } else {
-        for (port = 0; port <= MAX_PORTS; port++) {
+        for (port = 0; port <= CDPA_CONFIG_OF_PORTS_MAX; port++) {
             cdpa_show_portcounters__(uc, port);
         }
     }
@@ -160,7 +160,7 @@ cdpa_ucli_ucli__clear_cdpa_portcounters__(ucli_context_t* uc)
         UCLI_ARGPARSE_OR_RETURN(uc, "i", &port);
         cdpa_clear_portcounters__(uc, port);
     } else {
-        for (port = 0; port <= MAX_PORTS ; port++) {
+        for (port = 0; port <= CDPA_CONFIG_OF_PORTS_MAX; port++) {
             cdpa_clear_portcounters__(uc, port);
         }
     }
@@ -174,7 +174,7 @@ cdpa_ucli_ucli__clear_cdpa_portcounters__(ucli_context_t* uc)
  * source file.
  *
  *****************************************************************************/
-static ucli_command_handler_f cdpa_ucli_ucli_handlers__[] = 
+static ucli_command_handler_f cdpa_ucli_ucli_handlers__[] =
 {
     cdpa_ucli_ucli__config__,
     cdpa_ucli_ucli__show_cdpa_counters__,

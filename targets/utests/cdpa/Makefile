@@ -23,6 +23,7 @@ TEST_MODULE := cdpa
 DEPENDMODULES := AIM indigo loci OS debug_counter OFStateManager SocketManager \
     cjson Configuration timer_wheel BigList BigHash minimatch murmur \
     OFConnectionManager BigRing uCli IOF
+DEPENDMODULE_HEADERS := slshared
 GLOBAL_CFLAGS += -DAIM_CONFIG_INCLUDE_MODULES_INIT=1
 GLOBAL_CFLAGS += -DAIM_CONFIG_INCLUDE_MAIN=1
 GLOBAL_CFLAGS += -DINDIGO_LINUX_TIME

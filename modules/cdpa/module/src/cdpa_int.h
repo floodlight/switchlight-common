@@ -28,7 +28,6 @@
 #include <OFStateManager/ofstatemanager.h>
 #include <SocketManager/socketmanager.h>
 
-#define MAX_PORTS               96
 #define CDP_SLOT_NUM            1
 
 typedef struct cdpa_pkt_s { /* cdpa_pkt */
@@ -62,7 +61,7 @@ typedef struct cdpa_debug_s { /* cdpa_debug */
 
 typedef struct cdpa_system_s { /* cdpa_system */
     cdpa_debug_t debug_info;
-    cdpa_port_t  ports[MAX_PORTS+1];
+    cdpa_port_t  ports[CDPA_CONFIG_OF_PORTS_MAX+1];
 } cdpa_system_t;
 
 cdpa_system_t cdpa_system;
@@ -77,7 +76,7 @@ static inline cdpa_port_t*
 cdpa_find_port(of_port_no_t port_no)
 {
     cdpa_port_t *ret = NULL;
-    if (port_no <= MAX_PORTS) {
+    if (port_no <= CDPA_CONFIG_OF_PORTS_MAX) {
         ret = &cdpa_system.ports[port_no];
     }
 

@@ -616,8 +616,9 @@ cdpa_init(void)
     indigo_core_message_listener_register(cdpa_handle_msg);
     indigo_core_packet_in_listener_register(cdpa_handle_pkt);
 
-    CDPA_MEMSET(cdpa_system.ports, 0, sizeof(cdpa_port_t) * (MAX_PORTS+1));
-    for (i=0; i <= MAX_PORTS; i++) {
+    CDPA_MEMSET(cdpa_system.ports, 0,
+                sizeof(cdpa_port_t) * (CDPA_CONFIG_OF_PORTS_MAX+1));
+    for (i=0; i <= CDPA_CONFIG_OF_PORTS_MAX; i++) {
         port = cdpa_find_port(i);
         port->port_no = i;
     }
@@ -642,7 +643,7 @@ cdpa_finish()
     indigo_core_message_listener_unregister(cdpa_handle_msg);
     indigo_core_packet_in_listener_unregister(cdpa_handle_pkt);
 
-    for (i=0; i < MAX_PORTS; i++) {
+    for (i=0; i < CDPA_CONFIG_OF_PORTS_MAX; i++) {
         port = cdpa_find_port(i);
         cdpa_disable_tx_rx(port);
     }
