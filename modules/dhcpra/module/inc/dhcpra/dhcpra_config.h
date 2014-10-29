@@ -29,6 +29,8 @@
 #ifndef __DHCPRA_CONFIG_H__
 #define __DHCPRA_CONFIG_H__
 
+#include <slshared/slshared_config.h>
+
 #ifdef GLOBAL_INCLUDE_CUSTOM_CONFIG
 #include <global_custom_config.h>
 #endif
@@ -106,6 +108,16 @@
 
 #ifndef DHCPRA_CONFIG_INCLUDE_UCLI
 #define DHCPRA_CONFIG_INCLUDE_UCLI 0
+#endif
+
+/**
+ * DHCPRA_CONFIG_OF_PORTS_MAX
+ *
+ * Maximum number of OF ports. */
+
+
+#ifndef DHCPRA_CONFIG_OF_PORTS_MAX
+#define DHCPRA_CONFIG_OF_PORTS_MAX SLSHARED_CONFIG_OF_PORT_MAX
 #endif
 
 

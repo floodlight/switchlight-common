@@ -31,7 +31,7 @@ static bool print_once = true;
 static void
 icmpa_clear_portcounters__(ucli_context_t* uc, uint32_t port_no)
 {
-    if (port_no > MAX_PORTS) return;
+    if (port_no > ICMPA_CONFIG_OF_PORTS_MAX) return;
 
     ICMPA_MEMSET(&port_pkt_counters[port_no], 0,
                  sizeof(icmpa_typecode_packet_counter_t));
@@ -42,7 +42,7 @@ icmpa_show_portcounters__(ucli_context_t* uc, uint32_t port_no)
 {
     icmpa_typecode_packet_counter_t zero = {0};
 
-    if (port_no > MAX_PORTS) return;
+    if (port_no > ICMPA_CONFIG_OF_PORTS_MAX) return;
 
     if (memcmp(&zero, &port_pkt_counters[port_no], sizeof(zero)) == 0) return;
 
@@ -95,7 +95,7 @@ icmpa_ucli_ucli__show_counters__(ucli_context_t* uc)
         icmpa_show_portcounters__(uc, port);
     } else {
 
-        for (port = 0; port <= MAX_PORTS; port++) {
+        for (port = 0; port <= ICMPA_CONFIG_OF_PORTS_MAX; port++) {
             icmpa_show_portcounters__(uc, port);
         }
     }
@@ -125,7 +125,7 @@ icmpa_ucli_ucli__clear_counters__(ucli_context_t* uc)
         debug_counter_reset(&pkt_counters.icmp_total_passed_packets);
         debug_counter_reset(&pkt_counters.icmp_internal_errors);
 
-        for (port = 0; port <= MAX_PORTS; port++) {
+        for (port = 0; port <= ICMPA_CONFIG_OF_PORTS_MAX; port++) {
             icmpa_clear_portcounters__(uc, port);
         }
     }

@@ -64,7 +64,7 @@ lacpa_init (void)
 
     AIM_LOG_INFO("init");
 
-    ports_size = sizeof(lacpa_port_t) * (PHY_PORT_COUNT+1);
+    ports_size = sizeof(lacpa_port_t) * (LACPA_CONFIG_OF_PORTS_MAX+1);
     aim_ratelimiter_init(&lacpa_pktin_log_limiter, 1000*1000, 5, NULL);
     aim_ratelimiter_init(&lacpa_parse_log_limiter, 1000*1000, 5, NULL);
     lacpa_register_system_counters();
@@ -76,7 +76,7 @@ lacpa_init (void)
     }
 
     AIM_LOG_TRACE("Succesfully inited LACP System for %d ports...",
-                  PHY_PORT_COUNT);
+                  LACPA_CONFIG_OF_PORTS_MAX);
     LACPA_MEMSET(lacpa_system.ports, 0, ports_size);
     lacp_system_initialized = true;
 
@@ -95,7 +95,8 @@ lacpa_init (void)
         return INDIGO_ERROR_INIT;
     }
 
-    indigo_core_gentable_register("lacp", &lacp_ops, NULL, PHY_PORT_COUNT, 128,
+    indigo_core_gentable_register("lacp", &lacp_ops, NULL,
+                                  LACPA_CONFIG_OF_PORTS_MAX, 128,
                                   &lacp_table);
     return INDIGO_ERROR_NONE;
 }
@@ -127,8 +128,9 @@ lacpa_finish (void)
 lacpa_port_t *
 lacpa_find_port (uint32_t port_no)
 {
-    if (port_no > PHY_PORT_COUNT) {
-        AIM_LOG_INTERNAL("Port No: %d Out of Range %d", port_no, PHY_PORT_COUNT);
+    if (port_no > LACPA_CONFIG_OF_PORTS_MAX) {
+        AIM_LOG_INTERNAL("Port No: %d Out of Range %d",
+                         port_no, LACPA_CONFIG_OF_PORTS_MAX);
         return NULL;
     }
 
@@ -159,7 +161,7 @@ lacpa_parse_key (of_list_bsn_tlv_t *tlvs, of_port_no_t *port_no)
         return INDIGO_ERROR_PARAM;
     }
 
-    if (*port_no > PHY_PORT_COUNT) {
+    if (*port_no > LACPA_CONFIG_OF_PORTS_MAX) {
         AIM_LOG_ERROR("Port out of range (%u)", *port_no);
         return INDIGO_ERROR_PARAM;
     }

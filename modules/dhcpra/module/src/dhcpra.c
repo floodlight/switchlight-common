@@ -31,7 +31,7 @@
 #include <PPE/ppe.h>
 
 
-dhcp_relay_stat_t dhcp_stat_ports[MAX_SYSTEM_PORT+1];
+dhcp_relay_stat_t dhcp_stat_ports[DHCPRA_CONFIG_OF_PORTS_MAX+1];
 
 /* This variable is set by ucli for debugging purpose*/
 int dhcpra_dump_data = DHCPRA_DUMP_DISABLE_ALL_PORTS;
@@ -244,7 +244,7 @@ get_virtual_router_mac(dhc_relay_t *dc)
  * Circuit_id is only optional and used for legality check only
  * */
 static indigo_core_listener_result_t
-dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len, 
+dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len,
                         uint32_t relay_agent_ip,
                         uint8_t *relay_mac_addr,
                         uint32_t vlan_pcp,
@@ -261,7 +261,7 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len,
     struct dhcp_packet *dhcp_pkt;
 
     dhcp_pkt = (struct dhcp_packet *)(pkt->data + DHCP_HEADER_OFFSET);
-    
+
     /* Only support Ethernet */
     if (dhcp_pkt->htype != HTYPE_ETHER) {
         AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
@@ -326,12 +326,12 @@ dhcpra_handle_bootreply(of_octets_t *pkt, int dhcp_pkt_len,
     AIM_TRUE_OR_DIE(dc, "vlan_id %d", vlan_id);
 
     /* Set Ether, DOT1Q, IP, UDP src, dst, dhcp payload len */
-    init_ppe_header(pkt->data, dhcp_pkt_new_len, 
+    init_ppe_header(pkt->data, dhcp_pkt_new_len,
                     PPE_PSERVICE_PORT_DHCP_SERVER, PPE_PSERVICE_PORT_DHCP_CLIENT);
 
     data_tx.data  = pkt->data;
     data_tx.bytes = dhcp_pkt_new_len + DHCP_HEADER_OFFSET;
-    
+
     ppe_packet_init(&ppep, data_tx.data, data_tx.bytes);
     if (ppe_parse(&ppep) < 0) {
         AIM_DIE("Packet parsing failed. packet=%{data}", data_tx.data, data_tx.bytes);
@@ -486,7 +486,7 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
      * Set IP src (Switch mgmt) / dst (DHCP server)
      * Set MAC Src (client MAC)
      * Set MAC Dst to VirtualMAC to trigger L3 routing
-     *    then HW replaces VirtualMAC with NextHop APR using HW caches 
+     *    then HW replaces VirtualMAC with NextHop APR using HW caches
      * Transmit will pump to OFPP_TABLE port
      */
     ppe_field_set(&ppep, PPE_FIELD_8021Q_VLAN, vlan_id);
@@ -568,7 +568,7 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
 
     /* Parsing ether pkt and identify if this is a DHCP Packet */
     ppe_packet_init(&ppep, data.data, data.bytes);
-    
+
     if (ppe_parse(&ppep) < 0) {
         AIM_LOG_RL_ERROR(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                          "Packet parsing failed. packet=%{data}", data.data, data.bytes);
@@ -585,7 +585,7 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
-    if(port_no > MAX_SYSTEM_PORT) {
+    if(port_no > DHCPRA_CONFIG_OF_PORTS_MAX) {
         AIM_LOG_RL_INTERNAL(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                             "Port out of range %u", port_no);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
@@ -630,7 +630,7 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
     }
 
     /* Copy dhcp pkt from pkt */
-    dhcp_pkt_len = ppe_header_get(&ppep, PPE_HEADER_ETHERNET) + data.bytes 
+    dhcp_pkt_len = ppe_header_get(&ppep, PPE_HEADER_ETHERNET) + data.bytes
                    - ppe_header_get(&ppep, PPE_HEADER_DHCP);
 
     /*
@@ -641,7 +641,7 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
      */
     DHCPRA_MEMSET(buf, 0, sizeof(buf));
     DHCPRA_MEMCPY((buf+DHCP_HEADER_OFFSET), dhcp_pkt, dhcp_pkt_len);
-    
+
     ppe_field_get(&ppep, PPE_FIELD_DHCP_OPCODE, &opcode);
 
     DHCPRA_DEBUG("port %u, dhcp opcode %u",port_no, opcode);
@@ -660,7 +660,7 @@ dhcpra_handle_pkt (of_packet_in_t *packet_in)
          *                [MSB]                               [LSB]
          * */
         ppe_field_get(&ppep, PPE_FIELD_IP4_DST_ADDR, &relay_agent_ip);
-        ppe_wide_field_get(&ppep, 
+        ppe_wide_field_get(&ppep,
                            PPE_FIELD_ETHERNET_DST_MAC,
                            relay_mac_addr);
         return dhcpra_handle_bootreply(&ldata, dhcp_pkt_len,
@@ -678,7 +678,7 @@ dhcpra_debug_counter_register()
 {
     int port_no;
     /* Register dhcp debug counter */
-    for (port_no = 0; port_no <=MAX_SYSTEM_PORT; port_no++) {
+    for (port_no = 0; port_no <= DHCPRA_CONFIG_OF_PORTS_MAX; port_no++) {
         dhcp_relay_stat_t *stat = &dhcp_stat_ports[port_no];
 
         snprintf(stat->dhcp_request_cnt_name,

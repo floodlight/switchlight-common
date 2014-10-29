@@ -61,8 +61,6 @@
 #define ICMP_ECHO_REQUEST       8   /* Echo Request             */
 #define ICMP_TIME_EXCEEDED      11  /* Time Exceeded            */
 
-#define MAX_PORTS               256
-
 #define SYSTEM_VLAN             4094
 
 extern aim_ratelimiter_t icmp_pktin_log_limiter;
@@ -82,7 +80,7 @@ typedef struct icmpa_typecode_packet_counter_s { /* icmpa_typecode_packet_counte
 } icmpa_typecode_packet_counter_t;
 
 extern icmpa_packet_counter_t pkt_counters;
-extern icmpa_typecode_packet_counter_t port_pkt_counters[MAX_PORTS+1];
+extern icmpa_typecode_packet_counter_t port_pkt_counters[ICMPA_CONFIG_OF_PORTS_MAX+1];
 
 /******************************************************************************
  *

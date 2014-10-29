@@ -130,7 +130,7 @@ dhcpra_ucli_ucli__clear_dhcpra_stat__(ucli_context_t* uc)
 
     if (uc->pargs->count == 1) {
         UCLI_ARGPARSE_OR_RETURN(uc, "i", &port);
-        if (port > MAX_SYSTEM_PORT) {
+        if (port > DHCPRA_CONFIG_OF_PORTS_MAX) {
             ucli_printf(uc, "of_port %d out of range\n", port);
         } else {
             ucli_printf(uc, "Clearing rx/tx stat for of_port %d\n", port);
@@ -138,7 +138,7 @@ dhcpra_ucli_ucli__clear_dhcpra_stat__(ucli_context_t* uc)
         }
     } else {
         ucli_printf(uc, "Clearing rx/tx stat for all ports\n");
-        for (port = 0; port <= MAX_SYSTEM_PORT; port++) {
+        for (port = 0; port <= DHCPRA_CONFIG_OF_PORTS_MAX; port++) {
             dhcpra_clear_rxtx_stat__(uc, port);
         }
     }
@@ -169,13 +169,13 @@ dhcpra_ucli_ucli__show_dhcpra_stat__(ucli_context_t* uc)
     ucli_printf(uc, "Port\tRequest\tReq_Relay\tReply\tReply_Relay\n");
     if (uc->pargs->count == 1) {
         UCLI_ARGPARSE_OR_RETURN(uc, "i", &port);
-        if (port > MAX_SYSTEM_PORT) {
+        if (port > DHCPRA_CONFIG_OF_PORTS_MAX) {
             ucli_printf(uc, "of_port %d out of range\n", port);
         } else {
             dhcpra_show_txrx_stat__(uc, port);
         }
     } else {
-        for (port = 0; port <= MAX_SYSTEM_PORT; port++) {
+        for (port = 0; port <= DHCPRA_CONFIG_OF_PORTS_MAX; port++) {
             dhcpra_show_txrx_stat__(uc, port);
         }
     }
