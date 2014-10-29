@@ -29,6 +29,8 @@
 #ifndef __LLDPA_CONFIG_H__
 #define __LLDPA_CONFIG_H__
 
+#include <slshared/slshared_config.h>
+
 #ifdef GLOBAL_INCLUDE_CUSTOM_CONFIG
 #include <global_custom_config.h>
 #endif
@@ -106,6 +108,16 @@
 
 #ifndef LLDPA_CONFIG_INCLUDE_UCLI
 #define LLDPA_CONFIG_INCLUDE_UCLI 0
+#endif
+
+/**
+ * LLDPA_CONFIG_OF_PORTS_MAX
+ *
+ * Maximum number of OF ports. */
+
+
+#ifndef LLDPA_CONFIG_OF_PORTS_MAX
+#define LLDPA_CONFIG_OF_PORTS_MAX SLSHARED_CONFIG_OF_PORT_MAX
 #endif
 
 
