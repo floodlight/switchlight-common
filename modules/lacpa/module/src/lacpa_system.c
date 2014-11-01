@@ -145,7 +145,7 @@ lacpa_find_port (uint32_t port_no)
 static indigo_error_t
 lacpa_parse_key (of_list_bsn_tlv_t *tlvs, of_port_no_t *port_no)
 {
-    of_bsn_tlv_t tlv;
+    of_object_t tlv;
 
     if (of_list_bsn_tlv_first(tlvs, &tlv) < 0) {
         AIM_LOG_ERROR("empty key list");
@@ -153,11 +153,11 @@ lacpa_parse_key (of_list_bsn_tlv_t *tlvs, of_port_no_t *port_no)
     }
 
     /* port */
-    if (tlv.header.object_id == OF_BSN_TLV_PORT) {
-        of_bsn_tlv_port_value_get(&tlv.port, port_no);
+    if (tlv.object_id == OF_BSN_TLV_PORT) {
+        of_bsn_tlv_port_value_get(&tlv, port_no);
     } else {
         AIM_LOG_ERROR("expected port key TLV, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
@@ -168,7 +168,7 @@ lacpa_parse_key (of_list_bsn_tlv_t *tlvs, of_port_no_t *port_no)
 
     if (of_list_bsn_tlv_next(tlvs, &tlv) == 0) {
         AIM_LOG_ERROR("expected end of key list, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
@@ -183,7 +183,7 @@ lacpa_parse_key (of_list_bsn_tlv_t *tlvs, of_port_no_t *port_no)
 static indigo_error_t
 lacpa_parse_value (of_list_bsn_tlv_t *tlvs, lacpa_info_t *info)
 {
-    of_bsn_tlv_t tlv;
+    of_object_t tlv;
 
     if (of_list_bsn_tlv_first(tlvs, &tlv) < 0) {
         AIM_LOG_ERROR("empty value list");
@@ -191,12 +191,12 @@ lacpa_parse_value (of_list_bsn_tlv_t *tlvs, lacpa_info_t *info)
     }
 
     /* Actor system priority */
-    if (tlv.header.object_id == OF_BSN_TLV_ACTOR_SYSTEM_PRIORITY) {
-        of_bsn_tlv_actor_system_priority_value_get(&tlv.actor_system_priority,
+    if (tlv.object_id == OF_BSN_TLV_ACTOR_SYSTEM_PRIORITY) {
+        of_bsn_tlv_actor_system_priority_value_get(&tlv,
                                                    &info->sys_priority);
     } else {
         AIM_LOG_ERROR("expected actor_system_priority value TLV, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
@@ -206,12 +206,12 @@ lacpa_parse_value (of_list_bsn_tlv_t *tlvs, lacpa_info_t *info)
     }
 
     /* Actor system mac */
-    if (tlv.header.object_id == OF_BSN_TLV_ACTOR_SYSTEM_MAC) {
-        of_bsn_tlv_actor_system_mac_value_get(&tlv.actor_system_mac,
+    if (tlv.object_id == OF_BSN_TLV_ACTOR_SYSTEM_MAC) {
+        of_bsn_tlv_actor_system_mac_value_get(&tlv,
                                               &info->sys_mac);
     } else {
         AIM_LOG_ERROR("expected actor_system_mac value TLV, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
@@ -221,12 +221,12 @@ lacpa_parse_value (of_list_bsn_tlv_t *tlvs, lacpa_info_t *info)
     }
 
     /* Actor port priority */
-    if (tlv.header.object_id == OF_BSN_TLV_ACTOR_PORT_PRIORITY) {
-        of_bsn_tlv_actor_port_priority_value_get(&tlv.actor_port_priority,
+    if (tlv.object_id == OF_BSN_TLV_ACTOR_PORT_PRIORITY) {
+        of_bsn_tlv_actor_port_priority_value_get(&tlv,
                                                  &info->port_priority);
     } else {
         AIM_LOG_ERROR("expected actor_port_priority value TLV, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
@@ -236,12 +236,12 @@ lacpa_parse_value (of_list_bsn_tlv_t *tlvs, lacpa_info_t *info)
     }
 
     /* Actor port num */
-    if (tlv.header.object_id == OF_BSN_TLV_ACTOR_PORT_NUM) {
-        of_bsn_tlv_actor_port_num_value_get(&tlv.actor_port_num,
+    if (tlv.object_id == OF_BSN_TLV_ACTOR_PORT_NUM) {
+        of_bsn_tlv_actor_port_num_value_get(&tlv,
                                             &info->port_num);
     } else {
         AIM_LOG_ERROR("expected actor_port_num value TLV, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
@@ -251,17 +251,17 @@ lacpa_parse_value (of_list_bsn_tlv_t *tlvs, lacpa_info_t *info)
     }
 
     /* Actor key */
-    if (tlv.header.object_id == OF_BSN_TLV_ACTOR_KEY) {
-        of_bsn_tlv_actor_key_value_get(&tlv.actor_key, &info->key);
+    if (tlv.object_id == OF_BSN_TLV_ACTOR_KEY) {
+        of_bsn_tlv_actor_key_value_get(&tlv, &info->key);
     } else {
         AIM_LOG_ERROR("expected actor_key value TLV, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
     if (of_list_bsn_tlv_next(tlvs, &tlv) == 0) {
         AIM_LOG_ERROR("expected end of value list, instead got %s",
-                      of_object_id_str[tlv.header.object_id]);
+                      of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
@@ -391,7 +391,7 @@ lacpa_get_stats (void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key,
     {
         of_bsn_tlv_convergence_status_t tlv;
         of_bsn_tlv_convergence_status_init(&tlv, stats->version, -1, 1);
-        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_list_bsn_tlv_append_bind(stats, &tlv);
         of_bsn_tlv_convergence_status_value_set(&tlv, !port->is_converged);
     }
 
@@ -399,7 +399,7 @@ lacpa_get_stats (void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key,
     {
         of_bsn_tlv_actor_state_t tlv;
         of_bsn_tlv_actor_state_init(&tlv, stats->version, -1, 1);
-        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_list_bsn_tlv_append_bind(stats, &tlv);
         of_bsn_tlv_actor_state_value_set(&tlv, port->actor.state);
     }
 
@@ -407,7 +407,7 @@ lacpa_get_stats (void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key,
     {
         of_bsn_tlv_partner_system_priority_t tlv;
         of_bsn_tlv_partner_system_priority_init(&tlv, stats->version, -1, 1);
-        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_list_bsn_tlv_append_bind(stats, &tlv);
         of_bsn_tlv_partner_system_priority_value_set(&tlv,
                                                      port->partner.sys_priority);
     }
@@ -416,7 +416,7 @@ lacpa_get_stats (void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key,
     {
         of_bsn_tlv_partner_system_mac_t tlv;
         of_bsn_tlv_partner_system_mac_init(&tlv, stats->version, -1, 1);
-        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_list_bsn_tlv_append_bind(stats, &tlv);
         of_bsn_tlv_partner_system_mac_value_set(&tlv, port->partner.sys_mac);
     }
 
@@ -424,7 +424,7 @@ lacpa_get_stats (void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key,
     {
         of_bsn_tlv_partner_port_priority_t tlv;
         of_bsn_tlv_partner_port_priority_init(&tlv, stats->version, -1, 1);
-        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_list_bsn_tlv_append_bind(stats, &tlv);
         of_bsn_tlv_partner_port_priority_value_set(&tlv,
                                                    port->partner.port_priority);
     }
@@ -433,7 +433,7 @@ lacpa_get_stats (void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key,
     {
         of_bsn_tlv_partner_port_num_t tlv;
         of_bsn_tlv_partner_port_num_init(&tlv, stats->version, -1, 1);
-        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_list_bsn_tlv_append_bind(stats, &tlv);
         of_bsn_tlv_partner_port_num_value_set(&tlv, port->partner.port_num);
     }
 
@@ -441,7 +441,7 @@ lacpa_get_stats (void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key,
     {
         of_bsn_tlv_partner_key_t tlv;
         of_bsn_tlv_partner_key_init(&tlv, stats->version, -1, 1);
-        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_list_bsn_tlv_append_bind(stats, &tlv);
         of_bsn_tlv_partner_key_value_set(&tlv, port->partner.key);
     }
 
@@ -449,7 +449,7 @@ lacpa_get_stats (void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key,
     {
         of_bsn_tlv_partner_state_t tlv;
         of_bsn_tlv_partner_state_init(&tlv, stats->version, -1, 1);
-        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_list_bsn_tlv_append_bind(stats, &tlv);
         of_bsn_tlv_partner_state_value_set(&tlv, port->partner.state);
     }
 }

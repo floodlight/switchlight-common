@@ -136,7 +136,7 @@ static indigo_error_t
 sflow_collector_parse_key(of_list_bsn_tlv_t *tlvs,
                           sflow_collector_entry_key_t *key)
 {
-    of_bsn_tlv_t tlv;
+    of_object_t tlv;
 
     SFLOWA_MEMSET(key, 0, sizeof(*key));
 
@@ -146,17 +146,17 @@ sflow_collector_parse_key(of_list_bsn_tlv_t *tlvs,
     }
 
     /* Collector ip */
-    if (tlv.header.object_id == OF_BSN_TLV_IPV4_DST) {
-        of_bsn_tlv_ipv4_dst_value_get(&tlv.ipv4_dst, &key->collector_ip);
+    if (tlv.object_id == OF_BSN_TLV_IPV4_DST) {
+        of_bsn_tlv_ipv4_dst_value_get(&tlv, &key->collector_ip);
     } else {
         AIM_LOG_ERROR("expected ipv4_dst key TLV, instead got %s",
-                      of_class_name(&tlv.header));
+                      of_class_name(&tlv));
         return INDIGO_ERROR_PARAM;
     }
 
     if (of_list_bsn_tlv_next(tlvs, &tlv) == 0) {
         AIM_LOG_ERROR("expected end of key list, instead got %s",
-                      of_class_name(&tlv.header));
+                      of_class_name(&tlv));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -172,7 +172,7 @@ static indigo_error_t
 sflow_collector_parse_value(of_list_bsn_tlv_t *tlvs,
                             sflow_collector_entry_value_t *value)
 {
-    of_bsn_tlv_t tlv;
+    of_object_t tlv;
 
     SFLOWA_MEMSET(value, 0, sizeof(*value));
 
@@ -182,11 +182,11 @@ sflow_collector_parse_value(of_list_bsn_tlv_t *tlvs,
     }
 
     /* Vlan id */
-    if (tlv.header.object_id == OF_BSN_TLV_VLAN_VID) {
-        of_bsn_tlv_vlan_vid_value_get(&tlv.vlan_vid, &value->vlan_id);
+    if (tlv.object_id == OF_BSN_TLV_VLAN_VID) {
+        of_bsn_tlv_vlan_vid_value_get(&tlv, &value->vlan_id);
     } else {
         AIM_LOG_ERROR("expected vlan value TLV, instead got %s",
-                      of_class_name(&tlv.header));
+                      of_class_name(&tlv));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -197,11 +197,11 @@ sflow_collector_parse_value(of_list_bsn_tlv_t *tlvs,
     }
 
     /* Agent mac */
-    if (tlv.header.object_id == OF_BSN_TLV_ETH_SRC) {
-        of_bsn_tlv_eth_src_value_get(&tlv.eth_src, &value->agent_mac);
+    if (tlv.object_id == OF_BSN_TLV_ETH_SRC) {
+        of_bsn_tlv_eth_src_value_get(&tlv, &value->agent_mac);
     } else {
         AIM_LOG_ERROR("expected eth_src value TLV, instead got %s",
-                      of_class_name(&tlv.header));
+                      of_class_name(&tlv));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -211,11 +211,11 @@ sflow_collector_parse_value(of_list_bsn_tlv_t *tlvs,
     }
 
     /* Agent ip */
-    if (tlv.header.object_id == OF_BSN_TLV_IPV4_SRC) {
-        of_bsn_tlv_ipv4_src_value_get(&tlv.ipv4_src, &value->agent_ip);
+    if (tlv.object_id == OF_BSN_TLV_IPV4_SRC) {
+        of_bsn_tlv_ipv4_src_value_get(&tlv, &value->agent_ip);
     } else {
         AIM_LOG_ERROR("expected ipv4_src value TLV, instead got %s",
-                      of_class_name(&tlv.header));
+                      of_class_name(&tlv));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -225,11 +225,11 @@ sflow_collector_parse_value(of_list_bsn_tlv_t *tlvs,
     }
 
     /* Agent udp src port */
-    if (tlv.header.object_id == OF_BSN_TLV_UDP_SRC) {
-        of_bsn_tlv_udp_src_value_get(&tlv.udp_src, &value->agent_udp_sport);
+    if (tlv.object_id == OF_BSN_TLV_UDP_SRC) {
+        of_bsn_tlv_udp_src_value_get(&tlv, &value->agent_udp_sport);
     } else {
         AIM_LOG_ERROR("expected udp_src value TLV, instead got %s",
-                      of_class_name(&tlv.header));
+                      of_class_name(&tlv));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -239,11 +239,11 @@ sflow_collector_parse_value(of_list_bsn_tlv_t *tlvs,
     }
 
     /* Collector mac */
-    if (tlv.header.object_id == OF_BSN_TLV_ETH_DST) {
-        of_bsn_tlv_eth_dst_value_get(&tlv.eth_dst, &value->collector_mac);
+    if (tlv.object_id == OF_BSN_TLV_ETH_DST) {
+        of_bsn_tlv_eth_dst_value_get(&tlv, &value->collector_mac);
     } else {
         AIM_LOG_ERROR("expected eth_dst value TLV, instead got %s",
-                      of_class_name(&tlv.header));
+                      of_class_name(&tlv));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -253,12 +253,12 @@ sflow_collector_parse_value(of_list_bsn_tlv_t *tlvs,
     }
 
     /* Collector udp dst port */
-    if (tlv.header.object_id == OF_BSN_TLV_UDP_DST) {
-        of_bsn_tlv_udp_dst_value_get(&tlv.udp_dst,
+    if (tlv.object_id == OF_BSN_TLV_UDP_DST) {
+        of_bsn_tlv_udp_dst_value_get(&tlv,
                                      &value->collector_udp_dport);
     } else {
         AIM_LOG_ERROR("expected udp_dst value TLV, instead got %s",
-                      of_class_name(&tlv.header));
+                      of_class_name(&tlv));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -268,18 +268,18 @@ sflow_collector_parse_value(of_list_bsn_tlv_t *tlvs,
     }
 
     /* Sub agent id */
-    if (tlv.header.object_id == OF_BSN_TLV_SUB_AGENT_ID) {
-        of_bsn_tlv_sub_agent_id_value_get(&tlv.sub_agent_id,
+    if (tlv.object_id == OF_BSN_TLV_SUB_AGENT_ID) {
+        of_bsn_tlv_sub_agent_id_value_get(&tlv,
                                           &value->sub_agent_id);
     } else {
         AIM_LOG_ERROR("expected sub_agent_id value TLV, instead got %s",
-                      of_class_name(&tlv.header));
+                      of_class_name(&tlv));
         return INDIGO_ERROR_PARAM;
     }
 
     if (of_list_bsn_tlv_next(tlvs, &tlv) == 0) {
         AIM_LOG_ERROR("expected end of value list, instead got %s",
-                      of_class_name(&tlv.header));
+                      of_class_name(&tlv));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -417,7 +417,7 @@ sflow_collector_get_stats(void *table_priv, void *entry_priv,
     {
         of_bsn_tlv_tx_packets_t tlv;
         of_bsn_tlv_tx_packets_init(&tlv, stats->version, -1, 1);
-        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_list_bsn_tlv_append_bind(stats, &tlv);
         of_bsn_tlv_tx_packets_value_set(&tlv, entry->stats.tx_packets);
     }
 
@@ -425,7 +425,7 @@ sflow_collector_get_stats(void *table_priv, void *entry_priv,
     {
         of_bsn_tlv_tx_bytes_t tlv;
         of_bsn_tlv_tx_bytes_init(&tlv, stats->version, -1, 1);
-        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_list_bsn_tlv_append_bind(stats, &tlv);
         of_bsn_tlv_tx_bytes_value_set(&tlv, entry->stats.tx_bytes);
     }
 }
@@ -445,7 +445,7 @@ static const indigo_core_gentable_ops_t sflow_collector_ops = {
 static indigo_error_t
 sflow_sampler_parse_key(of_list_bsn_tlv_t *tlvs, sflow_sampler_entry_key_t *key)
 {
-    of_bsn_tlv_t tlv;
+    of_object_t tlv;
 
     SFLOWA_MEMSET(key, 0, sizeof(*key));
 
@@ -455,11 +455,11 @@ sflow_sampler_parse_key(of_list_bsn_tlv_t *tlvs, sflow_sampler_entry_key_t *key)
     }
 
     /* port */
-    if (tlv.header.object_id == OF_BSN_TLV_PORT) {
-        of_bsn_tlv_port_value_get(&tlv.port, &key->port_no);
+    if (tlv.object_id == OF_BSN_TLV_PORT) {
+        of_bsn_tlv_port_value_get(&tlv, &key->port_no);
     } else {
         AIM_LOG_ERROR("expected port key TLV, instead got %s",
-                      of_class_name(&tlv.header));
+                      of_class_name(&tlv));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -470,7 +470,7 @@ sflow_sampler_parse_key(of_list_bsn_tlv_t *tlvs, sflow_sampler_entry_key_t *key)
 
     if (of_list_bsn_tlv_next(tlvs, &tlv) == 0) {
         AIM_LOG_ERROR("expected end of key list, instead got %s",
-                      of_class_name(&tlv.header));
+                      of_class_name(&tlv));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -486,7 +486,7 @@ static indigo_error_t
 sflow_sampler_parse_value(of_list_bsn_tlv_t *tlvs,
                           sflow_sampler_entry_value_t *value)
 {
-    of_bsn_tlv_t tlv;
+    of_object_t tlv;
 
     SFLOWA_MEMSET(value, 0, sizeof(*value));
 
@@ -496,12 +496,12 @@ sflow_sampler_parse_value(of_list_bsn_tlv_t *tlvs,
     }
 
     /* Sampling rate */
-    if (tlv.header.object_id == OF_BSN_TLV_SAMPLING_RATE) {
-        of_bsn_tlv_sampling_rate_value_get(&tlv.sampling_rate,
+    if (tlv.object_id == OF_BSN_TLV_SAMPLING_RATE) {
+        of_bsn_tlv_sampling_rate_value_get(&tlv,
                                            &value->sampling_rate);
     } else {
         AIM_LOG_ERROR("expected sampling_rate value TLV, instead got %s",
-                      of_class_name(&tlv.header));
+                      of_class_name(&tlv));
         return INDIGO_ERROR_PARAM;
     }
 
@@ -511,17 +511,17 @@ sflow_sampler_parse_value(of_list_bsn_tlv_t *tlvs,
     }
 
     /* Header size */
-    if (tlv.header.object_id == OF_BSN_TLV_HEADER_SIZE) {
-        of_bsn_tlv_header_size_value_get(&tlv.header_size, &value->header_size);
+    if (tlv.object_id == OF_BSN_TLV_HEADER_SIZE) {
+        of_bsn_tlv_header_size_value_get(&tlv, &value->header_size);
     } else {
         AIM_LOG_ERROR("expected header_size value TLV, instead got %s",
-                      of_class_name(&tlv.header));
+                      of_class_name(&tlv));
         return INDIGO_ERROR_PARAM;
     }
 
     if (of_list_bsn_tlv_next(tlvs, &tlv) == 0) {
         AIM_LOG_ERROR("expected end of value list, instead got %s",
-                      of_class_name(&tlv.header));
+                      of_class_name(&tlv));
         return INDIGO_ERROR_PARAM;
     }
 

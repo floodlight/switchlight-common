@@ -256,7 +256,7 @@ arpa_finish()
 static indigo_error_t
 arp_parse_key(of_list_bsn_tlv_t *tlvs, struct arp_entry_key *key)
 {
-    of_bsn_tlv_t tlv;
+    of_object_t tlv;
 
     memset(key, 0, sizeof(*key));
 
@@ -265,10 +265,10 @@ arp_parse_key(of_list_bsn_tlv_t *tlvs, struct arp_entry_key *key)
         return INDIGO_ERROR_PARAM;
     }
 
-    if (tlv.header.object_id == OF_BSN_TLV_VLAN_VID) {
-        of_bsn_tlv_vlan_vid_value_get(&tlv.vlan_vid, &key->vlan_vid);
+    if (tlv.object_id == OF_BSN_TLV_VLAN_VID) {
+        of_bsn_tlv_vlan_vid_value_get(&tlv, &key->vlan_vid);
     } else {
-        AIM_LOG_ERROR("expected vlan key TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
+        AIM_LOG_ERROR("expected vlan key TLV, instead got %s", of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
@@ -277,15 +277,15 @@ arp_parse_key(of_list_bsn_tlv_t *tlvs, struct arp_entry_key *key)
         return INDIGO_ERROR_PARAM;
     }
 
-    if (tlv.header.object_id == OF_BSN_TLV_IPV4) {
-        of_bsn_tlv_ipv4_value_get(&tlv.ipv4, &key->ipv4);
+    if (tlv.object_id == OF_BSN_TLV_IPV4) {
+        of_bsn_tlv_ipv4_value_get(&tlv, &key->ipv4);
     } else {
-        AIM_LOG_ERROR("expected ipv4 key TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
+        AIM_LOG_ERROR("expected ipv4 key TLV, instead got %s", of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
     if (of_list_bsn_tlv_next(tlvs, &tlv) == 0) {
-        AIM_LOG_ERROR("expected end of key list, instead got %s", of_object_id_str[tlv.header.object_id]);
+        AIM_LOG_ERROR("expected end of key list, instead got %s", of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
@@ -295,7 +295,7 @@ arp_parse_key(of_list_bsn_tlv_t *tlvs, struct arp_entry_key *key)
 static indigo_error_t
 arp_parse_value(of_list_bsn_tlv_t *tlvs, struct arp_entry_value *value)
 {
-    of_bsn_tlv_t tlv;
+    of_object_t tlv;
 
     value->unicast_query_timeout = 0;
     value->broadcast_query_timeout = 0;
@@ -306,30 +306,30 @@ arp_parse_value(of_list_bsn_tlv_t *tlvs, struct arp_entry_value *value)
         return INDIGO_ERROR_PARAM;
     }
 
-    if (tlv.header.object_id == OF_BSN_TLV_MAC) {
-        of_bsn_tlv_mac_value_get(&tlv.mac, &value->mac);
+    if (tlv.object_id == OF_BSN_TLV_MAC) {
+        of_bsn_tlv_mac_value_get(&tlv, &value->mac);
     } else {
-        AIM_LOG_ERROR("expected mac value TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
+        AIM_LOG_ERROR("expected mac value TLV, instead got %s", of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
     /* Parse optional TLVs */
     while (of_list_bsn_tlv_next(tlvs, &tlv) == 0) {
-        switch (tlv.header.object_id) {
+        switch (tlv.object_id) {
         case OF_BSN_TLV_UNICAST_QUERY_TIMEOUT:
-            of_bsn_tlv_unicast_query_timeout_value_get(&tlv.unicast_query_timeout,
+            of_bsn_tlv_unicast_query_timeout_value_get(&tlv,
                                                        &value->unicast_query_timeout);
             break;
         case OF_BSN_TLV_BROADCAST_QUERY_TIMEOUT:
-            of_bsn_tlv_broadcast_query_timeout_value_get(&tlv.broadcast_query_timeout,
+            of_bsn_tlv_broadcast_query_timeout_value_get(&tlv,
                                                          &value->broadcast_query_timeout);
             break;
         case OF_BSN_TLV_IDLE_TIMEOUT:
-            of_bsn_tlv_idle_timeout_value_get(&tlv.idle_timeout,
+            of_bsn_tlv_idle_timeout_value_get(&tlv,
                                               &value->idle_timeout);
             break;
         default:
-            AIM_LOG_ERROR("unexpected value TLV %s", of_object_id_str[tlv.header.object_id]);
+            AIM_LOG_ERROR("unexpected value TLV %s", of_object_id_str[tlv.object_id]);
             return INDIGO_ERROR_PARAM;
         }
     }
@@ -440,7 +440,7 @@ arp_get_stats(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key, of_lis
         uint64_t idle_time = INDIGO_CURRENT_TIME - entry->stats.active_time;
         of_bsn_tlv_idle_time_t tlv;
         of_bsn_tlv_idle_time_init(&tlv, stats->version, -1, 1);
-        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_list_bsn_tlv_append_bind(stats, &tlv);
         of_bsn_tlv_idle_time_value_set(&tlv, idle_time);
     }
 
@@ -448,7 +448,7 @@ arp_get_stats(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key, of_lis
     {
         of_bsn_tlv_request_packets_t tlv;
         of_bsn_tlv_request_packets_init(&tlv, stats->version, -1, 1);
-        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_list_bsn_tlv_append_bind(stats, &tlv);
         of_bsn_tlv_request_packets_value_set(&tlv, entry->stats.request_packets);
     }
 
@@ -456,7 +456,7 @@ arp_get_stats(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key, of_lis
     {
         of_bsn_tlv_reply_packets_t tlv;
         of_bsn_tlv_reply_packets_init(&tlv, stats->version, -1, 1);
-        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_list_bsn_tlv_append_bind(stats, &tlv);
         of_bsn_tlv_reply_packets_value_set(&tlv, entry->stats.reply_packets);
     }
 
@@ -464,7 +464,7 @@ arp_get_stats(void *table_priv, void *entry_priv, of_list_bsn_tlv_t *key, of_lis
     {
         of_bsn_tlv_miss_packets_t tlv;
         of_bsn_tlv_miss_packets_init(&tlv, stats->version, -1, 1);
-        of_list_bsn_tlv_append_bind(stats, (of_bsn_tlv_t *)&tlv);
+        of_list_bsn_tlv_append_bind(stats, &tlv);
         of_bsn_tlv_miss_packets_value_set(&tlv, entry->stats.miss_packets);
     }
 }
