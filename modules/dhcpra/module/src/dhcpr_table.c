@@ -135,17 +135,17 @@ find_hash_entry_by_virtual_router_key(bighash_table_t *table,
 static indigo_error_t
 dhcpr_table_parse_key(of_list_bsn_tlv_t *key, uint16_t *vlan)
 {
-    of_bsn_tlv_t tlv;
+    of_object_t tlv;
 
     if (of_list_bsn_tlv_first(key, &tlv) < 0) {
         AIM_LOG_ERROR("empty key list");
         return INDIGO_ERROR_PARAM;
     }
 
-    if (tlv.header.object_id == OF_BSN_TLV_VLAN_VID) {
-        of_bsn_tlv_vlan_vid_value_get(&tlv.vlan_vid, vlan);
+    if (tlv.object_id == OF_BSN_TLV_VLAN_VID) {
+        of_bsn_tlv_vlan_vid_value_get(&tlv, vlan);
     } else {
-        AIM_LOG_ERROR("expected vlan key TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
+        AIM_LOG_ERROR("expected vlan key TLV, instead got %s", of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
@@ -155,7 +155,7 @@ dhcpr_table_parse_key(of_list_bsn_tlv_t *key, uint16_t *vlan)
     }
 
     if (of_list_bsn_tlv_next(key, &tlv) == 0) {
-        AIM_LOG_ERROR("expected end of key list, instead got %s", of_object_id_str[tlv.header.object_id]);
+        AIM_LOG_ERROR("expected end of key list, instead got %s", of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
@@ -173,7 +173,7 @@ static indigo_error_t
 dhcpr_table_parse_value(of_list_bsn_tlv_t *value, uint32_t *vr_ip, of_mac_addr_t *vr_mac,
                                 uint32_t *dhcp_ser_ip, of_octets_t *cid)
 {
-    of_bsn_tlv_t  tlv;
+    of_object_t tlv;
     of_octets_t   temp_cid;
 
     temp_cid.bytes = 0;
@@ -185,10 +185,10 @@ dhcpr_table_parse_value(of_list_bsn_tlv_t *value, uint32_t *vr_ip, of_mac_addr_t
         return INDIGO_ERROR_PARAM;
     }
 
-    if (tlv.header.object_id == OF_BSN_TLV_IPV4) {
-        of_bsn_tlv_ipv4_value_get(&tlv.ipv4, vr_ip);
+    if (tlv.object_id == OF_BSN_TLV_IPV4) {
+        of_bsn_tlv_ipv4_value_get(&tlv, vr_ip);
     } else {
-        AIM_LOG_ERROR("expected ipv4 key TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
+        AIM_LOG_ERROR("expected ipv4 key TLV, instead got %s", of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
@@ -203,10 +203,10 @@ dhcpr_table_parse_value(of_list_bsn_tlv_t *value, uint32_t *vr_ip, of_mac_addr_t
         return INDIGO_ERROR_PARAM;
     }
 
-    if (tlv.header.object_id == OF_BSN_TLV_MAC) {
-        of_bsn_tlv_mac_value_get(&tlv.mac, vr_mac);
+    if (tlv.object_id == OF_BSN_TLV_MAC) {
+        of_bsn_tlv_mac_value_get(&tlv, vr_mac);
     } else {
-        AIM_LOG_ERROR("expected mac value TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
+        AIM_LOG_ERROR("expected mac value TLV, instead got %s", of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
@@ -216,10 +216,10 @@ dhcpr_table_parse_value(of_list_bsn_tlv_t *value, uint32_t *vr_ip, of_mac_addr_t
         return INDIGO_ERROR_PARAM;
     }
 
-    if (tlv.header.object_id == OF_BSN_TLV_IPV4) {
-        of_bsn_tlv_ipv4_value_get(&tlv.ipv4, dhcp_ser_ip);
+    if (tlv.object_id == OF_BSN_TLV_IPV4) {
+        of_bsn_tlv_ipv4_value_get(&tlv, dhcp_ser_ip);
     } else {
-        AIM_LOG_ERROR("expected ipv4 key TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
+        AIM_LOG_ERROR("expected ipv4 key TLV, instead got %s", of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
@@ -233,14 +233,14 @@ dhcpr_table_parse_value(of_list_bsn_tlv_t *value, uint32_t *vr_ip, of_mac_addr_t
 
         /* End of tlv list */
 
-    } else if (tlv.header.object_id == OF_BSN_TLV_CIRCUIT_ID) {
-        of_bsn_tlv_circuit_id_value_get(&tlv.circuit_id, &temp_cid);
+    } else if (tlv.object_id == OF_BSN_TLV_CIRCUIT_ID) {
+        of_bsn_tlv_circuit_id_value_get(&tlv, &temp_cid);
         if(temp_cid.bytes==0) {
             AIM_LOG_ERROR("Expected circuit_id len != 0");
             return INDIGO_ERROR_PARAM;
         }
     } else {
-        AIM_LOG_ERROR("expected circuit_id key TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
+        AIM_LOG_ERROR("expected circuit_id key TLV, instead got %s", of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 

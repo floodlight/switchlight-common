@@ -100,17 +100,17 @@ router_ip_check(uint32_t ip)
 static indigo_error_t
 router_ip_parse_key(of_list_bsn_tlv_t *key, uint16_t *vlan)
 {
-    of_bsn_tlv_t tlv;
+    of_object_t tlv;
 
     if (of_list_bsn_tlv_first(key, &tlv) < 0) {
         AIM_LOG_ERROR("empty key list");
         return INDIGO_ERROR_PARAM;
     }
 
-    if (tlv.header.object_id == OF_BSN_TLV_VLAN_VID) {
-        of_bsn_tlv_vlan_vid_value_get(&tlv.vlan_vid, vlan);
+    if (tlv.object_id == OF_BSN_TLV_VLAN_VID) {
+        of_bsn_tlv_vlan_vid_value_get(&tlv, vlan);
     } else {
-        AIM_LOG_ERROR("expected vlan key TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
+        AIM_LOG_ERROR("expected vlan key TLV, instead got %s", of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
@@ -120,7 +120,7 @@ router_ip_parse_key(of_list_bsn_tlv_t *key, uint16_t *vlan)
     }
 
     if (of_list_bsn_tlv_next(key, &tlv) == 0) {
-        AIM_LOG_ERROR("expected end of key list, instead got %s", of_object_id_str[tlv.header.object_id]);
+        AIM_LOG_ERROR("expected end of key list, instead got %s", of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
@@ -130,17 +130,17 @@ router_ip_parse_key(of_list_bsn_tlv_t *key, uint16_t *vlan)
 static indigo_error_t
 router_ip_parse_value(of_list_bsn_tlv_t *value, uint32_t *ip, of_mac_addr_t *mac)
 {
-    of_bsn_tlv_t tlv;
+    of_object_t tlv;
 
     if (of_list_bsn_tlv_first(value, &tlv) < 0) {
         AIM_LOG_ERROR("empty value list");
         return INDIGO_ERROR_PARAM;
     }
 
-    if (tlv.header.object_id == OF_BSN_TLV_IPV4) {
-        of_bsn_tlv_ipv4_value_get(&tlv.ipv4, ip);
+    if (tlv.object_id == OF_BSN_TLV_IPV4) {
+        of_bsn_tlv_ipv4_value_get(&tlv, ip);
     } else {
-        AIM_LOG_ERROR("expected ipv4 key TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
+        AIM_LOG_ERROR("expected ipv4 key TLV, instead got %s", of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
@@ -154,15 +154,15 @@ router_ip_parse_value(of_list_bsn_tlv_t *value, uint32_t *ip, of_mac_addr_t *mac
         return INDIGO_ERROR_PARAM;
     }
 
-    if (tlv.header.object_id == OF_BSN_TLV_MAC) {
-        of_bsn_tlv_mac_value_get(&tlv.mac, mac);
+    if (tlv.object_id == OF_BSN_TLV_MAC) {
+        of_bsn_tlv_mac_value_get(&tlv, mac);
     } else {
-        AIM_LOG_ERROR("expected mac value TLV, instead got %s", of_object_id_str[tlv.header.object_id]);
+        AIM_LOG_ERROR("expected mac value TLV, instead got %s", of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
     if (of_list_bsn_tlv_next(value, &tlv) == 0) {
-        AIM_LOG_ERROR("expected end of value list, instead got %s", of_object_id_str[tlv.header.object_id]);
+        AIM_LOG_ERROR("expected end of value list, instead got %s", of_object_id_str[tlv.object_id]);
         return INDIGO_ERROR_PARAM;
     }
 
