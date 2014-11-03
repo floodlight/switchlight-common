@@ -48,10 +48,7 @@
 #define ICMP_PKT_BUF_SIZE   74 //18 + 20 + 8 + 28
 #define ICMP_HEADER_SIZE    8
 #define ICMP_DATA_LEN       28
-#define IP_HEADER_SIZE      20
 #define IP_TOTAL_LEN        56 //20 + 8 + 28
-
-#define ETHERTYPE_DOT1Q     0x8100
 
 /*
  * Supported ICMP TYPES
@@ -60,8 +57,6 @@
 #define ICMP_DEST_UNREACHABLE   3   /* Destination Unreachable  */
 #define ICMP_ECHO_REQUEST       8   /* Echo Request             */
 #define ICMP_TIME_EXCEEDED      11  /* Time Exceeded            */
-
-#define SYSTEM_VLAN             4094
 
 extern aim_ratelimiter_t icmp_pktin_log_limiter;
 

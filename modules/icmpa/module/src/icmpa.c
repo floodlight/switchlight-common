@@ -112,8 +112,8 @@ icmpa_build_pdu (ppe_packet_t *ppep_rx, of_octets_t *octets, uint32_t vlan_id,
      * Set ethertype as 802.1Q and type as IPv4
      * Parse to recognize tagged Ethernet packet.
      */
-    octets->data[12] = ETHERTYPE_DOT1Q >> 8;
-    octets->data[13] = ETHERTYPE_DOT1Q & 0xFF;
+    octets->data[12] = ICMPA_CONFIG_ETHERTYPE_DOT1Q >> 8;
+    octets->data[13] = ICMPA_CONFIG_ETHERTYPE_DOT1Q & 0xFF;
     octets->data[16] = PPE_ETHERTYPE_IP4 >> 8;
     octets->data[17] = PPE_ETHERTYPE_IP4 & 0xFF;
     if (ppe_parse(&ppep_tx) < 0) {
@@ -240,7 +240,7 @@ icmpa_reply (ppe_packet_t *ppep, of_port_no_t port_no,
     ppe_field_get(ppep, PPE_FIELD_ICMP_HEADER_DATA, &hdr_data);
 
     ip_hdr_size *= 4;
-    if (ip_hdr_size > IP_HEADER_SIZE) {
+    if (ip_hdr_size > ICMPA_CONFIG_IPV4_HEADER_SIZE) {
         AIM_LOG_ERROR("ICMPA: IP options set as ip header size %d is more "
                       "than 20 bytes", ip_hdr_size);
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
@@ -342,7 +342,7 @@ icmpa_send (ppe_packet_t *ppep, of_port_no_t port_no, uint32_t type,
         ppe_field_get(ppep, PPE_FIELD_IP4_DST_ADDR, &router_ip);
     } else {
         if (router_ip_table_lookup(vlan_id, &router_ip, &router_mac) < 0) {
-            if (vlan_id == SYSTEM_VLAN) {
+            if (vlan_id == ICMPA_CONFIG_SYSTEM_VLAN) {
                 AIM_LOG_TRACE("ICMPA: Router IP lookup failed for System vlan");
             } else {
                 AIM_LOG_ERROR("ICMPA: Router IP lookup failed for vlan: %u",

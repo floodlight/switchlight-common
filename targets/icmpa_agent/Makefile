@@ -30,6 +30,7 @@ include $(BUILDER)/lib.mk
 DEPENDMODULES := icmpa AIM PPE IOF VPI BigList OS loci indigo SocketManager \
 				 cjson Configuration murmur OFConnectionManager \
                  uCli BigHash router_ip_table debug_counter timer_wheel BigRing
+DEPENDMODULE_HEADERS := slshared
 include $(BUILDER)/dependmodules.mk
 
 BINARY := icmp-agent

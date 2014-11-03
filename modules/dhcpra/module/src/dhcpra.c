@@ -70,12 +70,8 @@ struct udp {
     u_int16_t uh_sum;       /* udp checksum - User*/
 };
 
-#define ETHERTYPE_DOT1Q 0x8100
-#define DOT1Q_IP_HEADER_OFFSET 18
-#define UDP_HEADER_OFFSET      (DOT1Q_IP_HEADER_OFFSET + sizeof(struct ip))
+#define UDP_HEADER_OFFSET      (DHCPRA_CONFIG_DOT1Q_HEADER_SIZE + sizeof(struct ip))
 #define DHCP_HEADER_OFFSET     (UDP_HEADER_OFFSET + sizeof(struct udp))
-
-#define SYSTEM_VLAN 4094
 
 #define HEX_LEN 80
 #define PER_LINE 16
@@ -111,8 +107,8 @@ static void
 set_dot1q_ipv4_type (uint8_t *pkt)
 {
     /* Set dot1q */
-    pkt[12] = ETHERTYPE_DOT1Q >> 8;
-    pkt[13] = ETHERTYPE_DOT1Q & 0xFF;
+    pkt[12] = DHCPRA_CONFIG_ETHERTYPE_DOT1Q >> 8;
+    pkt[13] = DHCPRA_CONFIG_ETHERTYPE_DOT1Q & 0xFF;
 
     /* Set ipv4 type */
     pkt[16] = PPE_ETHERTYPE_IP4 >> 8;
@@ -125,7 +121,7 @@ set_dot1q_ipv4_type (uint8_t *pkt)
 static void
 set_ipv4_proto_type (uint8_t *pkt, int dhcp_len)
 {
-    struct ip *ip = (struct ip*)(pkt + DOT1Q_IP_HEADER_OFFSET);
+    struct ip *ip = (struct ip*)(pkt + DHCPRA_CONFIG_DOT1Q_HEADER_SIZE);
     ip->ip_fvhl   = 0x45; /* Type 4, len 5 words */
     ip->ip_tos    = IPTOS_LOWDELAY;
     ip->ip_len    = htons(sizeof(struct ip) + sizeof(struct udp) + dhcp_len);
@@ -393,7 +389,7 @@ dhcpra_handle_bootrequest(of_octets_t *pkt, int dhcp_pkt_len, uint32_t vlan_id,
     uint32_t            message_type = 0;
 
     /* Ignore and pass packet on system VLAN */
-    if (vlan_id == SYSTEM_VLAN) {
+    if (vlan_id == DHCPRA_CONFIG_SYSTEM_VLAN) {
         AIM_LOG_RL_TRACE(&dhcpra_pktin_log_limiter, os_time_monotonic(),
                          "ignoring request packet on system VLAN %u", vlan_id);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
