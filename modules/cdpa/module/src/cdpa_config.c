@@ -45,6 +45,11 @@ cdpa_config_settings_t cdpa_config_settings[] =
 #else
 { CDPA_CONFIG_INCLUDE_UCLI(__cdpa_config_STRINGIFY_NAME), "__undefined__" },
 #endif
+#ifdef CDPA_CONFIG_OF_PORTS_MAX
+    { __cdpa_config_STRINGIFY_NAME(CDPA_CONFIG_OF_PORTS_MAX), __cdpa_config_STRINGIFY_VALUE(CDPA_CONFIG_OF_PORTS_MAX) },
+#else
+{ CDPA_CONFIG_OF_PORTS_MAX(__cdpa_config_STRINGIFY_NAME), "__undefined__" },
+#endif
     { NULL, NULL }
 };
 #undef __cdpa_config_STRINGIFY_VALUE

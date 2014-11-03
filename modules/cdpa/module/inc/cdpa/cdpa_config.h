@@ -17,6 +17,8 @@
 #include <cdpa_custom_config.h>
 #endif
 
+#include <slshared/slshared_config.h>
+
 /* <auto.start.cdefs(CDPA_CONFIG_HEADER).header> */
 #include <AIM/aim.h>
 /**
@@ -86,7 +88,17 @@
 
 
 #ifndef CDPA_CONFIG_INCLUDE_UCLI
-#define CDPA_CONFIG_INCLUDE_UCLI 0
+#define CDPA_CONFIG_INCLUDE_UCLI 1
+#endif
+
+/**
+ * CDPA_CONFIG_OF_PORTS_MAX
+ *
+ * Maximum number of OF ports. */
+
+
+#ifndef CDPA_CONFIG_OF_PORTS_MAX
+#define CDPA_CONFIG_OF_PORTS_MAX SLSHARED_CONFIG_OF_PORT_MAX
 #endif
 
 
