@@ -24,14 +24,14 @@
 
 /*
  * Procedure for setting up tap interfaces:
- * 1. Setup tap interfaces. Running icmp_agent module binary 
+ * 1. Setup tap interfaces. Running icmp_agent module binary
  *    will do that. ./build/gcc-local/bin/icmp-agent
  * 3. Add the below config's:
-      ifconfig tap0 10.0.0.1/24  
+      ifconfig tap0 10.0.0.1/24
       sudo arp -s 10.0.0.2 00:0c:29:c0:94:bf
  * 4. Verify tap0 interface is UP (ifconfig -a tap0)
  *    If Down bring the interface up: sudo ifconfig tap0 up
- * 5. Run the ./build/gcc-local/bin/icmp-agent again 
+ * 5. Run the ./build/gcc-local/bin/icmp-agent again
  * 6. Perform ping: ping 10.0.0.2
  */
 
@@ -100,13 +100,13 @@ icmpa_create_send_packet_in (of_octets_t *of_octets, of_port_no_t in_port)
     if (!of_octets) return INDIGO_ERROR_UNKNOWN;
 
     /*
-     * Check if the packet_in is untagged, then add the Vlan tag 
+     * Check if the packet_in is untagged, then add the Vlan tag
      */
     ppe_packet_init(&ppep, of_octets->data, of_octets->bytes);
     if (ppe_parse(&ppep) < 0) {
         printf("add_vlan_tag: Packet_in parsing failed.\n");
         return INDIGO_ERROR_UNKNOWN;
-    } 
+    }
 
     ppe_packet_format_get(&ppep, &format);
     if (format != PPE_HEADER_8021Q) {
@@ -114,10 +114,10 @@ icmpa_create_send_packet_in (of_octets_t *of_octets, of_port_no_t in_port)
         of_octets->bytes += 4;
         ICMPA_MEMCPY(buf, of_octets->data, of_octets->bytes);
         ICMPA_MEMCPY(of_octets->data+16, buf+12, of_octets->bytes-16);
-        of_octets->data[12] = ETHERTYPE_DOT1Q >> 8;
-        of_octets->data[13] = ETHERTYPE_DOT1Q & 0xFF;
+        of_octets->data[12] = ICMPA_CONFIG_ETHERTYPE_DOT1Q >> 8;
+        of_octets->data[13] = ICMPA_CONFIG_ETHERTYPE_DOT1Q & 0xFF;
         of_octets->data[14] = 0;
-        of_octets->data[15] = 7;  
+        of_octets->data[15] = 7;
     }
 
     if ((of_packet_in = of_packet_in_new(OF_VERSION_1_3)) == NULL) {
@@ -134,14 +134,14 @@ icmpa_create_send_packet_in (of_octets_t *of_octets, of_port_no_t in_port)
         of_packet_in_delete(of_packet_in);
         return INDIGO_ERROR_UNKNOWN;
     }
-    
+
     if ((of_packet_in_data_set(of_packet_in, of_octets)) != OF_ERROR_NONE) {
         printf("Failed to write packet data to packet-in message\n");
         of_packet_in_delete(of_packet_in);
         return INDIGO_ERROR_UNKNOWN;
     }
 
-    if (icmpa_packet_in_handler(of_packet_in) == 
+    if (icmpa_packet_in_handler(of_packet_in) ==
         INDIGO_CORE_LISTENER_RESULT_DROP) {
         printf("Listener dropped packet-in\n");
     } else {
@@ -165,7 +165,7 @@ indigo_fwd_packet_out (of_packet_out_t *of_packet_out)
     of_packet_out_data_get(of_packet_out, &of_octets);
 
     /*
-     * If this is a tagged Packet, remove the Vlan tag 
+     * If this is a tagged Packet, remove the Vlan tag
      */
     ppe_packet_init(&ppep, of_octets.data, of_octets.bytes);
     if (ppe_parse(&ppep) < 0) {
@@ -175,15 +175,15 @@ indigo_fwd_packet_out (of_packet_out_t *of_packet_out)
 
     ppe_packet_format_get(&ppep, &format);
     if (format == PPE_HEADER_8021Q && packet_received_untagged) {
-        ICMPA_MEMMOVE(of_octets.data +12, of_octets.data +16, 
-                      of_octets.bytes -16); 
+        ICMPA_MEMMOVE(of_octets.data +12, of_octets.data +16,
+                      of_octets.bytes -16);
         of_octets.bytes -= 4;
         packet_received_untagged = false;
-    }  
- 
+    }
+
     vpi_send(vpi1, of_octets.data, of_octets.bytes);
     return INDIGO_ERROR_NONE;
-} 
+}
 
 static of_list_bsn_tlv_t *
 make_key (uint16_t vlan_vid)
@@ -233,8 +233,8 @@ int main (int argc, char* argv[])
     key = make_key(7);
     value = make_value(0x0a000002, mac);
     ops->add(table_priv, key, value, &entry_priv);
- 
-    vpi1 = vpi_create("tap|tap0");  
+
+    vpi1 = vpi_create("tap|tap0");
     if (!vpi1) {
         assert(vpi1);
         return 0;
@@ -249,10 +249,10 @@ int main (int argc, char* argv[])
         if (fds[0].revents & POLLIN) {
             of_octets.bytes = vpi_recv(vpi1, buf, 256, 0);
             printf("received_pkt on tap0 with %d bytes\n", of_octets.bytes);
-            icmpa_create_send_packet_in(&of_octets, 10); 
+            icmpa_create_send_packet_in(&of_octets, 10);
         }
     }
-    
+
     vpi_unref(vpi1);
     vpi_close();
     ops->del(table_priv, entry_priv, key);

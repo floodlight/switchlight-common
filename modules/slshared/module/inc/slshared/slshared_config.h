@@ -29,6 +29,66 @@
 #define SLSHARED_CONFIG_OF_PORT_MAX 512
 #endif
 
+/**
+ * SLSHARED_CONFIG_ETHERTYPE_DOT1Q
+ *
+ * Ether type for Dot1q header */
+
+
+#ifndef SLSHARED_CONFIG_ETHERTYPE_DOT1Q
+#define SLSHARED_CONFIG_ETHERTYPE_DOT1Q 33024
+#endif
+
+/**
+ * SLSHARED_CONFIG_SYSTEM_VLAN
+ *
+ * System vlan */
+
+
+#ifndef SLSHARED_CONFIG_SYSTEM_VLAN
+#define SLSHARED_CONFIG_SYSTEM_VLAN 4094
+#endif
+
+/**
+ * SLSHARED_CONFIG_MAX_MTU_SIZE
+ *
+ * Maximum size of L2 frame */
+
+
+#ifndef SLSHARED_CONFIG_MAX_MTU_SIZE
+#define SLSHARED_CONFIG_MAX_MTU_SIZE 1500
+#endif
+
+/**
+ * SLSHARED_CONFIG_DOT1Q_HEADER_SIZE
+ *
+ * Size of Dot1q header */
+
+
+#ifndef SLSHARED_CONFIG_DOT1Q_HEADER_SIZE
+#define SLSHARED_CONFIG_DOT1Q_HEADER_SIZE 18
+#endif
+
+/**
+ * SLSHARED_CONFIG_IPV4_HEADER_SIZE
+ *
+ * Size of IPv4 header */
+
+
+#ifndef SLSHARED_CONFIG_IPV4_HEADER_SIZE
+#define SLSHARED_CONFIG_IPV4_HEADER_SIZE 20
+#endif
+
+/**
+ * SLSHARED_CONFIG_UDP_HEADER_SIZE
+ *
+ * Size of udp header */
+
+
+#ifndef SLSHARED_CONFIG_UDP_HEADER_SIZE
+#define SLSHARED_CONFIG_UDP_HEADER_SIZE 8
+#endif
+
 
 
 /**
