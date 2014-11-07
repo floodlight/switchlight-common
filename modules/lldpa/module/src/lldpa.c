@@ -39,7 +39,6 @@ static void lldpa_pkt_data_free (lldpa_pkt_t *lpkt);
 static indigo_error_t lldpa_port_disable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *port);
 static indigo_error_t lldpa_port_enable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *port,
                                         of_octets_t *data, uint32_t interval_ms);
-static void  lldpa_disable_tx_rx(lldpa_port_t *lldpa);
 static void lldpdu_timeout_rx(void *cookie);
 static void lldpdu_periodic_tx(void *cookie);
 static void rx_request_handle(indigo_cxn_id_t cxn_id, of_object_t *rx_req);
@@ -135,29 +134,46 @@ lldpa_port_enable(ind_soc_timer_callback_f cb, lldpa_pkt_t *pkt, lldpa_port_t *p
     return rv;
 }
 
-/* Unregister timer and free data */
-static void
-lldpa_disable_tx_rx(lldpa_port_t *port)
+/* Unregister timer and free tx data */
+int
+lldpa_disable_tx(lldpa_port_t *port)
 {
     indigo_error_t rv;
 
-    if (!port)
-        return;
+    if (!port) {
+        return 0;
+    }
 
     if (port->tx_pkt.interval_ms) {
         if((rv = lldpa_port_disable(lldpdu_periodic_tx, &port->tx_pkt, port))
                != INDIGO_ERROR_NONE) {
             AIM_LOG_ERROR("Port tx %u failed to disable %s\n", port->port_no, indigo_strerror(rv));
+            return -1;
         }
+    }
+
+    return 0;
+}
+
+/* Unregister timer and free rx data */
+int
+lldpa_disable_rx(lldpa_port_t *port)
+{
+    indigo_error_t rv;
+
+    if (!port) {
+        return 0;
     }
 
     if (port->rx_pkt.interval_ms) {
         if((rv = lldpa_port_disable(lldpdu_timeout_rx, &port->rx_pkt, port))
                != INDIGO_ERROR_NONE) {
             AIM_LOG_ERROR("Port rx %u failed to disable %s\n", port->port_no, indigo_strerror(rv));
+            return -1;
         }
     }
 
+    return 0;
 }
 
 static void
@@ -611,8 +627,10 @@ lldpa_system_finish()
 
     for (i=0; i < lldpa_port_sys.lldpa_total_of_ports; i++) {
         port = lldpa_find_port(i);
-        if (port)
-            lldpa_disable_tx_rx(port);
+        if (port) {
+            lldpa_disable_tx(port);
+            lldpa_disable_rx(port);
+        }
         else
             AIM_LOG_INTERNAL("Port %d not existing", i);
     }

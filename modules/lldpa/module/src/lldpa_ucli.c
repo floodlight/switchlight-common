@@ -221,6 +221,47 @@ lldpa_ucli_ucli__show_lldpa_portdata__(ucli_context_t* uc)
     return UCLI_STATUS_OK;
 }
 
+
+static ucli_status_t
+lldpa_ucli_ucli__delete_lldpa_portdata__(ucli_context_t* uc)
+{
+    lldpa_port_t *port = NULL;
+    uint32_t port_no = 0;
+    uint32_t rx = 0;
+    int ret;
+
+    UCLI_COMMAND_INFO(uc,
+                      "delete_data", -1,
+                      "$summary#Delete the data per port: 0: TX, 1: RX."
+                      "$args#[Port] [0 | 1]");
+
+    if (uc->pargs->count == 2) {
+        UCLI_ARGPARSE_OR_RETURN(uc, "ii", &port_no, &rx);
+    } else {
+        ucli_printf(uc, "Error: need 2 arguments: Port_number 0 (TX) | 1 (RX)\n");
+        return UCLI_STATUS_OK;
+    }
+
+    ucli_printf(uc, "Port %d, delete %s data\n", port_no, rx ? "rx" : "tx");
+    port = lldpa_find_port(port_no);
+    if (!port) {
+        ucli_printf(uc, "Invalid port number %d\n", port_no);
+        return UCLI_STATUS_OK;
+    }
+
+    if (rx) {
+        ret = lldpa_disable_rx(port);
+    } else {
+        ret = lldpa_disable_tx(port);
+    }
+
+    if (ret) {
+        ucli_printf(uc, "Fail to delete data, see syslog for details\n");
+    }
+
+    return UCLI_STATUS_OK;
+}
+
 static ucli_status_t
 lldpa_ucli_ucli__set_pkt_hexdump__(ucli_context_t* uc)
 {
@@ -273,6 +314,7 @@ static ucli_command_handler_f lldpa_ucli_ucli_handlers__[] =
     lldpa_ucli_ucli__show_lldpa_portcounters__,
     lldpa_ucli_ucli__clear_lldpa_portcounters__,
     lldpa_ucli_ucli__show_lldpa_portdata__,
+    lldpa_ucli_ucli__delete_lldpa_portdata__,
     lldpa_ucli_ucli__set_pkt_hexdump__,
     lldpa_ucli_ucli__config__,
     NULL
