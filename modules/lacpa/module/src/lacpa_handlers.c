@@ -21,9 +21,9 @@
  * Implementation of Lacp Agent Handlers.
  *
  * This file contains the handlers for listening to port packets and
- * controllers messages. 
+ * controllers messages.
  *
- * Api support for sending Async msg's to the controller is also included. 
+ * Api support for sending Async msg's to the controller is also included.
  */
 
 #include "lacpa_int.h"
@@ -39,7 +39,7 @@ lacpa_update_controller (lacpa_port_t *port)
 {
     of_version_t                    version;
     of_bsn_lacp_convergence_notif_t *obj;
-    
+
     if (!port) return;
 
     AIM_LOG_TRACE("Send %s msg to Controller for port: %d", port->is_converged?
@@ -47,28 +47,28 @@ lacpa_update_controller (lacpa_port_t *port)
 
     if (indigo_cxn_get_async_version(&version) < 0) {
 
-        /* 
-         * No controllers connected 
+        /*
+         * No controllers connected
          */
         AIM_LOG_TRACE("Error sending convergence status. No controller "
                       "connected");
         return;
     }
-        
+
     obj = of_bsn_lacp_convergence_notif_new(version);
     AIM_TRUE_OR_DIE(obj != NULL);
-    
-    of_bsn_lacp_convergence_notif_convergence_status_set(obj, 
-                                                         !port->is_converged); 
+
+    of_bsn_lacp_convergence_notif_convergence_status_set(obj,
+                                                         !port->is_converged);
 
     /*
      * Set Actor params in the msg
      */
     of_bsn_lacp_convergence_notif_port_no_set(obj, port->actor.port_no);
-    of_bsn_lacp_convergence_notif_actor_sys_priority_set(obj, 
-                                                  port->actor.sys_priority);    
+    of_bsn_lacp_convergence_notif_actor_sys_priority_set(obj,
+                                                  port->actor.sys_priority);
     of_bsn_lacp_convergence_notif_actor_sys_mac_set(obj, port->actor.sys_mac);
-    of_bsn_lacp_convergence_notif_actor_port_priority_set(obj, 
+    of_bsn_lacp_convergence_notif_actor_port_priority_set(obj,
                                                   port->actor.port_priority);
     of_bsn_lacp_convergence_notif_actor_port_num_set(obj, port->actor.port_num);
     of_bsn_lacp_convergence_notif_actor_key_set(obj, port->actor.key);
@@ -78,19 +78,19 @@ lacpa_update_controller (lacpa_port_t *port)
      */
     of_bsn_lacp_convergence_notif_partner_sys_priority_set(obj,
                                                   port->partner.sys_priority);
-    of_bsn_lacp_convergence_notif_partner_sys_mac_set(obj, 
+    of_bsn_lacp_convergence_notif_partner_sys_mac_set(obj,
                                                   port->partner.sys_mac);
     of_bsn_lacp_convergence_notif_partner_port_priority_set(obj,
-                                                  port->partner.port_priority);         
-    of_bsn_lacp_convergence_notif_partner_port_num_set(obj, 
+                                                  port->partner.port_priority);
+    of_bsn_lacp_convergence_notif_partner_port_num_set(obj,
                                                   port->partner.port_num);
     of_bsn_lacp_convergence_notif_partner_key_set(obj, port->partner.key);
-        
+
     /*
-     * Send convergence status to the controller 
+     * Send convergence status to the controller
      */
     indigo_cxn_send_async_message(obj);
-    debug_counter_inc(&port->debug_info.lacp_convergence_notif);     
+    debug_counter_inc(&port->debug_info.lacp_convergence_notif);
 }
 
 /*
@@ -105,9 +105,9 @@ lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets)
     of_list_action_t   *list;
     of_action_output_t *action;
     indigo_error_t     rv;
-    
+
     if (!port || !octets) return;
-    
+
     obj = of_packet_out_new(OF_VERSION_1_3);
     AIM_TRUE_OR_DIE(obj != NULL);
 
@@ -116,7 +116,7 @@ lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets)
 
     action = of_action_output_new(OF_VERSION_1_3);
     AIM_TRUE_OR_DIE(action != NULL);
-    
+
     of_action_output_port_set(action, port->actor.port_no);
     of_list_append(list, action);
     of_object_delete(action);
@@ -125,17 +125,17 @@ lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets)
     of_object_delete(list);
 
     if (of_packet_out_data_set(obj, octets) < 0) {
-        AIM_LOG_ERROR("Failed to set data on packet out");
+        AIM_LOG_INTERNAL("Failed to set data on packet out");
         of_packet_out_delete(obj);
         return;
     }
 
     rv = indigo_fwd_packet_out(obj);
     if (rv < 0) {
-        AIM_LOG_ERROR("Failed to send packet out the port: %d, reason: %s", 
-                      port->actor.port_no, indigo_strerror(rv));
+        AIM_LOG_INTERNAL("Failed to send packet out the port: %d, reason: %s",
+                         port->actor.port_no, indigo_strerror(rv));
     } else {
-        AIM_LOG_TRACE("Successfully sent packet out the port: %d", 
+        AIM_LOG_TRACE("Successfully sent packet out the port: %d",
                       port->actor.port_no);
         debug_counter_inc(&port->debug_info.lacp_port_out_packets);
         debug_counter_inc(&lacpa_system.debug_info.lacp_system_out_packets);
@@ -145,7 +145,7 @@ lacpa_send_packet_out (lacpa_port_t *port, of_octets_t *octets)
 }
 
 /*
- * lacpa_packet_in_handler 
+ * lacpa_packet_in_handler
  *
  * API for handling incoming port packets
  */
@@ -164,7 +164,7 @@ lacpa_packet_in_handler (of_packet_in_t *packet_in)
 
     LACPA_MEMSET(&pdu, 0, sizeof(lacpa_pdu_t));
 
-    of_packet_in_data_get(packet_in, &octets);  
+    of_packet_in_data_get(packet_in, &octets);
 
     /*
      * Identify if this is an LACP Packet
@@ -172,7 +172,7 @@ lacpa_packet_in_handler (of_packet_in_t *packet_in)
     ppe_packet_init(&ppep, octets.data, octets.bytes);
     if (ppe_parse(&ppep) < 0) {
         AIM_LOG_RL_ERROR(&lacpa_pktin_log_limiter, os_time_monotonic(),
-                         "Packet_in parsing failed."); 
+                         "Packet_in parsing failed.");
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
@@ -180,25 +180,25 @@ lacpa_packet_in_handler (of_packet_in_t *packet_in)
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
-    debug_counter_inc(&lacpa_system.debug_info.lacp_system_in_packets); 
+    debug_counter_inc(&lacpa_system.debug_info.lacp_system_in_packets);
 
     /*
      * Identify the recv port and see if it has LACP agent running
-     */ 
+     */
     if (packet_in->version <= OF_VERSION_1_1) {
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     } else {
         if (of_packet_in_match_get(packet_in, &match) < 0) {
-            AIM_LOG_ERROR("match get failed");          
+            AIM_LOG_INTERNAL("match get failed");
             return INDIGO_CORE_LISTENER_RESULT_PASS;
         }
-        port_no = match.fields.in_port; 
+        port_no = match.fields.in_port;
     }
 
     AIM_LOG_TRACE("LACPDU Received on port: %d", port_no);
     port = lacpa_find_port(port_no);
     if (!port) return INDIGO_CORE_LISTENER_RESULT_PASS;
- 
+
     if (!port->lacp_enabled) {
         AIM_LOG_TRACE("LACPDU-Rx-FAILED - Agent is Disabled on port: %d",
                       port_no);
@@ -213,7 +213,8 @@ lacpa_packet_in_handler (of_packet_in_t *packet_in)
      * Retrieve the information from the LACP packet
      */
     if (!lacpa_parse_pdu(&ppep, &pdu)) {
-        AIM_LOG_ERROR("Packet parsing failed on port: %d", port_no);
+        AIM_LOG_RL_WARN(&lacpa_parse_log_limiter, os_time_monotonic(),
+                        "Packet parsing failed on port: %d", port_no);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
@@ -264,7 +265,7 @@ lacpa_set_port_param_handle (indigo_cxn_id_t cxn,
     lacpa_init_port(&info, enabled);
 
     /*
-     * Set up reply 
+     * Set up reply
      */
     reply = of_bsn_set_lacp_reply_new(obj->version);
     AIM_TRUE_OR_DIE(reply != NULL);
@@ -274,7 +275,7 @@ lacpa_set_port_param_handle (indigo_cxn_id_t cxn,
     of_bsn_set_lacp_reply_status_set(reply, status);
     of_bsn_set_lacp_reply_port_no_set(reply, info.port_no);
 
-    /* 
+    /*
      * Send reply back to the Controller
      */
     indigo_cxn_send_controller_message(cxn, reply);
@@ -305,7 +306,7 @@ lacpa_get_port_stats_handle (indigo_cxn_id_t cxn,
                   of_object_id_str[obj->object_id], xid);
 
     /*
-     * Set up reply 
+     * Set up reply
      */
     reply = of_bsn_lacp_stats_reply_new(obj->version);
     AIM_TRUE_OR_DIE(reply != NULL);
@@ -317,10 +318,10 @@ lacpa_get_port_stats_handle (indigo_cxn_id_t cxn,
     AIM_TRUE_OR_DIE(entry != NULL);
 
     /*
-     * Loop over all the port's in the system with lacp enabled and 
+     * Loop over all the port's in the system with lacp enabled and
      * send their stats info to the controller in a packed msg
      */
-    for (i = 0; i <= PHY_PORT_COUNT; i++) {
+    for (i = 0; i <= LACPA_CONFIG_OF_PORTS_MAX; i++) {
         port = lacpa_find_port(i);
 
         if (port && port->lacp_enabled) {
@@ -360,12 +361,12 @@ lacpa_get_port_stats_handle (indigo_cxn_id_t cxn,
              * Append the entry obj created in the list of enteries
              */
             if (of_list_append(&entries, entry) < 0) {
-                
-                /* 
+
+                /*
                  * This entry didn't fit, send out the current message and
-                 * allocate a new one. 
+                 * allocate a new one.
                  */
-                of_bsn_lacp_stats_reply_flags_set(reply, 
+                of_bsn_lacp_stats_reply_flags_set(reply,
                                              OF_STATS_REPLY_FLAG_REPLY_MORE);
                 indigo_cxn_send_controller_message(cxn, reply);
 
@@ -375,7 +376,7 @@ lacpa_get_port_stats_handle (indigo_cxn_id_t cxn,
                 of_bsn_lacp_stats_reply_xid_set(reply, xid);
                 of_bsn_lacp_stats_reply_entries_bind(reply, &entries);
 
-                if (of_list_append(&entries, entry) < 0) {    
+                if (of_list_append(&entries, entry) < 0) {
                     AIM_DIE("Unexpected failure appending single bsn_lacp"
                             "stats entry");
                 }
@@ -385,7 +386,7 @@ lacpa_get_port_stats_handle (indigo_cxn_id_t cxn,
 
     of_object_delete(entry);
 
-    /* 
+    /*
      * Send reply back to the Controller
      */
     indigo_cxn_send_controller_message(cxn, reply);
@@ -402,7 +403,7 @@ lacpa_controller_msg_handler (indigo_cxn_id_t cxn, of_object_t *obj)
     indigo_core_listener_result_t result = INDIGO_CORE_LISTENER_RESULT_PASS;
 
     if (!lacpa_is_initialized()) {
-        AIM_LOG_ERROR("LACPA module uninitalized");
+        AIM_LOG_INTERNAL("LACPA module uninitalized");
         return result;
     }
 

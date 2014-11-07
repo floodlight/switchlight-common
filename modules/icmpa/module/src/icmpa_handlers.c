@@ -30,7 +30,7 @@ bool icmp_initialized = false;
 aim_ratelimiter_t icmp_pktin_log_limiter;
 
 icmpa_packet_counter_t pkt_counters;
-icmpa_typecode_packet_counter_t port_pkt_counters[MAX_PORTS+1];
+icmpa_typecode_packet_counter_t port_pkt_counters[ICMPA_CONFIG_OF_PORTS_MAX+1];
 
 /*
  * is_ephemeral
@@ -78,7 +78,7 @@ icmpa_send_packet_out (of_octets_t *octets)
 
     rv = of_packet_out_data_set(obj, octets);
     if (rv < 0) {
-        AIM_LOG_ERROR("ICMPA: Failed to set data on packet out");
+        AIM_LOG_INTERNAL("ICMPA: Failed to set data on packet out");
         of_packet_out_delete(obj);
         return rv;
     }
@@ -115,7 +115,7 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     } else {
         if (of_packet_in_match_get(packet_in, &match) < 0) {
-            AIM_LOG_ERROR("ICMPA: match get failed");
+            AIM_LOG_INTERNAL("ICMPA: match get failed");
             debug_counter_inc(&pkt_counters.icmp_internal_errors);
             return INDIGO_CORE_LISTENER_RESULT_PASS;
         }
@@ -127,8 +127,9 @@ icmpa_packet_in_handler (of_packet_in_t *packet_in)
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
 
-    if (port_no > MAX_PORTS) {
-        AIM_LOG_ERROR("ICMPA: Port No: %d Out of Range %d", port_no, MAX_PORTS);
+    if (port_no > ICMPA_CONFIG_OF_PORTS_MAX) {
+        AIM_LOG_INTERNAL("ICMPA: Port No: %d Out of Range %d",
+                         port_no, ICMPA_CONFIG_OF_PORTS_MAX);
         debug_counter_inc(&pkt_counters.icmp_internal_errors);
         return INDIGO_CORE_LISTENER_RESULT_PASS;
     }
@@ -257,7 +258,7 @@ icmpa_init (void)
                            "Internal errors in icmpa");
 
     ICMPA_MEMSET(&port_pkt_counters[0], 0,
-                 sizeof(icmpa_typecode_packet_counter_t) * (MAX_PORTS+1));
+       sizeof(icmpa_typecode_packet_counter_t) * (ICMPA_CONFIG_OF_PORTS_MAX+1));
     aim_ratelimiter_init(&icmp_pktin_log_limiter, 1000*1000, 5, NULL);
 
     /*
@@ -293,7 +294,7 @@ icmpa_finish (void)
     debug_counter_unregister(&pkt_counters.icmp_internal_errors);
 
     ICMPA_MEMSET(&port_pkt_counters[0], 0,
-                 sizeof(icmpa_typecode_packet_counter_t) * (MAX_PORTS+1));
+       sizeof(icmpa_typecode_packet_counter_t) * (ICMPA_CONFIG_OF_PORTS_MAX+1));
 
     /*
      * Unregister listerner for packet_in

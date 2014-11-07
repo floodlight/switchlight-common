@@ -1,0 +1,34 @@
+###############################################################################
+#
+# slshared Autogeneration Definitions.
+#
+###############################################################################
+
+cdefs: &cdefs
+- SLSHARED_CONFIG_OF_PORT_MAX:
+    doc: "Maximum OF port number range for all agents."
+    default: 512
+- SLSHARED_CONFIG_ETHERTYPE_DOT1Q:
+    doc: "Ether type for Dot1q header"
+    default: 0x8100
+- SLSHARED_CONFIG_SYSTEM_VLAN:
+    doc: "System vlan"
+    default: 4094
+- SLSHARED_CONFIG_MAX_MTU_SIZE:
+    doc: "Maximum size of L2 frame"
+    default: 1500
+- SLSHARED_CONFIG_DOT1Q_HEADER_SIZE:
+    doc: "Size of Dot1q header"
+    default: 18
+- SLSHARED_CONFIG_IPV4_HEADER_SIZE:
+    doc: "Size of IPv4 header"
+    default: 20
+- SLSHARED_CONFIG_UDP_HEADER_SIZE:
+    doc: "Size of udp header"
+    default: 8
+
+definitions:
+  cdefs:
+    SLSHARED_CONFIG_HEADER:
+      defs: *cdefs
+      basename: slshared_config

@@ -39,7 +39,18 @@ cdefs: &cdefs
 - DHCPRA_CONFIG_INCLUDE_UCLI:
     doc: "Include generic uCli support."
     default: 0
-
+- DHCPRA_CONFIG_OF_PORTS_MAX:
+    doc: "Maximum number of OF ports."
+    default: SLSHARED_CONFIG_OF_PORT_MAX
+- DHCPRA_CONFIG_SYSTEM_VLAN:
+    doc: "System Vlan."
+    default: SLSHARED_CONFIG_SYSTEM_VLAN
+- DHCPRA_CONFIG_ETHERTYPE_DOT1Q:
+    doc: "Ethertype for Dot1q header."
+    default: SLSHARED_CONFIG_ETHERTYPE_DOT1Q
+- DHCPRA_CONFIG_DOT1Q_HEADER_SIZE:
+    doc: "Size of Dot1q header."
+    default: SLSHARED_CONFIG_DOT1Q_HEADER_SIZE
 
 definitions:
   cdefs:

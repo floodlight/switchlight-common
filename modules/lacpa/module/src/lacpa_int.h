@@ -39,8 +39,6 @@
                                              //802.3ad-2000, Max LACPDU size
                                              //is 124 Bytes.
 
-#define PHY_PORT_COUNT                  1024
-
 #define DEFAULT_LACP_VERSION            1
 
 #define DEFAULT_ACTOR_INFO              0x01
@@ -120,6 +118,7 @@
     (_state & LACPA_STATE_EXPIRED)
 
 extern aim_ratelimiter_t lacpa_pktin_log_limiter;
+extern aim_ratelimiter_t lacpa_parse_log_limiter;
 
 /******************************************************************************
  *
@@ -151,7 +150,7 @@ typedef struct lacpa_port_debug_s { /* lacpa_port_debug */
     debug_counter_t  lacp_convergence_notif;
     char             lacp_pktin_counter_name_buf[DEBUG_COUNTER_NAME_SIZE];
     char             lacp_pktout_counter_name_buf[DEBUG_COUNTER_NAME_SIZE];
-    char             lacp_convergence_counter_name_buf[DEBUG_COUNTER_NAME_SIZE]; 
+    char             lacp_convergence_counter_name_buf[DEBUG_COUNTER_NAME_SIZE];
 } lacpa_port_debug_t;
 
 typedef struct lacpa_port_s { /* lacpa_port */
@@ -160,7 +159,7 @@ typedef struct lacpa_port_s { /* lacpa_port */
     lacpa_machine_t    lacp_state;
     bool               lacp_enabled;
     bool               is_converged;
-    bool               churn_detection_running;    
+    bool               churn_detection_running;
     lacpa_error_t      error;
     lacpa_port_debug_t debug_info;
 } lacpa_port_t;
@@ -177,7 +176,6 @@ typedef struct lacpa_system_debug_s { /* lacpa_system_debug */
 } lacpa_system_debug_t;
 
 typedef struct lacpa_system_s { /* lacpa_system */
-    uint32_t             lacp_active_port_count;
     lacpa_system_debug_t debug_info;
     lacpa_port_t         *ports;
 } lacpa_system_t;

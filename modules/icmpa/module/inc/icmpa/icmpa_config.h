@@ -36,6 +36,8 @@
 #include <icmpa_custom_config.h>
 #endif
 
+#include <slshared/slshared_config.h>
+
 /* <auto.start.cdefs(ICMPA_CONFIG_HEADER).header> */
 #include <AIM/aim.h>
 /**
@@ -106,6 +108,46 @@
 
 #ifndef ICMPA_CONFIG_INCLUDE_UCLI
 #define ICMPA_CONFIG_INCLUDE_UCLI 1
+#endif
+
+/**
+ * ICMPA_CONFIG_OF_PORTS_MAX
+ *
+ * Maximum number of OF ports. */
+
+
+#ifndef ICMPA_CONFIG_OF_PORTS_MAX
+#define ICMPA_CONFIG_OF_PORTS_MAX SLSHARED_CONFIG_OF_PORT_MAX
+#endif
+
+/**
+ * ICMPA_CONFIG_SYSTEM_VLAN
+ *
+ * System Vlan. */
+
+
+#ifndef ICMPA_CONFIG_SYSTEM_VLAN
+#define ICMPA_CONFIG_SYSTEM_VLAN SLSHARED_CONFIG_SYSTEM_VLAN
+#endif
+
+/**
+ * ICMPA_CONFIG_ETHERTYPE_DOT1Q
+ *
+ * Ethertype for dot1q header. */
+
+
+#ifndef ICMPA_CONFIG_ETHERTYPE_DOT1Q
+#define ICMPA_CONFIG_ETHERTYPE_DOT1Q SLSHARED_CONFIG_ETHERTYPE_DOT1Q
+#endif
+
+/**
+ * ICMPA_CONFIG_IPV4_HEADER_SIZE
+ *
+ * Size of IPv4 header */
+
+
+#ifndef ICMPA_CONFIG_IPV4_HEADER_SIZE
+#define ICMPA_CONFIG_IPV4_HEADER_SIZE SLSHARED_CONFIG_IPV4_HEADER_SIZE
 #endif
 
 

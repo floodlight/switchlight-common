@@ -39,6 +39,9 @@ cdefs: &cdefs
 - LLDPA_CONFIG_INCLUDE_UCLI:
     doc: "Include generic uCli support."
     default: 0
+- LLDPA_CONFIG_OF_PORTS_MAX:
+    doc: "Maximum number of OF ports."
+    default: SLSHARED_CONFIG_OF_PORT_MAX
 
 definitions:
   cdefs:

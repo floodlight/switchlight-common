@@ -38,7 +38,7 @@ lacpa_port_t *port1, *port2;
 static ind_soc_config_t soc_cfg;
 
 indigo_error_t
-lacp_create_send_packet_in (of_port_no_t in_port, of_octets_t *of_octets) 
+lacp_create_send_packet_in (of_port_no_t in_port, of_octets_t *of_octets)
 {
     of_match_t     match;
     of_packet_in_t *of_packet_in;
@@ -98,20 +98,37 @@ indigo_cxn_get_async_version (of_version_t *version)
     return INDIGO_ERROR_NONE;
 }
 
+void
+indigo_core_gentable_register(
+    const of_table_name_t name,
+    const indigo_core_gentable_ops_t *ops,
+    void *table_priv,
+    uint32_t max_size,
+    uint32_t buckets_size,
+    indigo_core_gentable_t **gentable)
+{
+    *gentable = NULL;
+}
+
+void
+indigo_core_gentable_unregister(indigo_core_gentable_t *gentable)
+{
+}
+
 indigo_error_t
 indigo_fwd_packet_out(of_packet_out_t *of_packet_out)
 {
     of_port_no_t     port_no = 0;
     of_octets_t      of_octets;
     of_list_action_t action;
-    of_action_t      act;
+    of_object_t      act;
     int              rv;
 
     if (!of_packet_out) return INDIGO_ERROR_NONE;
 
     of_packet_out_actions_bind(of_packet_out, &action);
     OF_LIST_ACTION_ITER(&action, &act, rv) {
-        of_action_output_port_get(&act.output, &port_no);
+        of_action_output_port_get(&act, &port_no);
     }
 
     of_packet_out_data_get(of_packet_out, &of_octets);
@@ -173,13 +190,13 @@ aim_main(int argc, char* argv[])
      */
     info2.sys_priority = 25000;
     info2.key = 0xf;
-    printf("Resending Port init() msg\n"); 
+    printf("Resending Port init() msg\n");
     lacpa_init_port(&info2, true);
 
     assert(port1->is_converged == true);
     assert(port2->is_converged == true);
-   
-    lacpa_finish(); 
+
+    lacpa_finish();
     return 0;
 }
 

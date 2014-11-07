@@ -40,7 +40,7 @@ lacpa_clear_port_counters__(ucli_context_t* uc, uint32_t port_no)
     if (!port->lacp_enabled) return;
 
     debug_counter_reset(&port->debug_info.lacp_port_in_packets);
-    debug_counter_reset(&port->debug_info.lacp_port_out_packets);;    
+    debug_counter_reset(&port->debug_info.lacp_port_out_packets);;
     debug_counter_reset(&port->debug_info.lacp_convergence_notif);
 }
 
@@ -61,13 +61,13 @@ lacpa_ucli_ucli__clear_lacp_counters__(ucli_context_t* uc)
         lacpa_clear_port_counters__(uc, port);
     } else {
         lacpa_clear_system_counters();
-     
-        for (port = 0; port <= PHY_PORT_COUNT; port++) {
+
+        for (port = 0; port <= LACPA_CONFIG_OF_PORTS_MAX; port++) {
             lacpa_clear_port_counters__(uc, port);
         }
     }
 
-    return UCLI_STATUS_OK; 
+    return UCLI_STATUS_OK;
 }
 
 static ucli_status_t
@@ -81,7 +81,7 @@ lacpa_ucli_ucli__show_lacp_counters__(ucli_context_t* uc)
 
     ucli_printf(uc, "*************DUMPING SYSTEM COUNTERS*************\n");
     ucli_printf(uc, "TOTAL PACKETS RECV'D    : %" PRId64 "\n", debug_counter_get(
-                &lacpa_system.debug_info.lacp_total_in_packets)); 
+                &lacpa_system.debug_info.lacp_total_in_packets));
     ucli_printf(uc, "LACPDU's RECV'D         : %" PRId64 "\n", debug_counter_get(
                 &lacpa_system.debug_info.lacp_system_in_packets));
     ucli_printf(uc, "LACPDU's SENT           : %" PRId64 "\n", debug_counter_get(
@@ -89,9 +89,9 @@ lacpa_ucli_ucli__show_lacp_counters__(ucli_context_t* uc)
     ucli_printf(uc, "SET REQUESTS RECV'D     : %" PRId64 "\n", debug_counter_get(
                 &lacpa_system.debug_info.lacp_controller_set_requests));
     ucli_printf(uc, "STATS REQUESTS RECV'D   : %" PRId64 "\n", debug_counter_get(
-                &lacpa_system.debug_info.lacp_controller_stats_requests));             
+                &lacpa_system.debug_info.lacp_controller_stats_requests));
     ucli_printf(uc, "*************END DUMPING INFO********************\n");
- 
+
     return UCLI_STATUS_OK;
 }
 
@@ -165,7 +165,7 @@ lacpa_ucli_ucli__show_lacp_portstate__(ucli_context_t* uc)
         lacpa_show_portstate__(uc, port);
     } else {
 
-        for (port = 0; port <= PHY_PORT_COUNT; port++) {
+        for (port = 0; port <= LACPA_CONFIG_OF_PORTS_MAX; port++) {
             lacpa_show_portstate__(uc, port);
         }
     }
@@ -176,7 +176,7 @@ lacpa_ucli_ucli__show_lacp_portstate__(ucli_context_t* uc)
 static void
 lacpa_show_portstats__(ucli_context_t* uc, uint32_t port_no)
 {
-    lacpa_port_t  *port = NULL; 
+    lacpa_port_t  *port = NULL;
 
     /*
      * Find any port corresponding to the info received
@@ -190,7 +190,7 @@ lacpa_show_portstats__(ucli_context_t* uc, uint32_t port_no)
     ucli_printf(uc, "\nACTOR PORT INFO\n");
     ucli_printf(uc, "ACTOR OF_PORT_NO      : %d\n", port->actor.port_no);
     ucli_printf(uc, "ACTOR SYS PRIORITY    : %d\n", port->actor.sys_priority);
-    ucli_printf(uc, "ACTOR SYS MAC         : %{mac}\n", 
+    ucli_printf(uc, "ACTOR SYS MAC         : %{mac}\n",
                 port->actor.sys_mac.addr);
     ucli_printf(uc, "ACTOR PORT PRIORITY   : %d\n", port->actor.port_priority);
     ucli_printf(uc, "ACTOR PORT NUM        : %d\n", port->actor.port_num);
@@ -217,21 +217,21 @@ lacpa_show_portstats__(ucli_context_t* uc, uint32_t port_no)
     ucli_printf(uc, "LACP ERROR            : %{lacpa_error}\n", port->error);
     ucli_printf(uc, "LACP TANSMIT REASON   : %{lacpa_transmit}\n",
                 port->debug_info.ntt_reason);
-    ucli_printf(uc, "\nPACKET INFO\n"); 
+    ucli_printf(uc, "\nPACKET INFO\n");
     ucli_printf(uc, "LACP PACKET IN        : %" PRId64 "\n", debug_counter_get(
                 &port->debug_info.lacp_port_in_packets));
     ucli_printf(uc, "LACP PACKET OUT       : %" PRId64 "\n", debug_counter_get(
                 &port->debug_info.lacp_port_out_packets));
     ucli_printf(uc, "CONVERGENCE NOTIF     : %" PRId64 "\n", debug_counter_get(
                 &port->debug_info.lacp_convergence_notif));
-    ucli_printf(uc, "\n*************END DUMPING INFO**************\n");     
+    ucli_printf(uc, "\n*************END DUMPING INFO**************\n");
 }
 
 static ucli_status_t
 lacpa_ucli_ucli__show_lacp_portstats__(ucli_context_t* uc)
 {
     uint32_t port = 0;
-    
+
     UCLI_COMMAND_INFO(uc,
                       "stats", -1,
                       "$summary#Display the port lacp stats."
@@ -243,8 +243,8 @@ lacpa_ucli_ucli__show_lacp_portstats__(ucli_context_t* uc)
         UCLI_ARGPARSE_OR_RETURN(uc, "i", &port);
         lacpa_show_portstats__(uc, port);
     } else {
-         
-        for (port = 0; port <= PHY_PORT_COUNT; port++) {
+
+        for (port = 0; port <= LACPA_CONFIG_OF_PORTS_MAX; port++) {
             lacpa_show_portstats__(uc, port);
         }
     }
@@ -265,7 +265,7 @@ lacpa_ucli_ucli__config__(ucli_context_t* uc)
  * source file.
  *
  *****************************************************************************/
-static ucli_command_handler_f lacpa_ucli_ucli_handlers__[] = 
+static ucli_command_handler_f lacpa_ucli_ucli_handlers__[] =
 {
     lacpa_ucli_ucli__clear_lacp_counters__,
     lacpa_ucli_ucli__show_lacp_counters__,

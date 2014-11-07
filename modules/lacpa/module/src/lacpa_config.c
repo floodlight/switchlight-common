@@ -59,6 +59,11 @@ lacpa_config_settings_t lacpa_config_settings[] =
 #else
 { LACPA_CONFIG_INCLUDE_UCLI(__lacpa_config_STRINGIFY_NAME), "__undefined__" },
 #endif
+#ifdef LACPA_CONFIG_OF_PORTS_MAX
+    { __lacpa_config_STRINGIFY_NAME(LACPA_CONFIG_OF_PORTS_MAX), __lacpa_config_STRINGIFY_VALUE(LACPA_CONFIG_OF_PORTS_MAX) },
+#else
+{ LACPA_CONFIG_OF_PORTS_MAX(__lacpa_config_STRINGIFY_NAME), "__undefined__" },
+#endif
     { NULL, NULL }
 };
 #undef __lacpa_config_STRINGIFY_VALUE

@@ -48,10 +48,7 @@
 #define ICMP_PKT_BUF_SIZE   74 //18 + 20 + 8 + 28
 #define ICMP_HEADER_SIZE    8
 #define ICMP_DATA_LEN       28
-#define IP_HEADER_SIZE      20
 #define IP_TOTAL_LEN        56 //20 + 8 + 28
-
-#define ETHERTYPE_DOT1Q     0x8100
 
 /*
  * Supported ICMP TYPES
@@ -60,8 +57,6 @@
 #define ICMP_DEST_UNREACHABLE   3   /* Destination Unreachable  */
 #define ICMP_ECHO_REQUEST       8   /* Echo Request             */
 #define ICMP_TIME_EXCEEDED      11  /* Time Exceeded            */
-
-#define MAX_PORTS               256
 
 extern aim_ratelimiter_t icmp_pktin_log_limiter;
 
@@ -80,7 +75,7 @@ typedef struct icmpa_typecode_packet_counter_s { /* icmpa_typecode_packet_counte
 } icmpa_typecode_packet_counter_t;
 
 extern icmpa_packet_counter_t pkt_counters;
-extern icmpa_typecode_packet_counter_t port_pkt_counters[MAX_PORTS+1];
+extern icmpa_typecode_packet_counter_t port_pkt_counters[ICMPA_CONFIG_OF_PORTS_MAX+1];
 
 /******************************************************************************
  *

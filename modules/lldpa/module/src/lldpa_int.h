@@ -57,8 +57,6 @@ typedef struct lldpa_port_s {
 
 } lldpa_port_t;
 
-/* Port 0..96 */
-#define MAX_LLDPA_PORT 96
 typedef struct lldpa_system_s {
     uint32_t      lldpa_total_of_ports;
 
@@ -66,12 +64,14 @@ typedef struct lldpa_system_s {
     uint64_t      total_pkt_in_cnt;
     uint64_t      total_msg_in_cnt;
     uint64_t      total_pkt_exp_cnt;
-    lldpa_port_t  lldpa_ports[MAX_LLDPA_PORT+1];
+    lldpa_port_t  lldpa_ports[LLDPA_CONFIG_OF_PORTS_MAX+1];
 } lldpa_system_t;
 
 indigo_core_listener_result_t lldpa_handle_msg (indigo_cxn_id_t cxn_id, of_object_t *msg);
 indigo_core_listener_result_t lldpa_handle_pkt (of_packet_in_t *packet_in);
 lldpa_port_t *lldpa_find_port(of_port_no_t port_no);
+int lldpa_disable_tx(lldpa_port_t *port);
+int lldpa_disable_rx(lldpa_port_t *port);
 
 enum {
     LLDPA_DUMP_DISABLE_ALL_PORTS = -2,

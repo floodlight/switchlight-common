@@ -20,8 +20,10 @@
 include ../../../init.mk
 MODULE := lldpa_utest
 TEST_MODULE := lldpa
-DEPENDMODULES := PPE IOF AIM loci OFStateManager SocketManager indigo cjson BigList BigHash murmur OFConnectionManager Configuration \
-                 debug_counter timer_wheel
+DEPENDMODULES := PPE IOF AIM loci OFStateManager SocketManager indigo cjson BigList BigHash \
+		 murmur OFConnectionManager Configuration debug_counter timer_wheel minimatch \
+		 OS BigRing
+DEPENDMODULE_HEADERS := slshared
 
 #indig
 GLOBAL_CFLAGS += -DAIM_CONFIG_INCLUDE_MODULES_INIT=1

@@ -59,6 +59,26 @@ dhcpra_config_settings_t dhcpra_config_settings[] =
 #else
 { DHCPRA_CONFIG_INCLUDE_UCLI(__dhcpra_config_STRINGIFY_NAME), "__undefined__" },
 #endif
+#ifdef DHCPRA_CONFIG_OF_PORTS_MAX
+    { __dhcpra_config_STRINGIFY_NAME(DHCPRA_CONFIG_OF_PORTS_MAX), __dhcpra_config_STRINGIFY_VALUE(DHCPRA_CONFIG_OF_PORTS_MAX) },
+#else
+{ DHCPRA_CONFIG_OF_PORTS_MAX(__dhcpra_config_STRINGIFY_NAME), "__undefined__" },
+#endif
+#ifdef DHCPRA_CONFIG_SYSTEM_VLAN
+    { __dhcpra_config_STRINGIFY_NAME(DHCPRA_CONFIG_SYSTEM_VLAN), __dhcpra_config_STRINGIFY_VALUE(DHCPRA_CONFIG_SYSTEM_VLAN) },
+#else
+{ DHCPRA_CONFIG_SYSTEM_VLAN(__dhcpra_config_STRINGIFY_NAME), "__undefined__" },
+#endif
+#ifdef DHCPRA_CONFIG_ETHERTYPE_DOT1Q
+    { __dhcpra_config_STRINGIFY_NAME(DHCPRA_CONFIG_ETHERTYPE_DOT1Q), __dhcpra_config_STRINGIFY_VALUE(DHCPRA_CONFIG_ETHERTYPE_DOT1Q) },
+#else
+{ DHCPRA_CONFIG_ETHERTYPE_DOT1Q(__dhcpra_config_STRINGIFY_NAME), "__undefined__" },
+#endif
+#ifdef DHCPRA_CONFIG_DOT1Q_HEADER_SIZE
+    { __dhcpra_config_STRINGIFY_NAME(DHCPRA_CONFIG_DOT1Q_HEADER_SIZE), __dhcpra_config_STRINGIFY_VALUE(DHCPRA_CONFIG_DOT1Q_HEADER_SIZE) },
+#else
+{ DHCPRA_CONFIG_DOT1Q_HEADER_SIZE(__dhcpra_config_STRINGIFY_NAME), "__undefined__" },
+#endif
     { NULL, NULL }
 };
 #undef __dhcpra_config_STRINGIFY_VALUE

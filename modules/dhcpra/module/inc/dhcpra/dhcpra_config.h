@@ -29,6 +29,8 @@
 #ifndef __DHCPRA_CONFIG_H__
 #define __DHCPRA_CONFIG_H__
 
+#include <slshared/slshared_config.h>
+
 #ifdef GLOBAL_INCLUDE_CUSTOM_CONFIG
 #include <global_custom_config.h>
 #endif
@@ -106,6 +108,46 @@
 
 #ifndef DHCPRA_CONFIG_INCLUDE_UCLI
 #define DHCPRA_CONFIG_INCLUDE_UCLI 0
+#endif
+
+/**
+ * DHCPRA_CONFIG_OF_PORTS_MAX
+ *
+ * Maximum number of OF ports. */
+
+
+#ifndef DHCPRA_CONFIG_OF_PORTS_MAX
+#define DHCPRA_CONFIG_OF_PORTS_MAX SLSHARED_CONFIG_OF_PORT_MAX
+#endif
+
+/**
+ * DHCPRA_CONFIG_SYSTEM_VLAN
+ *
+ * System Vlan. */
+
+
+#ifndef DHCPRA_CONFIG_SYSTEM_VLAN
+#define DHCPRA_CONFIG_SYSTEM_VLAN SLSHARED_CONFIG_SYSTEM_VLAN
+#endif
+
+/**
+ * DHCPRA_CONFIG_ETHERTYPE_DOT1Q
+ *
+ * Ethertype for Dot1q header. */
+
+
+#ifndef DHCPRA_CONFIG_ETHERTYPE_DOT1Q
+#define DHCPRA_CONFIG_ETHERTYPE_DOT1Q SLSHARED_CONFIG_ETHERTYPE_DOT1Q
+#endif
+
+/**
+ * DHCPRA_CONFIG_DOT1Q_HEADER_SIZE
+ *
+ * Size of Dot1q header. */
+
+
+#ifndef DHCPRA_CONFIG_DOT1Q_HEADER_SIZE
+#define DHCPRA_CONFIG_DOT1Q_HEADER_SIZE SLSHARED_CONFIG_DOT1Q_HEADER_SIZE
 #endif
 
 
